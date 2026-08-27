@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "data:prepare:places": "tsx scripts/prepare-transit-places.ts",
     "data:prepare:stops": "tsx scripts/prepare-transit-stops.ts",
+    "data:prepare:places": "tsx scripts/prepare-transit-places.ts",
+    "data:prepare:service-profiles": "tsx scripts/prepare-transit-place-service-profiles.ts",
     "inspect:transit-candidates": "tsx scripts/inspect-transit-candidates.ts",
     "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src scripts",
     "test": "vitest run",

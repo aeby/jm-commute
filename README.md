@@ -19,7 +19,7 @@ The current implementation resolves postcode and city inputs to official WGS84 l
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
-Locality-to-stop mapping, timetable routing, stop selection, and visualization are deliberately out of scope.
+Final single-place selection, timetable routing, and visualization are deliberately out of scope.
 
 ## Development
 
@@ -30,6 +30,7 @@ npm run typecheck
 npm run lint
 npm run data:prepare:stops
 npm run data:prepare:places
+npm run data:prepare:service-profiles
 ```
 
 The downloaded source data is stored under `data/raw/` and is not committed to Git. Unit tests use a small local fixture and require no network access.
@@ -44,4 +45,16 @@ Source attribution: **©swisstopo**
 
 Static Swiss public-transport data comes from the GTFS timetable published by opentransportdata.swiss.
 
-For the current milestone, only `stops.txt` is parsed. Timetable routing is not implemented yet.
+Timetable files are currently used only to build fixed-time transit-place service profiles. Timetable routing is not implemented yet.
+
+### Representative timetable scenario
+
+Commute estimates use a fixed representative service date and time:
+
+- Monday, 7 September 2026
+- departure at 08:00
+- transit-place activity measured from 07:00 until 09:00
+
+Local access candidates normally include every transit place within 700 metres of the locality coordinate. When none exists, the ten geographically nearest places are returned as fallback candidates.
+
+Candidate ranking uses all-mode route diversity and service frequency. Railway connectivity is additional metadata and does not exclude or suppress buses, trams, ferries, cableways, or other scheduled public transport.
