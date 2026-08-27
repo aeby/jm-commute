@@ -258,5 +258,9 @@ export const buildRaptorTimetable = async (
     sourceStopIds: denseStopIds.sourceStopIds,
     patterns,
     patternOccurrencesByStop,
+    transfersByStop: Array.from(
+      { length: denseStopIds.sourceStopIds.length },
+      () => new Uint32Array(),
+    ),
   };
 };

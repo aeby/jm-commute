@@ -16,6 +16,8 @@ export interface RaptorRoutingDiagnostics {
   readonly patternsScanned: number;
   readonly patternScansPerRound: readonly number[];
   readonly stopsImproved: number;
+  readonly transferEdgesExamined: number;
+  readonly transferArrivalImprovements: number;
 }
 
 export type RaptorDiagnosticsCallback = (

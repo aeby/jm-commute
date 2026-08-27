@@ -61,6 +61,11 @@ export interface FixedDateGtfsFeed {
   readonly activeTrips: ReadonlyMap<string, ActiveGtfsTrip>;
 }
 
+export interface FixedDateActiveServices {
+  readonly feedInfo: FixedDateFeedInfo;
+  readonly activeServiceIds: ReadonlySet<string>;
+}
+
 function parseWeekdayFlag(value: string, column: string): number {
   if (value === '0') {
     return 0;
@@ -341,10 +346,10 @@ async function loadTrips(
   return { allTripIds, activeTrips };
 }
 
-export async function loadFixedDateGtfsFeed(
+export async function loadFixedDateActiveServices(
   gtfsDirectory: string,
   serviceDate: string,
-): Promise<FixedDateGtfsFeed> {
+): Promise<FixedDateActiveServices> {
   validateGtfsDate(serviceDate, 'Configured service date');
 
   const feedInfo = await loadFeedInfo(gtfsDirectory, serviceDate);
@@ -353,6 +358,16 @@ export async function loadFixedDateGtfsFeed(
     feedInfo,
     serviceDate,
   );
+
+  return { feedInfo, activeServiceIds };
+}
+
+export async function loadFixedDateGtfsFeed(
+  gtfsDirectory: string,
+  serviceDate: string,
+): Promise<FixedDateGtfsFeed> {
+  const { feedInfo, activeServiceIds } =
+    await loadFixedDateActiveServices(gtfsDirectory, serviceDate);
   const routeTypeByRouteId = await loadRouteTypes(gtfsDirectory);
   const { allTripIds, activeTrips } = await loadTrips(
     gtfsDirectory,

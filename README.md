@@ -19,7 +19,7 @@ The current implementation prepares a compact fixed-day timetable and runs multi
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
-Journey reconstruction, explicit platform transfers, locality reachability, job matching, and visualization remain out of scope.
+Journey reconstruction, transfer chaining, locality reachability, job matching, and visualization remain out of scope.
 
 ## Development
 
@@ -50,7 +50,7 @@ Timetable files are used to build fixed-time transit-place service profiles, fix
 
 ### Central configuration
 
-The reference service date, departure time, service-profile window, local-access radius, fallback candidate count, maximum transfers, and minimum transfer time are configured in `src/config.ts`.
+The reference service date, departure time, service-profile window, local-access radius, fallback candidate count, routing limits, and transfer-generation settings are configured in `src/config.ts`.
 
 ### Representative timetable scenario
 
@@ -82,4 +82,21 @@ The router performs a multi-source, one-to-all RAPTOR query against the compact 
 
 All selected origin routing stops are seeded at the configured 08:00 departure time. The result contains the earliest arrival time at every reachable stop, bounded by the requested maximum commute duration.
 
-The initial implementation supports transfers between services sharing the same routing stop. Explicit transfers between different platforms or nearby stops are implemented separately.
+Transfers can connect different dense routing-stop IDs without consuming another vehicle leg. Only one transfer edge is traversed after a vehicle arrival; transfer edges are not chained within a RAPTOR round.
+
+### Transfers
+
+Routing uses explicit GTFS transfer rules and automatically fills missing connections between active sibling platforms belonging to the same parent station.
+
+An optional straight-line transfer generator can connect nearby stops using a configurable walking heuristic. It is disabled by default.
+
+Default virtual-transfer parameters are:
+
+- maximum distance: 500 m
+- walking speed: 4 km/h
+- detour factor: 1.3
+- change penalty: 3 minutes
+
+Virtual transfers are deliberately treated as an approximation rather than authoritative timetable data.
+
+Trip-specific guaranteed transfers, route-specific transfer restrictions, and in-seat continuations are classified during preparation but are not yet modeled by the router.

@@ -56,4 +56,8 @@ export const testTimetable = (
   ),
   patterns,
   patternOccurrencesByStop: buildPatternAdjacency(patterns, stopCount),
+  transfersByStop: Array.from(
+    { length: stopCount },
+    () => new Uint32Array(),
+  ),
 });

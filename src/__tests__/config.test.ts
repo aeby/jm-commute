@@ -49,6 +49,16 @@ describe('PROJECT_CONFIG', () => {
         routing: {
           maxTransfers: 5,
           minTransferTimeSeconds: 120,
+          transfers: {
+            deriveSiblingTransfers: true,
+            virtualTransfers: {
+              enabled: false,
+              maxDistanceMeters: 500,
+              walkingSpeedKmh: 4,
+              detourFactor: 1.3,
+              changePenaltySeconds: 180,
+            },
+          },
         },
       },
     });
@@ -100,6 +110,18 @@ describe('PROJECT_CONFIG', () => {
     expect(productionSource).not.toMatch(/maxTransfers\s*:\s*5/);
     expect(productionSource).not.toMatch(
       /minTransferTimeSeconds\s*:\s*120/,
+    );
+    expect(productionSource).not.toMatch(
+      /deriveSiblingTransfers\s*:\s*true/,
+    );
+    expect(productionSource).not.toMatch(
+      /virtualTransfers\s*:\s*\{[^}]*enabled\s*:\s*false/s,
+    );
+    expect(productionSource).not.toMatch(/maxDistanceMeters\s*:\s*500/);
+    expect(productionSource).not.toMatch(/walkingSpeedKmh\s*:\s*4/);
+    expect(productionSource).not.toMatch(/detourFactor\s*:\s*1\.3/);
+    expect(productionSource).not.toMatch(
+      /changePenaltySeconds\s*:\s*180/,
     );
   });
 });

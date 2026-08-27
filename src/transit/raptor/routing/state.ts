@@ -11,8 +11,16 @@ export const createUnreachedArrivalTimes = (
 
 export interface PatternScanState {
   readonly globalArrivalTimes: Uint32Array;
+  readonly globalBoardingReadyTimes: Uint32Array;
+  readonly bestVehicleArrivalTimes: Uint32Array;
   readonly previousRoundArrivalTimes: Uint32Array;
+  readonly previousRoundTransferApplied: Uint8Array;
   readonly currentRoundArrivalTimes: Uint32Array;
+  readonly currentRoundTransferApplied: Uint8Array;
+  readonly currentRoundVehicleArrivalTimes: Uint32Array;
+  readonly vehicleImprovedStops: number[];
+  readonly vehicleImprovedMembership: Uint8Array;
+  readonly transfersByStop: readonly Uint32Array[];
   readonly nextMarkedStops: number[];
   readonly nextMarkedMembership: Uint8Array;
   readonly roundNumber: number;

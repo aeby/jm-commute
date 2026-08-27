@@ -75,6 +75,7 @@ const snapshot = (timetable: RaptorTimetable): unknown => ({
   adjacency: timetable.patternOccurrencesByStop.map((pairs) =>
     Array.from(pairs),
   ),
+  transfers: timetable.transfersByStop.map((pairs) => Array.from(pairs)),
 });
 
 describe('buildRaptorTimetable', () => {
@@ -99,6 +100,10 @@ describe('buildRaptorTimetable', () => {
     expect(Array.from(timetable.patternOccurrencesByStop[1] ?? [])).toEqual([
       0, 0,
       0, 2,
+    ]);
+    expect(timetable.transfersByStop).toEqual([
+      new Uint32Array(),
+      new Uint32Array(),
     ]);
   });
 

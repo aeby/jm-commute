@@ -22,13 +22,26 @@ const createState = ({
   readonly maxArrivalTime?: number;
 }): PatternScanState => {
   const previousRoundArrivalTimes = createUnreachedArrivalTimes(stopCount);
+  const previousRoundTransferApplied = new Uint8Array(stopCount);
   previousArrivals.forEach(([stop, arrival]) => {
     previousRoundArrivalTimes[stop] = arrival;
   });
   return {
     globalArrivalTimes: createUnreachedArrivalTimes(stopCount),
+    globalBoardingReadyTimes: createUnreachedArrivalTimes(stopCount),
+    bestVehicleArrivalTimes: createUnreachedArrivalTimes(stopCount),
     previousRoundArrivalTimes,
+    previousRoundTransferApplied,
     currentRoundArrivalTimes: createUnreachedArrivalTimes(stopCount),
+    currentRoundTransferApplied: new Uint8Array(stopCount),
+    currentRoundVehicleArrivalTimes:
+      createUnreachedArrivalTimes(stopCount),
+    vehicleImprovedStops: [],
+    vehicleImprovedMembership: new Uint8Array(stopCount),
+    transfersByStop: Array.from(
+      { length: stopCount },
+      () => new Uint32Array(),
+    ),
     nextMarkedStops: [],
     nextMarkedMembership: new Uint8Array(stopCount),
     roundNumber,

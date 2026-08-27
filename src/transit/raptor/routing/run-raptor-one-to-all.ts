@@ -8,6 +8,7 @@ import {
   createUnreachedArrivalTimes,
   UNREACHED_TIME,
 } from './state';
+import { relaxTransfers } from './relax-transfers';
 import type {
   RaptorDiagnosticsCallback,
   RaptorQuery,
@@ -49,6 +50,11 @@ const validateQuery = (
   if (timetable.patternOccurrencesByStop.length !== stopCount) {
     throw new Error(
       'Timetable source stops and pattern adjacency have different lengths',
+    );
+  }
+  if (timetable.transfersByStop.length !== stopCount) {
+    throw new Error(
+      'Timetable source stops and transfer adjacency have different lengths',
     );
   }
   const originMembership = new Uint8Array(stopCount);
@@ -119,16 +125,27 @@ export const runRaptorOneToAll = (
   const validated = validateQuery(timetable, query);
   const stopCount = timetable.sourceStopIds.length;
   const globalArrivalTimes = createUnreachedArrivalTimes(stopCount);
+  const globalBoardingReadyTimes = createUnreachedArrivalTimes(stopCount);
+  const bestVehicleArrivalTimes = createUnreachedArrivalTimes(stopCount);
   let previousRoundArrivalTimes = createUnreachedArrivalTimes(stopCount);
+  let previousRoundTransferApplied = new Uint8Array(stopCount);
   let currentRoundArrivalTimes = createUnreachedArrivalTimes(stopCount);
+  let currentRoundTransferApplied = new Uint8Array(stopCount);
+  const currentRoundVehicleArrivalTimes =
+    createUnreachedArrivalTimes(stopCount);
+  const vehicleImprovedStops: number[] = [];
+  const vehicleImprovedMembership = new Uint8Array(stopCount);
 
   let markedStops = [...validated.originStopIndexes];
   let nextMarkedStops: number[] = [];
   const nextMarkedMembership = new Uint8Array(stopCount);
   for (const originStopIndex of validated.originStopIndexes) {
     globalArrivalTimes[originStopIndex] = validated.departureTimeSeconds;
+    globalBoardingReadyTimes[originStopIndex] =
+      validated.departureTimeSeconds;
     previousRoundArrivalTimes[originStopIndex] =
       validated.departureTimeSeconds;
+    previousRoundTransferApplied[originStopIndex] = 1;
   }
 
   const patternScratch = createReachablePatternScratch(
@@ -138,6 +155,8 @@ export const runRaptorOneToAll = (
   const patternScansPerRound: number[] = [];
   let patternsScanned = 0;
   let stopsImproved = 0;
+  let transferEdgesExamined = 0;
+  let transferArrivalImprovements = 0;
   let roundsExecuted = 0;
 
   for (
@@ -163,8 +182,16 @@ export const runRaptorOneToAll = (
       }
       stopsImproved += scanPattern(pattern, firstStopIndex, {
         globalArrivalTimes,
+        globalBoardingReadyTimes,
+        bestVehicleArrivalTimes,
         previousRoundArrivalTimes,
+        previousRoundTransferApplied,
         currentRoundArrivalTimes,
+        currentRoundTransferApplied,
+        currentRoundVehicleArrivalTimes,
+        vehicleImprovedStops,
+        vehicleImprovedMembership,
+        transfersByStop: timetable.transfersByStop,
         nextMarkedStops,
         nextMarkedMembership,
         roundNumber,
@@ -172,6 +199,28 @@ export const runRaptorOneToAll = (
         maxArrivalTime: validated.maxArrivalTime,
       });
     }
+
+    const transferCounts = relaxTransfers({
+      transfersByStop: timetable.transfersByStop,
+      vehicleImprovedStops,
+      currentRoundVehicleArrivalTimes,
+      globalArrivalTimes,
+      globalBoardingReadyTimes,
+      currentRoundArrivalTimes,
+      currentRoundTransferApplied,
+      nextMarkedStops,
+      nextMarkedMembership,
+      minTransferTimeSeconds: validated.minTransferTimeSeconds,
+      maxArrivalTime: validated.maxArrivalTime,
+    });
+    transferEdgesExamined += transferCounts.edgesExamined;
+    transferArrivalImprovements += transferCounts.arrivalImprovements;
+
+    for (const stopIndex of vehicleImprovedStops) {
+      vehicleImprovedMembership[stopIndex] = 0;
+      currentRoundVehicleArrivalTimes[stopIndex] = UNREACHED_TIME;
+    }
+    vehicleImprovedStops.length = 0;
 
     for (const stopIndex of nextMarkedStops) {
       nextMarkedMembership[stopIndex] = 0;
@@ -185,6 +234,10 @@ export const runRaptorOneToAll = (
     previousRoundArrivalTimes = currentRoundArrivalTimes;
     currentRoundArrivalTimes = reusableArrivalTimes;
     currentRoundArrivalTimes.fill(UNREACHED_TIME);
+    const reusableTransferApplied = previousRoundTransferApplied;
+    previousRoundTransferApplied = currentRoundTransferApplied;
+    currentRoundTransferApplied = reusableTransferApplied;
+    currentRoundTransferApplied.fill(0);
   }
 
   onDiagnostics?.({
@@ -192,6 +245,8 @@ export const runRaptorOneToAll = (
     patternsScanned,
     patternScansPerRound,
     stopsImproved,
+    transferEdgesExamined,
+    transferArrivalImprovements,
   });
 
   return {

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
@@ -8,6 +9,7 @@ import {
   parseLocalitiesCsv,
 } from '../src/localities';
 import { selectTransitPlaceCandidates } from '../src/transit/candidates';
+import { loadFixedDateActiveServices } from '../src/transit/gtfs/load-fixed-date-feed';
 import {
   runRaptorOneToAll,
   UNREACHED_TIME,
@@ -20,10 +22,16 @@ import {
   buildSourceStopIndex,
   readRoutingTripsNdjson,
 } from '../src/transit/raptor/timetable';
+import {
+  attachTransferGraph,
+  buildTransferGraph,
+  readGtfsTransfers,
+} from '../src/transit/raptor/transfers';
 import { parseGtfsTimeToSeconds } from '../src/transit/service-profiles';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
+  loadTransitStopsInput,
   readUtf8Input,
 } from './transit-inspection-inputs';
 
@@ -32,6 +40,8 @@ const ROUTING_TRIPS_PATH = resolve(
   PROJECT_ROOT,
   'data/processed/fixed-day-routing/trips.ndjson',
 );
+const GTFS_DIRECTORY = resolve(PROJECT_ROOT, 'data/raw/gtfs');
+const GTFS_TRANSFERS_PATH = resolve(GTFS_DIRECTORY, 'transfers.txt');
 const WARM_UP_QUERY_COUNT = 5;
 const BENCHMARK_QUERY_COUNT = 50;
 
@@ -57,6 +67,10 @@ const parseMaximumTravelMinutes = (value: string): number => {
 };
 
 const formatMilliseconds = (value: number): string => `${value.toFixed(3)} ms`;
+const formatInteger = (value: number): string =>
+  new Intl.NumberFormat('en-US').format(value);
+const formatBytes = (value: number): string =>
+  `${formatInteger(value)} bytes (${(value / 1024 / 1024).toFixed(2)} MiB)`;
 
 const percentile = (sortedValues: readonly number[], fraction: number): number => {
   const index = Math.ceil(sortedValues.length * fraction) - 1;
@@ -123,6 +137,47 @@ const bucketMinutes = (maximumMinutes: number): readonly number[] => {
   return buckets;
 };
 
+const transferGraphFingerprint = (
+  transfersByStop: readonly Uint32Array[],
+): string => {
+  const hash = createHash('sha256');
+  transfersByStop.forEach((edges) => {
+    hash.update(`${edges.length}:`);
+    hash.update(Buffer.from(edges.buffer, edges.byteOffset, edges.byteLength));
+  });
+  return hash.digest('hex');
+};
+
+const transferDegreeStatistics = (
+  transfersByStop: readonly Uint32Array[],
+): {
+  readonly stopsWithTransfers: number;
+  readonly medianOutgoingTransfers: number;
+  readonly maximumOutgoingTransfers: number;
+  readonly typedArrayBytes: number;
+} => {
+  const degrees = transfersByStop
+    .map((edges) => edges.length / 2)
+    .filter((degree) => degree > 0)
+    .toSorted((left, right) => left - right);
+  const middle = Math.floor(degrees.length / 2);
+  const median =
+    degrees.length === 0
+      ? 0
+      : degrees.length % 2 === 1
+        ? (degrees[middle] ?? 0)
+        : ((degrees[middle - 1] ?? 0) + (degrees[middle] ?? 0)) / 2;
+  return {
+    stopsWithTransfers: degrees.length,
+    medianOutgoingTransfers: median,
+    maximumOutgoingTransfers: degrees.at(-1) ?? 0,
+    typedArrayBytes: transfersByStop.reduce(
+      (total, edges) => total + edges.byteLength,
+      0,
+    ),
+  };
+};
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -132,6 +187,7 @@ async function main(): Promise<void> {
       city: { type: 'string' },
       'max-travel-minutes': { type: 'string' },
       benchmark: { type: 'boolean', default: false },
+      'virtual-transfers': { type: 'boolean' },
     },
     allowPositionals: false,
     strict: true,
@@ -168,11 +224,46 @@ async function main(): Promise<void> {
   }
 
   const timetableBuildStart = performance.now();
-  const timetable = await buildRaptorTimetable(
+  const baseTimetable = await buildRaptorTimetable(
     readRoutingTripsNdjson(ROUTING_TRIPS_PATH),
   );
   const timetableBuildMilliseconds = performance.now() - timetableBuildStart;
-  const stopIndexBySourceId = buildSourceStopIndex(timetable.sourceStopIds);
+  const stopIndexBySourceId = buildSourceStopIndex(
+    baseTimetable.sourceStopIds,
+  );
+  const transitStops = await loadTransitStopsInput();
+  const serviceDate =
+    PROJECT_CONFIG.transit.referenceScenario.serviceDate.replaceAll('-', '');
+  const { activeServiceIds } = await loadFixedDateActiveServices(
+    GTFS_DIRECTORY,
+    serviceDate,
+  );
+  const configuredTransfers = PROJECT_CONFIG.transit.routing.transfers;
+  const virtualTransfers = {
+    ...configuredTransfers.virtualTransfers,
+    enabled:
+      values['virtual-transfers'] ??
+      configuredTransfers.virtualTransfers.enabled,
+  };
+  const transferMemoryBefore = process.memoryUsage();
+  const transferBuildStart = performance.now();
+  const transferGraph = await buildTransferGraph({
+    transferRules: readGtfsTransfers(GTFS_TRANSFERS_PATH),
+    activeServiceIds,
+    transitStops,
+    denseStopLookup: stopIndexBySourceId,
+    deriveSiblingTransfers: configuredTransfers.deriveSiblingTransfers,
+    virtualTransfers,
+  });
+  const transferBuildMilliseconds = performance.now() - transferBuildStart;
+  const transferMemoryAfter = process.memoryUsage();
+  const timetable = attachTransferGraph(
+    baseTimetable,
+    transferGraph.transfersByStop,
+  );
+  const transferDegrees = transferDegreeStatistics(
+    transferGraph.transfersByStop,
+  );
   const originStopIndexSet = new Set<number>();
   let absentRoutingStopCount = 0;
   for (const { place } of selection.candidates) {
@@ -233,6 +324,63 @@ async function main(): Promise<void> {
   console.log(`Maximum transfers: ${query.maxTransfers}`);
   console.log(`Minimum transfer time: ${query.minTransferTimeSeconds} s`);
   console.log('');
+  console.log(`GTFS transfer rows: ${formatInteger(transferGraph.statistics.gtfsRows)}`);
+  console.log(
+    `Supported generic GTFS edges: ${formatInteger(transferGraph.statistics.gtfsSupportedEdges)}`,
+  );
+  console.log(
+    `Forbidden GTFS pairs: ${formatInteger(transferGraph.statistics.gtfsForbiddenPairs)}`,
+  );
+  console.log(
+    `Timed transfers approximated: ${formatInteger(transferGraph.statistics.timedTransfersApproximated)}`,
+  );
+  console.log(
+    `Duplicate explicit edges merged: ${formatInteger(transferGraph.statistics.duplicateExplicitEdgesMerged)}`,
+  );
+  console.log(
+    `Inactive-service rows skipped: ${formatInteger(transferGraph.statistics.inactiveServiceRowsSkipped)}`,
+  );
+  console.log(
+    `Inactive-stop rows skipped: ${formatInteger(transferGraph.statistics.inactiveStopRowsSkipped)}`,
+  );
+  console.log(
+    `Sibling transfers generated: ${formatInteger(transferGraph.statistics.siblingEdgesGenerated)}`,
+  );
+  console.log(`Virtual transfers enabled: ${virtualTransfers.enabled ? 'yes' : 'no'}`);
+  console.log(
+    `Virtual transfers generated: ${formatInteger(transferGraph.statistics.virtualEdgesGenerated)}`,
+  );
+  console.log(
+    `Unsupported trip-specific rows: ${formatInteger(transferGraph.statistics.unsupportedTripSpecificRows)}`,
+  );
+  console.log(
+    `Unsupported route-specific rows: ${formatInteger(transferGraph.statistics.unsupportedRouteSpecificRows)}`,
+  );
+  console.log(
+    `Unsupported in-seat rows: ${formatInteger(transferGraph.statistics.unsupportedInSeatRows)}`,
+  );
+  console.log(
+    `Unsupported other constrained rows: ${formatInteger(transferGraph.statistics.unsupportedOtherConstrainedRows)}`,
+  );
+  console.log(
+    `Final active transfer edges: ${formatInteger(transferGraph.statistics.finalTransferEdges)}`,
+  );
+  console.log(
+    `Stops with transfers: ${formatInteger(transferDegrees.stopsWithTransfers)}`,
+  );
+  console.log(
+    `Median outgoing transfers: ${transferDegrees.medianOutgoingTransfers}`,
+  );
+  console.log(
+    `Maximum outgoing transfers: ${formatInteger(transferDegrees.maximumOutgoingTransfers)}`,
+  );
+  console.log(
+    `Transfer typed-array bytes: ${formatBytes(transferDegrees.typedArrayBytes)}`,
+  );
+  console.log(
+    `Transfer graph fingerprint: ${transferGraphFingerprint(transferGraph.transfersByStop)}`,
+  );
+  console.log('');
   console.log(
     `Reachable stops: ${countReachableWithin(result, query.maxTravelTimeSeconds)}`,
   );
@@ -249,7 +397,25 @@ async function main(): Promise<void> {
   );
   console.log(`Stops improved: ${diagnostics.stopsImproved}`);
   console.log(
+    `Transfer edges examined: ${diagnostics.transferEdgesExamined}`,
+  );
+  console.log(
+    `Transfer arrival improvements: ${diagnostics.transferArrivalImprovements}`,
+  );
+  console.log(
     `Timetable construction time: ${(timetableBuildMilliseconds / 1000).toFixed(3)} s`,
+  );
+  console.log(
+    `Transfer graph build time: ${(transferBuildMilliseconds / 1000).toFixed(3)} s`,
+  );
+  console.log(
+    `Transfer-build heap delta: ${formatBytes(transferMemoryAfter.heapUsed - transferMemoryBefore.heapUsed)}`,
+  );
+  console.log(
+    `Transfer-build ArrayBuffer delta: ${formatBytes(transferMemoryAfter.arrayBuffers - transferMemoryBefore.arrayBuffers)}`,
+  );
+  console.log(
+    `Transfer-build RSS delta: ${formatBytes(transferMemoryAfter.rss - transferMemoryBefore.rss)}`,
   );
 
   if (values.benchmark) {

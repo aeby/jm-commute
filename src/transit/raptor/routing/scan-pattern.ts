@@ -6,6 +6,7 @@ import {
   getPickupType,
   type RaptorRoutePattern,
 } from '../timetable';
+import { resolveSameStopTransferTime } from './relax-transfers';
 import { UNREACHED_TIME, type PatternScanState } from './state';
 
 const findBoardableTrip = (
@@ -79,17 +80,49 @@ export const scanPattern = (
       );
       if (
         getDropOffType(pattern, stopIndex, activeTripIndex) !== 1 &&
-        arrivalTime <= state.maxArrivalTime &&
-        arrivalTime <
-          (state.globalArrivalTimes[numericStopId] ?? UNREACHED_TIME)
+        arrivalTime <= state.maxArrivalTime
       ) {
-        state.globalArrivalTimes[numericStopId] = arrivalTime;
-        state.currentRoundArrivalTimes[numericStopId] = arrivalTime;
-        if (state.nextMarkedMembership[numericStopId] === 0) {
-          state.nextMarkedMembership[numericStopId] = 1;
-          state.nextMarkedStops.push(numericStopId);
+        if (
+          arrivalTime <
+          (state.globalArrivalTimes[numericStopId] ?? UNREACHED_TIME)
+        ) {
+          state.globalArrivalTimes[numericStopId] = arrivalTime;
+          stopsImproved += 1;
         }
-        stopsImproved += 1;
+        if (
+          arrivalTime <
+          (state.bestVehicleArrivalTimes[numericStopId] ?? UNREACHED_TIME)
+        ) {
+          state.bestVehicleArrivalTimes[numericStopId] = arrivalTime;
+          state.currentRoundVehicleArrivalTimes[numericStopId] = arrivalTime;
+          if (state.vehicleImprovedMembership[numericStopId] === 0) {
+            state.vehicleImprovedMembership[numericStopId] = 1;
+            state.vehicleImprovedStops.push(numericStopId);
+          }
+        }
+        const transfers = state.transfersByStop[numericStopId];
+        if (transfers === undefined) {
+          throw new Error(`Missing transfer adjacency for stop ${numericStopId}.`);
+        }
+        const sameStopTransferTime = resolveSameStopTransferTime(
+          transfers,
+          numericStopId,
+          state.minTransferTimeSeconds,
+        );
+        if (
+          sameStopTransferTime <= state.maxArrivalTime - arrivalTime &&
+          arrivalTime + sameStopTransferTime <
+            (state.globalBoardingReadyTimes[numericStopId] ?? UNREACHED_TIME)
+        ) {
+          state.globalBoardingReadyTimes[numericStopId] =
+            arrivalTime + sameStopTransferTime;
+          state.currentRoundArrivalTimes[numericStopId] = arrivalTime;
+          state.currentRoundTransferApplied[numericStopId] = 0;
+          if (state.nextMarkedMembership[numericStopId] === 0) {
+            state.nextMarkedMembership[numericStopId] = 1;
+            state.nextMarkedStops.push(numericStopId);
+          }
+        }
       }
     }
 
@@ -99,8 +132,20 @@ export const scanPattern = (
       continue;
     }
 
+    const arrivalAlreadyIncludesTransfer =
+      state.previousRoundTransferApplied[numericStopId] === 1;
+    const transfers = state.transfersByStop[numericStopId];
+    if (transfers === undefined) {
+      throw new Error(`Missing transfer adjacency for stop ${numericStopId}.`);
+    }
     const transferTime =
-      state.roundNumber === 1 ? 0 : state.minTransferTimeSeconds;
+      state.roundNumber === 1 || arrivalAlreadyIncludesTransfer
+        ? 0
+        : resolveSameStopTransferTime(
+            transfers,
+            numericStopId,
+            state.minTransferTimeSeconds,
+          );
     if (transferTime > state.maxArrivalTime - previousRoundArrival) {
       continue;
     }

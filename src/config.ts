@@ -15,6 +15,16 @@ export const PROJECT_CONFIG = {
     routing: {
       maxTransfers: 5,
       minTransferTimeSeconds: 120,
+      transfers: {
+        deriveSiblingTransfers: true,
+        virtualTransfers: {
+          enabled: false,
+          maxDistanceMeters: 500,
+          walkingSpeedKmh: 4,
+          detourFactor: 1.3,
+          changePenaltySeconds: 180,
+        },
+      },
     },
   },
 } as const;

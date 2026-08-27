@@ -31,6 +31,7 @@ export interface RaptorTimetable {
   readonly sourceStopIds: readonly string[];
   readonly patterns: readonly RaptorRoutePattern[];
   readonly patternOccurrencesByStop: readonly Uint32Array[];
+  readonly transfersByStop: readonly Uint32Array[];
 }
 
 export interface OvertakingSplitDiagnostic {
