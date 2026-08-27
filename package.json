@@ -1,0 +1,21 @@
+{
+  "name": "jm-commute",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "data:prepare:transit-locations": "tsx scripts/prepare-transit-locations.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.2"
+  }
+}
