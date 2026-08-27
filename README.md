@@ -17,6 +17,8 @@ Users and jobs are identified approximately by postcode and/or city name. The sy
 
 The current implementation resolves postcode and city inputs to official WGS84 locality coordinates and prepares a minimal GTFS station-and-stop dataset.
 
+GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
+
 Locality-to-stop mapping, timetable routing, stop selection, and visualization are deliberately out of scope.
 
 ## Development
@@ -27,6 +29,7 @@ npm test
 npm run typecheck
 npm run lint
 npm run data:prepare:stops
+npm run data:prepare:places
 ```
 
 The downloaded source data is stored under `data/raw/` and is not committed to Git. Unit tests use a small local fixture and require no network access.
