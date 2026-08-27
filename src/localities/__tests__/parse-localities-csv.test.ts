@@ -69,7 +69,7 @@ describe('parseLocalitiesCsv', () => {
       );
       const csv = `${headers.join(';')}\n${headers.map(() => 'value').join(';')}`;
 
-      expect(() => parseLocalitiesCsv(csv)).toThrowError(
+      expect(() => parseLocalitiesCsv(csv)).toThrow(
         new RegExp(`missing required column.*${missingHeader}`, 'i'),
       );
     },
@@ -88,7 +88,7 @@ describe('parseLocalitiesCsv', () => {
       `Zürich;8001;${longitude};${latitude}`,
     ].join('\n');
 
-    expect(() => parseLocalitiesCsv(csv)).toThrowError(
+    expect(() => parseLocalitiesCsv(csv)).toThrow(
       new RegExp(`malformed WGS84 .*"${column}"`, 'i'),
     );
   });
@@ -98,7 +98,7 @@ describe('parseLocalitiesCsv', () => {
       '\n',
     );
 
-    expect(() => parseLocalitiesCsv(csv)).toThrowError(
+    expect(() => parseLocalitiesCsv(csv)).toThrow(
       /missing required field "E"/i,
     );
   });

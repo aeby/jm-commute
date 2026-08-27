@@ -5,3 +5,13 @@ export interface TransitPlace {
   readonly longitude: number;
   readonly stopIds: readonly string[];
 }
+
+export interface NearbyTransitPlace {
+  readonly place: TransitPlace;
+  readonly distanceMeters: number;
+}
+
+export interface NearbyTransitPlacesOptions {
+  readonly maxResults: number;
+  readonly maxDistanceMeters?: number;
+}

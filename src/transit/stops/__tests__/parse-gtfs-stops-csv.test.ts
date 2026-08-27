@@ -139,7 +139,7 @@ describe('parseGtfsStopsCsv', () => {
       );
       const csv = `${headers.join(',')}\n${headers.map(() => 'value').join(',')}`;
 
-      expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+      expect(() => parseGtfsStopsCsv(csv)).toThrow(
         new RegExp(`missing required column.*${missingHeader}`, 'i'),
       );
     },
@@ -160,7 +160,7 @@ describe('parseGtfsStopsCsv', () => {
         `location,Location,${latitude},${longitude},0,`,
       );
 
-      expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+      expect(() => parseGtfsStopsCsv(csv)).toThrow(
         new RegExp(
           column === 'stop_lat'
             ? '(missing required field|invalid).*stop_lat'
@@ -175,7 +175,7 @@ describe('parseGtfsStopsCsv', () => {
     ['stop_id', ' ,Location,47.37,8.54,0,'],
     ['stop_name', 'location,   ,47.37,8.54,0,'],
   ])('reports a blank required %s field', (field, row) => {
-    expect(() => parseGtfsStopsCsv(createCsv(row))).toThrowError(
+    expect(() => parseGtfsStopsCsv(createCsv(row))).toThrow(
       new RegExp(`missing required field.*${field}`, 'i'),
     );
   });
@@ -186,7 +186,7 @@ describe('parseGtfsStopsCsv', () => {
       'duplicate,Second,47.38,8.55,0,',
     );
 
-    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrow(
       /duplicate stop_id "duplicate".*first seen at row/i,
     );
   });
@@ -196,7 +196,7 @@ describe('parseGtfsStopsCsv', () => {
       'child,Child platform,47.37,8.54,0,missing-station',
     );
 
-    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrow(
       /stop "child" references missing parent station "missing-station"/i,
     );
   });
@@ -207,7 +207,7 @@ describe('parseGtfsStopsCsv', () => {
       'child,Child platform,47.38,8.55,0,parent-stop',
     );
 
-    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrow(
       /stop "child" references "parent-stop".*not a station/i,
     );
   });
@@ -217,7 +217,7 @@ describe('parseGtfsStopsCsv', () => {
       'station,Station,47.37,8.54,1,parent-station',
     );
 
-    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrow(
       /station "station" must not have parent station "parent-station"/i,
     );
   });
@@ -229,7 +229,7 @@ describe('parseGtfsStopsCsv', () => {
         `location,Location,47.37,8.54,${locationType},`,
       );
 
-      expect(() => parseGtfsStopsCsv(csv)).toThrowError(
+      expect(() => parseGtfsStopsCsv(csv)).toThrow(
         new RegExp(`unknown.*location_type.*${locationType}`, 'i'),
       );
     },
