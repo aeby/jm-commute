@@ -44,6 +44,8 @@ const createState = ({
     ),
     nextMarkedStops: [],
     nextMarkedMembership: new Uint8Array(stopCount),
+    reachedStops: [],
+    reachedMembership: new Uint8Array(stopCount),
     roundNumber,
     minTransferTimeSeconds,
     maxArrivalTime,

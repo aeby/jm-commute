@@ -51,7 +51,11 @@ const readManifest = async (): Promise<FixedDayRoutingManifest> => {
     throw new Error('Routing manifest must be a schema-version 1 object');
   }
 
-  const stringFields = ['serviceDate', 'departureTime'] as const;
+  const stringFields = [
+    'serviceDate',
+    'routingWindowStart',
+    'routingWindowEnd',
+  ] as const;
   stringFields.forEach((field) => {
     if (typeof value[field] !== 'string') {
       throw new Error(`Routing manifest ${field} must be a string`);
@@ -63,7 +67,7 @@ const readManifest = async (): Promise<FixedDayRoutingManifest> => {
     'frequencyTripCount',
     'stopTimeCount',
     'frequencyWindowCount',
-    'excludedBeforeDepartureTripCount',
+    'excludedBeforeRoutingWindowTripCount',
   ] as const;
   countFields.forEach((field) => {
     const count = value[field];
@@ -200,9 +204,12 @@ const validateManifestConsistency = (
       `Routing manifest service date ${manifest.serviceDate} does not match ${reference.serviceDate}`,
     );
   }
-  if (manifest.departureTime !== reference.departureTime) {
+  if (
+    manifest.routingWindowStart !== reference.morningWindow.start ||
+    manifest.routingWindowEnd !== reference.morningWindow.end
+  ) {
     throw new Error(
-      `Routing manifest departure time ${manifest.departureTime} does not match ${reference.departureTime}`,
+      `Routing manifest window ${manifest.routingWindowStart}–${manifest.routingWindowEnd} does not match ${reference.morningWindow.start}–${reference.morningWindow.end}`,
     );
   }
 
@@ -292,7 +299,7 @@ async function main(): Promise<void> {
     `Generated frequency trips: ${formatInteger(stats.generatedFrequencyTrips)}`,
   );
   console.log(
-    `Frequency instances excluded before 08:00: ${formatInteger(stats.frequencyInstancesExcludedBeforeDeparture)}`,
+    `Frequency instances excluded before routing window: ${formatInteger(stats.frequencyInstancesExcludedBeforeRoutingWindow)}`,
   );
   console.log(`Final concrete trips: ${formatInteger(stats.finalConcreteTrips)}`);
   console.log('');

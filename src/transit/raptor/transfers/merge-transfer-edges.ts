@@ -1,6 +1,8 @@
 import {
   USE_QUERY_TRANSFER_TIME,
+  type GtfsTransferType,
   type TransferEdge,
+  type TransferEdgeDiagnostic,
   type TransferEdgeSource,
 } from './types';
 
@@ -40,6 +42,25 @@ const mergeExplicitDurations = (left: number, right: number): number => {
   return Math.max(left, right);
 };
 
+type SupportedAllowedGtfsTransferType = Extract<GtfsTransferType, 0 | 1 | 2>;
+
+const explicitDiagnosticSource = (
+  transferType: SupportedAllowedGtfsTransferType,
+): TransferEdge['diagnosticSource'] => `GTFS_TYPE_${transferType}`;
+
+const diagnosticSourcePriority = (
+  source: TransferEdge['diagnosticSource'],
+): number => {
+  switch (source) {
+    case 'GTFS_TYPE_2':
+      return 2;
+    case 'GTFS_TYPE_1':
+      return 1;
+    default:
+      return 0;
+  }
+};
+
 export class TransferEdgeRegistry {
   readonly #stopCount: number;
   readonly #edges = new Map<number, TransferEdge>();
@@ -62,6 +83,7 @@ export class TransferEdgeRegistry {
     fromStopIndex: number,
     toStopIndex: number,
     minimumTransferTimeSeconds: number,
+    transferType: SupportedAllowedGtfsTransferType,
   ): 'ADDED' | 'MERGED' {
     validateDuration(minimumTransferTimeSeconds);
     const key = this.#pairKey(fromStopIndex, toStopIndex);
@@ -78,6 +100,9 @@ export class TransferEdgeRegistry {
         toStopIndex,
         minimumTransferTimeSeconds,
         source: 'EXPLICIT',
+        accessEligibility:
+          transferType === 2 ? 'ACCESS_ELIGIBLE' : 'TRANSFER_ONLY',
+        diagnosticSource: explicitDiagnosticSource(transferType),
       });
       return 'ADDED';
     }
@@ -88,6 +113,14 @@ export class TransferEdgeRegistry {
         existing.minimumTransferTimeSeconds,
         minimumTransferTimeSeconds,
       ),
+      accessEligibility:
+        existing.accessEligibility === 'ACCESS_ELIGIBLE' || transferType === 2
+          ? 'ACCESS_ELIGIBLE'
+          : 'TRANSFER_ONLY',
+      diagnosticSource:
+        diagnosticSourcePriority(existing.diagnosticSource) >= transferType
+          ? existing.diagnosticSource
+          : explicitDiagnosticSource(transferType),
     });
     return 'MERGED';
   }
@@ -124,18 +157,17 @@ export class TransferEdgeRegistry {
       toStopIndex,
       minimumTransferTimeSeconds,
       source,
+      accessEligibility: 'ACCESS_ELIGIBLE',
+      diagnosticSource:
+        source === 'SIBLING'
+          ? 'GENERATED_SIBLING'
+          : 'GENERATED_VIRTUAL',
     });
     return true;
   }
 
   public hasEdge(fromStopIndex: number, toStopIndex: number): boolean {
     return this.#edges.has(this.#pairKey(fromStopIndex, toStopIndex));
-  }
-
-  public isForbidden(fromStopIndex: number, toStopIndex: number): boolean {
-    return this.#forbiddenPairs.has(
-      this.#pairKey(fromStopIndex, toStopIndex),
-    );
   }
 
   public getEdge(
@@ -163,13 +195,27 @@ export class TransferEdgeRegistry {
     return this.#forbiddenPairs.size;
   }
 
-  public toTransfersByStop(): readonly Uint32Array[] {
+  public get accessEdgeCount(): number {
+    let count = 0;
+    for (const edge of this.#edges.values()) {
+      if (edge.accessEligibility === 'ACCESS_ELIGIBLE') {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  #toTransfersByStop(
+    include: (edge: TransferEdge) => boolean,
+  ): readonly Uint32Array[] {
     const edgesByStop: TransferEdge[][] = Array.from(
       { length: this.#stopCount },
       () => [],
     );
     for (const edge of this.#edges.values()) {
-      edgesByStop[edge.fromStopIndex]?.push(edge);
+      if (include(edge)) {
+        edgesByStop[edge.fromStopIndex]?.push(edge);
+      }
     }
 
     return edgesByStop.map((edges) => {
@@ -186,5 +232,24 @@ export class TransferEdgeRegistry {
       });
       return flattened;
     });
+  }
+
+  public toTransfersByStop(): readonly Uint32Array[] {
+    return this.#toTransfersByStop(() => true);
+  }
+
+  public toAccessTransfersByStop(): readonly Uint32Array[] {
+    return this.#toTransfersByStop(
+      ({ accessEligibility }) => accessEligibility === 'ACCESS_ELIGIBLE',
+    );
+  }
+
+  public toEdgeDiagnostics(): readonly TransferEdgeDiagnostic[] {
+    return [...this.#edges.values()].toSorted(
+      (left, right) =>
+        left.fromStopIndex - right.fromStopIndex ||
+        left.toStopIndex - right.toStopIndex ||
+        left.minimumTransferTimeSeconds - right.minimumTransferTimeSeconds,
+    );
   }
 }

@@ -45,13 +45,16 @@ export interface SerializedValidationTimetable {
   readonly patternOccurrenceValuesBase64: string;
   readonly transferOffsetsBase64: string;
   readonly transferValuesBase64: string;
+  readonly accessTransferOffsetsBase64: string;
+  readonly accessTransferValuesBase64: string;
 }
 
 export interface SwissCommuteValidationData {
   readonly schemaVersion: 1;
   readonly feedVersion: string;
   readonly serviceDate: string;
-  readonly departureTime: string;
+  readonly routingWindowStart: string;
+  readonly routingWindowEnd: string;
   readonly localities: readonly ValidationLocality[];
   readonly localityRoutingEntries: readonly ValidationLocalityRoutingEntry[];
   readonly hubCandidatesByLocality: Readonly<
@@ -73,12 +76,8 @@ export interface DecodedValidationTimetable {
   readonly patternOccurrenceValues: Uint32Array;
   readonly transferOffsets: Uint32Array;
   readonly transferValues: Uint32Array;
-}
-
-declare global {
-  interface Window {
-    __SWISS_COMMUTE_VALIDATION_DATA__?: SwissCommuteValidationData;
-  }
+  readonly accessTransferOffsets: Uint32Array;
+  readonly accessTransferValues: Uint32Array;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -198,7 +197,8 @@ export function serializeValidationTimetable(
   if (
     timetable.patternOccurrencesByStop.length !==
       timetable.sourceStopIds.length ||
-    timetable.transfersByStop.length !== timetable.sourceStopIds.length
+    timetable.transfersByStop.length !== timetable.sourceStopIds.length ||
+    timetable.accessTransfersByStop.length !== timetable.sourceStopIds.length
   ) {
     throw new Error('Timetable stop and adjacency counts must match.');
   }
@@ -216,6 +216,9 @@ export function serializeValidationTimetable(
     timetable.patternOccurrencesByStop,
   );
   const transfers = flattenUint32Arrays(timetable.transfersByStop);
+  const accessTransfers = flattenUint32Arrays(
+    timetable.accessTransfersByStop,
+  );
 
   return {
     sourceStopIds: timetable.sourceStopIds,
@@ -242,6 +245,12 @@ export function serializeValidationTimetable(
     ),
     transferOffsetsBase64: encodeUint32ArrayBase64(transfers.offsets),
     transferValuesBase64: encodeUint32ArrayBase64(transfers.values),
+    accessTransferOffsetsBase64: encodeUint32ArrayBase64(
+      accessTransfers.offsets,
+    ),
+    accessTransferValuesBase64: encodeUint32ArrayBase64(
+      accessTransfers.values,
+    ),
   };
 }
 
@@ -277,6 +286,12 @@ export function decodeValidationTimetable(
       serialized.transferOffsetsBase64,
     ),
     transferValues: decodeUint32ArrayBase64(serialized.transferValuesBase64),
+    accessTransferOffsets: decodeUint32ArrayBase64(
+      serialized.accessTransferOffsetsBase64,
+    ),
+    accessTransferValues: decodeUint32ArrayBase64(
+      serialized.accessTransferValuesBase64,
+    ),
   };
 }
 
@@ -344,6 +359,12 @@ export function reconstructValidationTimetable(
     decoded.sourceStopIds.length,
     decoded.transferValues.length,
   );
+  validateOffsets(
+    'Initial-access transfer',
+    decoded.accessTransferOffsets,
+    decoded.sourceStopIds.length,
+    decoded.accessTransferValues.length,
+  );
 
   const patternStops = subarrayViews(
     decoded.patternStopOffsets,
@@ -392,6 +413,10 @@ export function reconstructValidationTimetable(
       decoded.transferOffsets,
       decoded.transferValues,
     ),
+    accessTransfersByStop: subarrayViews(
+      decoded.accessTransferOffsets,
+      decoded.accessTransferValues,
+    ),
   };
 }
 
@@ -420,6 +445,10 @@ export function validationTimetableTypedArrayBytes(
       0,
     ) +
     timetable.transfersByStop.reduce(
+      (total, values) => total + values.byteLength,
+      0,
+    ) +
+    timetable.accessTransfersByStop.reduce(
       (total, values) => total + values.byteLength,
       0,
     )

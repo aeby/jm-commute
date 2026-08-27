@@ -32,7 +32,8 @@ async function main(): Promise<void> {
     transitStopsPath: TRANSIT_STOPS_PATH,
     outputDirectory: OUTPUT_DIRECTORY,
     serviceDate: referenceScenario.serviceDate,
-    departureTime: referenceScenario.departureTime,
+    routingWindowStart: referenceScenario.morningWindow.start,
+    routingWindowEnd: referenceScenario.morningWindow.end,
   });
   const [manifestStats, tripsStats] = await Promise.all([
     stat(result.manifestPath),
@@ -43,7 +44,9 @@ async function main(): Promise<void> {
     `Feed version: ${result.manifest.sourceFeedVersion ?? 'not supplied'}`,
   );
   console.log(`Service date: ${result.manifest.serviceDate}`);
-  console.log(`Departure time: ${result.manifest.departureTime}`);
+  console.log(
+    `Routing window: ${result.manifest.routingWindowStart}–${result.manifest.routingWindowEnd}`,
+  );
   console.log('');
   console.log(`Active services: ${result.activeServiceCount}`);
   console.log(`Active trips: ${result.activeTripCount}`);
@@ -51,10 +54,10 @@ async function main(): Promise<void> {
     `Retained scheduled trips: ${result.manifest.scheduledTripCount}`,
   );
   console.log(
-    `Retained frequency trips: ${result.manifest.frequencyTripCount}`,
+    `Retained frequency templates: ${result.manifest.frequencyTripCount}`,
   );
   console.log(
-    `Trips excluded before departure: ${result.manifest.excludedBeforeDepartureTripCount}`,
+    `Trips excluded before routing window: ${result.manifest.excludedBeforeRoutingWindowTripCount}`,
   );
   console.log(`Retained stop-time records: ${result.manifest.stopTimeCount}`);
   console.log(`Frequency windows: ${result.manifest.frequencyWindowCount}`);

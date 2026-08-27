@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import { USE_QUERY_TRANSFER_TIME } from '../../transfers';
 import type { RaptorTimetable } from '../../timetable';
-import { arrivalAt } from '../result';
-import { runRaptorOneToAll } from '../run-raptor-one-to-all';
 import type {
   RaptorQuery,
   RaptorRoutingDiagnostics,
 } from '../types';
-import { testPattern, testTimetable } from './test-timetable';
+import {
+  arrivalAt,
+  runRaptorOneToAll,
+  testPattern,
+  testTimetable,
+} from './test-timetable';
 
 const DEPARTURE_TIME = 28_800;
 

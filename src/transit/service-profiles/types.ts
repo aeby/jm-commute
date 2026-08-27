@@ -8,7 +8,6 @@ export interface TransitPlaceServiceProfile {
 
 export interface TransitPlaceServiceProfileDataset {
   readonly serviceDate: string;
-  readonly departureTime: string;
   readonly windowStart: string;
   readonly windowEnd: string;
   readonly profiles: readonly TransitPlaceServiceProfile[];

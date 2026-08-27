@@ -76,6 +76,9 @@ const snapshot = (timetable: RaptorTimetable): unknown => ({
     Array.from(pairs),
   ),
   transfers: timetable.transfersByStop.map((pairs) => Array.from(pairs)),
+  accessTransfers: timetable.accessTransfersByStop.map((pairs) =>
+    Array.from(pairs),
+  ),
 });
 
 describe('buildRaptorTimetable', () => {
@@ -102,6 +105,10 @@ describe('buildRaptorTimetable', () => {
       0, 2,
     ]);
     expect(timetable.transfersByStop).toEqual([
+      new Uint32Array(),
+      new Uint32Array(),
+    ]);
+    expect(timetable.accessTransfersByStop).toEqual([
       new Uint32Array(),
       new Uint32Array(),
     ]);

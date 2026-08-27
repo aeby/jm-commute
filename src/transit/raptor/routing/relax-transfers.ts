@@ -1,11 +1,17 @@
 import { USE_QUERY_TRANSFER_TIME } from '../transfers';
-import { UNREACHED_TIME } from './state';
+import {
+  improveSharedBoardingReadyTime,
+  UNREACHED_TIME,
+  type SharedRoundArrivalState,
+} from './state';
 
 export interface TransferRelaxationState {
   readonly transfersByStop: readonly Uint32Array[];
   readonly vehicleImprovedStops: readonly number[];
   readonly currentRoundVehicleArrivalTimes: Uint32Array;
   readonly globalArrivalTimes: Uint32Array;
+  readonly reachedStops: number[];
+  readonly reachedMembership: Uint8Array;
   readonly globalBoardingReadyTimes: Uint32Array;
   readonly currentRoundArrivalTimes: Uint32Array;
   readonly currentRoundTransferApplied: Uint8Array;
@@ -13,6 +19,7 @@ export interface TransferRelaxationState {
   readonly nextMarkedMembership: Uint8Array;
   readonly minTransferTimeSeconds: number;
   readonly maxArrivalTime: number;
+  readonly sharedRound?: SharedRoundArrivalState;
 }
 
 export interface TransferRelaxationCounts {
@@ -90,15 +97,23 @@ export const relaxTransfers = (
         continue;
       }
       const transferArrival = vehicleArrival + duration;
-
       if (
         transferArrival <
         (state.globalArrivalTimes[toStopIndex] ?? UNREACHED_TIME)
       ) {
+        if (state.reachedMembership[toStopIndex] === 0) {
+          state.reachedMembership[toStopIndex] = 1;
+          state.reachedStops.push(toStopIndex);
+        }
         state.globalArrivalTimes[toStopIndex] = transferArrival;
         arrivalImprovements += 1;
       }
       if (
+        improveSharedBoardingReadyTime(
+          state.sharedRound,
+          toStopIndex,
+          transferArrival,
+        ) &&
         transferArrival <
         (state.globalBoardingReadyTimes[toStopIndex] ?? UNREACHED_TIME)
       ) {

@@ -1,10 +1,13 @@
-export { arrivalAt, travelTimeTo } from './result';
-export { runRaptorOneToAll } from './run-raptor-one-to-all';
+export { collectInitialAccessStops } from './collect-initial-access-stops';
+export { collectOriginDepartureSlots } from './collect-origin-departure-slots';
+export { runRaptorFastestWindow } from './run-raptor-fastest-window';
 export { UNREACHED_TIME } from './state';
 
 export type {
-  RaptorDiagnosticsCallback,
-  RaptorQuery,
-  RaptorResult,
-  RaptorRoutingDiagnostics,
+  FastestWindowDiagnosticsCallback,
+  FastestWindowQuery,
+  FastestWindowResult,
+  FastestWindowRoutingDiagnostics,
+  InitialAccessResult,
+  InitialAccessStop,
 } from './types';

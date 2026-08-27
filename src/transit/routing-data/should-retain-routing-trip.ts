@@ -6,14 +6,14 @@ import type {
 export function shouldRetainRoutingTrip(
   stopTimes: readonly RoutingStopTime[],
   frequencyWindows: readonly RoutingFrequencyWindow[],
-  referenceDepartureTimeSeconds: number,
+  routingWindowStartSeconds: number,
 ): boolean {
   if (
-    !Number.isSafeInteger(referenceDepartureTimeSeconds) ||
-    referenceDepartureTimeSeconds < 0
+    !Number.isSafeInteger(routingWindowStartSeconds) ||
+    routingWindowStartSeconds < 0
   ) {
     throw new RangeError(
-      'Reference departure time must be a nonnegative integer number of seconds.',
+      'Routing-window start must be a nonnegative integer number of seconds.',
     );
   }
 
@@ -21,14 +21,14 @@ export function shouldRetainRoutingTrip(
     return (
       frequencyWindows.some(
         ({ endTimeSeconds }) =>
-          endTimeSeconds > referenceDepartureTimeSeconds,
+          endTimeSeconds > routingWindowStartSeconds,
       ) && stopTimes.some(({ pickupType }) => pickupType !== 1)
     );
   }
 
   return stopTimes.some(
     ({ departureTimeSeconds, pickupType }) =>
-      departureTimeSeconds >= referenceDepartureTimeSeconds &&
+      departureTimeSeconds >= routingWindowStartSeconds &&
       pickupType !== 1,
   );
 }

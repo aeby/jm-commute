@@ -20,3 +20,8 @@ export interface ReachableLocality {
   readonly localityId: LocalityId;
   readonly travelMinutes: number;
 }
+
+export interface ReachableLocalityDebug extends ReachableLocality {
+  readonly departureTimeSeconds: number;
+  readonly arrivalTimeSeconds: number;
+}

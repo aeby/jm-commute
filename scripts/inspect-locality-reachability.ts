@@ -9,16 +9,18 @@ import {
   createReachableLocalityMap,
   LocalityResolver,
   parseLocalitiesCsv,
-  resolveReachableLocalities,
+  resolveFastestReachableLocalities,
+  resolveFastestReachableLocalitiesDebug,
   type LocalityRoutingIndex,
   type ReachableLocality,
 } from '../src/localities';
 import { loadLocalityRoutingIndex } from '../src/localities/routing/node';
 import {
-  runRaptorOneToAll,
+  runRaptorFastestWindow,
   UNREACHED_TIME,
-  type RaptorQuery,
-  type RaptorResult,
+  type FastestWindowQuery,
+  type FastestWindowResult,
+  type FastestWindowRoutingDiagnostics,
 } from '../src/transit/raptor';
 import { parseGtfsTimeToSeconds } from '../src/transit/service-profiles';
 import {
@@ -86,10 +88,19 @@ function formatDurationStatistics(
   console.log(`  maximum: ${statistics.maximum.toFixed(3)} ms`);
 }
 
-function countReachableStops(result: RaptorResult): number {
+function formatServiceTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  const remainingSeconds = seconds % 60;
+  return [hours, minutes, remainingSeconds]
+    .map((value) => String(value).padStart(2, '0'))
+    .join(':');
+}
+
+function countReachableStops(result: FastestWindowResult): number {
   let count = 0;
-  for (const arrival of result.arrivalTimes) {
-    if (arrival !== UNREACHED_TIME) {
+  for (const duration of result.durationSeconds) {
+    if (duration !== UNREACHED_TIME) {
       count += 1;
     }
   }
@@ -161,6 +172,8 @@ async function main(): Promise<void> {
       'locality-index-file': { type: 'string' },
       'postal-code': { type: 'string' },
       city: { type: 'string' },
+      'destination-postal-code': { type: 'string' },
+      'destination-city': { type: 'string' },
       'max-travel-minutes': { type: 'string' },
       benchmark: { type: 'boolean', default: false },
       'verify-monotonicity': { type: 'boolean', default: false },
@@ -183,9 +196,10 @@ async function main(): Promise<void> {
     readUtf8Input(localitiesFile, 'locality CSV'),
     loadLocalityRoutingIndex(localityIndexPath),
   ]);
-  const locality = new LocalityResolver(
+  const localityResolver = new LocalityResolver(
     parseLocalitiesCsv(localitiesCsv),
-  ).resolve({ postalCode, city });
+  );
+  const locality = localityResolver.resolve({ postalCode, city });
   if (locality === undefined) {
     throw new Error(`Unable to resolve locality: ${postalCode} ${city}.`);
   }
@@ -202,14 +216,18 @@ async function main(): Promise<void> {
   }
 
   const { timetable } = await loadRaptorInspectionTimetable();
-  const departureTimeSeconds = parseGtfsTimeToSeconds(
-    PROJECT_CONFIG.transit.referenceScenario.departureTime,
+  const windowStartSeconds = parseGtfsTimeToSeconds(
+    PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
+  );
+  const windowEndSeconds = parseGtfsTimeToSeconds(
+    PROJECT_CONFIG.transit.referenceScenario.morningWindow.end,
   );
   const routingDefaults = PROJECT_CONFIG.transit.routing;
   const originStopIndexes = [...originEntry.stopIndexes];
-  const createQuery = (minutes: number): RaptorQuery => ({
+  const createQuery = (minutes: number): FastestWindowQuery => ({
     originStopIndexes,
-    departureTimeSeconds,
+    windowStartSeconds,
+    windowEndSeconds,
     maxTravelTimeSeconds: minutes * 60,
     maxTransfers: routingDefaults.maxTransfers,
     minTransferTimeSeconds: routingDefaults.minTransferTimeSeconds,
@@ -217,20 +235,43 @@ async function main(): Promise<void> {
 
   const query = createQuery(maximumTravelMinutes);
   const routingStart = performance.now();
-  const routingResult = runRaptorOneToAll(timetable, query);
+  let routingDiagnostics: FastestWindowRoutingDiagnostics | undefined;
+  const routingResult = runRaptorFastestWindow(timetable, query, (value) => {
+    routingDiagnostics = value;
+  });
   const routingMilliseconds = performance.now() - routingStart;
   const reductionStart = performance.now();
-  const reachable = resolveReachableLocalities(routingResult, localityIndex);
+  const reachableDebug = resolveFastestReachableLocalitiesDebug(
+    routingResult,
+    localityIndex,
+  );
+  const reachable = reachableDebug.map(({ localityId: id, travelMinutes }) => ({
+    localityId: id,
+    travelMinutes,
+  }));
   const reductionMilliseconds = performance.now() - reductionStart;
 
   console.log(`Origin locality: ${locality.postalCode} ${locality.city}`);
   console.log(`Locality ID: ${localityId}`);
   console.log(`Candidate selection mode: ${originEntry.selectionMode}`);
   console.log(
-    `Departure time: ${PROJECT_CONFIG.transit.referenceScenario.departureTime}`,
+    `Morning departure window: ${PROJECT_CONFIG.transit.referenceScenario.morningWindow.start}–${PROJECT_CONFIG.transit.referenceScenario.morningWindow.end}`,
   );
   console.log(`Maximum commute time: ${maximumTravelMinutes} min`);
   console.log(`Origin routing stops: ${originEntry.stopIndexes.length}`);
+  console.log(
+    `Meaningful departure slots: ${routingDiagnostics?.departureSlotCount ?? 0}`,
+  );
+  console.log(`Range runs: ${routingDiagnostics?.rangeRuns ?? 0}`);
+  console.log(
+    `Runs without duration improvements: ${routingDiagnostics?.runsWithoutDurationImprovements ?? 0}`,
+  );
+  console.log(
+    `Patterns scanned: ${routingDiagnostics?.patternsScanned ?? 0}`,
+  );
+  console.log(
+    `Cross-run prunes: ${routingDiagnostics?.crossRunPrunes ?? 0}`,
+  );
   console.log('');
   console.log(`Reachable RAPTOR stops: ${countReachableStops(routingResult)}`);
   console.log(`Reachable localities: ${reachable.length}`);
@@ -245,6 +286,54 @@ async function main(): Promise<void> {
   console.log(
     `Total routing + reduction time: ${(routingMilliseconds + reductionMilliseconds).toFixed(3)} ms`,
   );
+
+  const destinationPostalCode = values['destination-postal-code'];
+  const destinationCity = values['destination-city'];
+  if (
+    (destinationPostalCode === undefined) !==
+    (destinationCity === undefined)
+  ) {
+    throw new Error(
+      '--destination-postal-code and --destination-city must be supplied together.',
+    );
+  }
+  if (destinationPostalCode !== undefined && destinationCity !== undefined) {
+    const destination = localityResolver.resolve({
+      postalCode: destinationPostalCode,
+      city: destinationCity,
+    });
+    if (destination === undefined) {
+      throw new Error(
+        `Unable to resolve destination locality: ${destinationPostalCode} ${destinationCity}.`,
+      );
+    }
+    const destinationId = createLocalityId(
+      destination.postalCode,
+      destination.city,
+    );
+    const destinationResult = reachableDebug.find(
+      ({ localityId: id }) => id === destinationId,
+    );
+    console.log('');
+    console.log(
+      `Destination: ${destination.postalCode} ${destination.city} (${destinationId})`,
+    );
+    if (destinationResult === undefined) {
+      console.log(
+        `Destination result: not reachable within ${maximumTravelMinutes} min`,
+      );
+    } else {
+      console.log(
+        `Fastest duration: ${destinationResult.travelMinutes} min`,
+      );
+      console.log(
+        `Best departure: ${formatServiceTime(destinationResult.departureTimeSeconds)}`,
+      );
+      console.log(
+        `Arrival: ${formatServiceTime(destinationResult.arrivalTimeSeconds)}`,
+      );
+    }
+  }
   console.log('');
   printLocalities(
     'First reachable localities:',
@@ -261,10 +350,10 @@ async function main(): Promise<void> {
   if (values['verify-monotonicity']) {
     const results = new Map<number, readonly ReachableLocality[]>();
     for (const minutes of [30, 60, 90]) {
-      const result = runRaptorOneToAll(timetable, createQuery(minutes));
+      const result = runRaptorFastestWindow(timetable, createQuery(minutes));
       results.set(
         minutes,
-        resolveReachableLocalities(result, localityIndex),
+        resolveFastestReachableLocalities(result, localityIndex),
       );
     }
     verifyMonotonicity(results);
@@ -280,8 +369,8 @@ async function main(): Promise<void> {
 
   if (values.benchmark) {
     for (let index = 0; index < WARM_UP_COUNT; index += 1) {
-      resolveReachableLocalities(
-        runRaptorOneToAll(timetable, query),
+      resolveFastestReachableLocalities(
+        runRaptorFastestWindow(timetable, query),
         localityIndex,
       );
     }
@@ -292,10 +381,10 @@ async function main(): Promise<void> {
     for (let index = 0; index < MEASURED_COUNT; index += 1) {
       const totalStart = performance.now();
       const iterationRoutingStart = performance.now();
-      const iterationResult = runRaptorOneToAll(timetable, query);
+      const iterationResult = runRaptorFastestWindow(timetable, query);
       routingDurations.push(performance.now() - iterationRoutingStart);
       const iterationReductionStart = performance.now();
-      resolveReachableLocalities(iterationResult, localityIndex);
+      resolveFastestReachableLocalities(iterationResult, localityIndex);
       reductionDurations.push(performance.now() - iterationReductionStart);
       totalDurations.push(performance.now() - totalStart);
     }

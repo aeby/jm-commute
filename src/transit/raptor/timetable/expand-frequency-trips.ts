@@ -20,7 +20,7 @@ export interface RoutingTripExpansionCounts {
   readonly scheduledConcreteTrips: number;
   readonly frequencyTemplates: number;
   readonly generatedFrequencyTrips: number;
-  readonly frequencyInstancesExcludedBeforeDeparture: number;
+  readonly frequencyInstancesExcludedBeforeRoutingWindow: number;
 }
 
 const validateUint32Time = (value: number, context: string): void => {
@@ -141,13 +141,13 @@ const buildShiftedTimes = (
 const isBoardableAtOrAfter = (
   stopTimes: readonly RoutingStopTime[],
   offsetSeconds: number,
-  referenceDepartureSeconds: number,
+  routingWindowStartSeconds: number,
 ): boolean =>
   stopTimes.some(
     (stopTime) =>
       stopTime.pickupType !== 1 &&
       stopTime.departureTimeSeconds + offsetSeconds >=
-        referenceDepartureSeconds,
+        routingWindowStartSeconds,
   );
 
 /**
@@ -156,13 +156,13 @@ const isBoardableAtOrAfter = (
  */
 export const expandRoutingTrip = (
   trip: RoutingTrip,
-  referenceDepartureSeconds: number,
+  routingWindowStartSeconds: number,
   emit: (trip: ExpandedConcreteTrip) => void,
 ): RoutingTripExpansionCounts => {
   validateTrip(trip);
   validateUint32Time(
-    referenceDepartureSeconds,
-    'Reference departure time',
+    routingWindowStartSeconds,
+    'Routing-window start time',
   );
 
   const sourceStopIds = trip.stopTimes.map((stopTime) => stopTime.stopId);
@@ -186,7 +186,7 @@ export const expandRoutingTrip = (
       scheduledConcreteTrips: 1,
       frequencyTemplates: 0,
       generatedFrequencyTrips: 0,
-      frequencyInstancesExcludedBeforeDeparture: 0,
+      frequencyInstancesExcludedBeforeRoutingWindow: 0,
     };
   }
 
@@ -196,7 +196,7 @@ export const expandRoutingTrip = (
   }
 
   let generatedFrequencyTrips = 0;
-  let frequencyInstancesExcludedBeforeDeparture = 0;
+  let frequencyInstancesExcludedBeforeRoutingWindow = 0;
   const windows = [...trip.frequencyWindows].toSorted(compareFrequencyWindows);
   let previousEnd: number | undefined;
 
@@ -219,12 +219,12 @@ export const expandRoutingTrip = (
         !isBoardableAtOrAfter(
           trip.stopTimes,
           offsetSeconds,
-          referenceDepartureSeconds,
+          routingWindowStartSeconds,
         )
       ) {
         // Validate the shifted instance even though it will not be retained.
         buildShiftedTimes(temporaryTripId, trip.stopTimes, offsetSeconds);
-        frequencyInstancesExcludedBeforeDeparture += 1;
+        frequencyInstancesExcludedBeforeRoutingWindow += 1;
         continue;
       }
 
@@ -248,6 +248,6 @@ export const expandRoutingTrip = (
     scheduledConcreteTrips: 0,
     frequencyTemplates: 1,
     generatedFrequencyTrips,
-    frequencyInstancesExcludedBeforeDeparture,
+    frequencyInstancesExcludedBeforeRoutingWindow,
   };
 };

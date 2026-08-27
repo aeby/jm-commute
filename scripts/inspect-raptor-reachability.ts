@@ -10,11 +10,11 @@ import {
 } from '../src/localities';
 import { selectTransitPlaceCandidates } from '../src/transit/candidates';
 import {
-  runRaptorOneToAll,
+  runRaptorFastestWindow,
   UNREACHED_TIME,
-  type RaptorQuery,
-  type RaptorResult,
-  type RaptorRoutingDiagnostics,
+  type FastestWindowQuery,
+  type FastestWindowResult,
+  type FastestWindowRoutingDiagnostics,
 } from '../src/transit/raptor';
 import { parseGtfsTimeToSeconds } from '../src/transit/service-profiles';
 import {
@@ -60,8 +60,8 @@ const percentile = (sortedValues: readonly number[], fraction: number): number =
 };
 
 const benchmarkRouter = (
-  query: RaptorQuery,
-  run: (query: RaptorQuery) => RaptorResult,
+  query: FastestWindowQuery,
+  run: (query: FastestWindowQuery) => FastestWindowResult,
 ): {
   readonly minimum: number;
   readonly median: number;
@@ -93,14 +93,14 @@ const benchmarkRouter = (
 };
 
 const countReachableWithin = (
-  result: RaptorResult,
+  result: FastestWindowResult,
   maximumTravelSeconds: number,
 ): number => {
   let count = 0;
-  for (const arrivalTime of result.arrivalTimes) {
+  for (const durationSeconds of result.durationSeconds) {
     if (
-      arrivalTime !== UNREACHED_TIME &&
-      arrivalTime - result.departureTimeSeconds <= maximumTravelSeconds
+      durationSeconds !== UNREACHED_TIME &&
+      durationSeconds <= maximumTravelSeconds
     ) {
       count += 1;
     }
@@ -214,9 +214,14 @@ async function main(): Promise<void> {
     transferBuildMilliseconds,
     transferMemoryBefore,
     transferMemoryAfter,
-  } = await loadRaptorInspectionTimetable(values['virtual-transfers']);
+  } = await loadRaptorInspectionTimetable({
+    virtualTransfersEnabled: values['virtual-transfers'],
+  });
   const transferDegrees = transferDegreeStatistics(
     transferGraph.transfersByStop,
+  );
+  const accessTransferDegrees = transferDegreeStatistics(
+    transferGraph.accessTransfersByStop,
   );
   const originStopIndexSet = new Set<number>();
   let absentRoutingStopCount = 0;
@@ -239,19 +244,23 @@ async function main(): Promise<void> {
     );
   }
 
-  const departureTimeSeconds = parseGtfsTimeToSeconds(
-    PROJECT_CONFIG.transit.referenceScenario.departureTime,
+  const windowStartSeconds = parseGtfsTimeToSeconds(
+    PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
+  );
+  const windowEndSeconds = parseGtfsTimeToSeconds(
+    PROJECT_CONFIG.transit.referenceScenario.morningWindow.end,
   );
   const routingDefaults = PROJECT_CONFIG.transit.routing;
-  const query: RaptorQuery = {
+  const query: FastestWindowQuery = {
     originStopIndexes,
-    departureTimeSeconds,
+    windowStartSeconds,
+    windowEndSeconds,
     maxTravelTimeSeconds: maximumTravelMinutes * 60,
     maxTransfers: routingDefaults.maxTransfers,
     minTransferTimeSeconds: routingDefaults.minTransferTimeSeconds,
   };
-  let diagnostics: RaptorRoutingDiagnostics | undefined;
-  const result = runRaptorOneToAll(timetable, query, (value) => {
+  let diagnostics: FastestWindowRoutingDiagnostics | undefined;
+  const result = runRaptorFastestWindow(timetable, query, (value) => {
     diagnostics = value;
   });
   if (diagnostics === undefined) {
@@ -272,7 +281,7 @@ async function main(): Promise<void> {
   );
   console.log('');
   console.log(
-    `Departure time: ${PROJECT_CONFIG.transit.referenceScenario.departureTime}`,
+    `Morning departure window: ${PROJECT_CONFIG.transit.referenceScenario.morningWindow.start}–${PROJECT_CONFIG.transit.referenceScenario.morningWindow.end}`,
   );
   console.log(`Maximum travel time: ${maximumTravelMinutes} min`);
   console.log(`Maximum transfers: ${query.maxTransfers}`);
@@ -320,6 +329,9 @@ async function main(): Promise<void> {
     `Final active transfer edges: ${formatInteger(transferGraph.statistics.finalTransferEdges)}`,
   );
   console.log(
+    `Initial-access eligible edges: ${formatInteger(transferGraph.statistics.finalAccessTransferEdges)}`,
+  );
+  console.log(
     `Stops with transfers: ${formatInteger(transferDegrees.stopsWithTransfers)}`,
   );
   console.log(
@@ -334,6 +346,12 @@ async function main(): Promise<void> {
   console.log(
     `Transfer graph fingerprint: ${transferGraphFingerprint(transferGraph.transfersByStop)}`,
   );
+  console.log(
+    `Initial-access graph fingerprint: ${transferGraphFingerprint(transferGraph.accessTransfersByStop)}`,
+  );
+  console.log(
+    `Initial-access typed-array bytes: ${formatBytes(accessTransferDegrees.typedArrayBytes)}`,
+  );
   console.log('');
   console.log(
     `Reachable stops: ${countReachableWithin(result, query.maxTravelTimeSeconds)}`,
@@ -344,17 +362,19 @@ async function main(): Promise<void> {
     );
   });
   console.log('');
-  console.log(`Rounds executed: ${diagnostics.roundsExecuted}`);
+  console.log(`Meaningful departure slots: ${diagnostics.departureSlotCount}`);
+  console.log(`Range runs: ${diagnostics.rangeRuns}`);
   console.log(`Patterns scanned: ${diagnostics.patternsScanned}`);
   console.log(
-    `Pattern scans per round: ${diagnostics.patternScansPerRound.join(', ')}`,
+    `Runs without duration improvements: ${diagnostics.runsWithoutDurationImprovements}`,
   );
-  console.log(`Stops improved: ${diagnostics.stopsImproved}`);
+  console.log(`Cross-run prunes: ${diagnostics.crossRunPrunes}`);
+  console.log(`Original seed stops: ${diagnostics.originalSeedStops}`);
   console.log(
-    `Transfer edges examined: ${diagnostics.transferEdgesExamined}`,
+    `Maximum additional initial-access stops: ${diagnostics.maximumAdditionalInitialAccessStops}`,
   );
   console.log(
-    `Transfer arrival improvements: ${diagnostics.transferArrivalImprovements}`,
+    `Initial-access edges examined: ${diagnostics.initialAccessEdgesExamined}`,
   );
   console.log(
     `Timetable construction time: ${(timetableBuildMilliseconds / 1000).toFixed(3)} s`,
@@ -374,7 +394,7 @@ async function main(): Promise<void> {
 
   if (values.benchmark) {
     const benchmark = benchmarkRouter(query, (benchmarkQuery) =>
-      runRaptorOneToAll(timetable, benchmarkQuery),
+      runRaptorFastestWindow(timetable, benchmarkQuery),
     );
     console.log('');
     console.log(

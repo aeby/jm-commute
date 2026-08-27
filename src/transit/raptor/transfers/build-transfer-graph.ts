@@ -118,7 +118,12 @@ export const buildTransferGraph = async (
     const duration =
       rule.minimumTransferTimeSeconds ?? USE_QUERY_TRANSFER_TIME;
     if (
-      registry.addExplicitEdge(fromStopIndex, toStopIndex, duration) ===
+      registry.addExplicitEdge(
+        fromStopIndex,
+        toStopIndex,
+        duration,
+        rule.transferType,
+      ) ===
       'MERGED'
     ) {
       duplicateExplicitEdgesMerged += 1;
@@ -143,9 +148,11 @@ export const buildTransferGraph = async (
       )
     : 0;
   const transfersByStop = registry.toTransfersByStop();
+  const accessTransfersByStop = registry.toAccessTransfersByStop();
 
   return {
     transfersByStop,
+    accessTransfersByStop,
     statistics: {
       gtfsRows,
       gtfsSupportedEdges,
@@ -161,41 +168,59 @@ export const buildTransferGraph = async (
       unsupportedInSeatRows,
       unsupportedOtherConstrainedRows,
       finalTransferEdges: registry.edgeCount,
+      finalAccessTransferEdges: registry.accessEdgeCount,
     },
+    ...(options.includeDiagnostics
+      ? { edgeDiagnostics: registry.toEdgeDiagnostics() }
+      : {}),
   };
 };
 
 export const attachTransferGraph = (
   timetable: RaptorTimetable,
-  transfersByStop: readonly Uint32Array[],
+  transferGraph: Pick<
+    TransferGraphBuildResult,
+    'transfersByStop' | 'accessTransfersByStop'
+  >,
 ): RaptorTimetable => {
-  if (transfersByStop.length !== timetable.sourceStopIds.length) {
-    throw new Error(
-      'Transfer adjacency length must match the timetable stop count.',
-    );
-  }
-  transfersByStop.forEach((edges, fromStopIndex) => {
-    if (!(edges instanceof Uint32Array) || edges.length % 2 !== 0) {
+  const validateAdjacency = (
+    label: string,
+    adjacency: readonly Uint32Array[],
+  ): void => {
+    if (adjacency.length !== timetable.sourceStopIds.length) {
       throw new Error(
-        `Transfer adjacency for stop ${fromStopIndex} must contain Uint32 pairs.`,
+        `${label} adjacency length must match the timetable stop count.`,
       );
     }
-    for (let index = 0; index < edges.length; index += 2) {
-      const destination = edges[index];
-      if (
-        destination === undefined ||
-        destination >= timetable.sourceStopIds.length
-      ) {
+    adjacency.forEach((edges, fromStopIndex) => {
+      if (!(edges instanceof Uint32Array) || edges.length % 2 !== 0) {
         throw new Error(
-          `Transfer adjacency for stop ${fromStopIndex} references an invalid destination.`,
+          `${label} adjacency for stop ${fromStopIndex} must contain Uint32 pairs.`,
         );
       }
-    }
-  });
+      for (let index = 0; index < edges.length; index += 2) {
+        const destination = edges[index];
+        if (
+          destination === undefined ||
+          destination >= timetable.sourceStopIds.length
+        ) {
+          throw new Error(
+            `${label} adjacency for stop ${fromStopIndex} references an invalid destination.`,
+          );
+        }
+      }
+    });
+  };
+  validateAdjacency('Transfer', transferGraph.transfersByStop);
+  validateAdjacency(
+    'Initial-access transfer',
+    transferGraph.accessTransfersByStop,
+  );
   return {
     sourceStopIds: timetable.sourceStopIds,
     patterns: timetable.patterns,
     patternOccurrencesByStop: timetable.patternOccurrencesByStop,
-    transfersByStop,
+    transfersByStop: transferGraph.transfersByStop,
+    accessTransfersByStop: transferGraph.accessTransfersByStop,
   };
 };

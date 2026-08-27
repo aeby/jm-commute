@@ -16,21 +16,20 @@ describe('PROJECT_CONFIG transit reference scenario', () => {
     expect(date.getUTCDay()).toBe(1);
   });
 
-  it('keeps the fixed service date and reference departure time', () => {
+  it('keeps the fixed service date', () => {
     expect(referenceScenario.serviceDate).toBe('2026-09-07');
-    expect(referenceScenario.departureTime).toBe('08:00:00');
   });
 
-  it('uses an exact two-hour service-profile interval', () => {
+  it('uses an exact two-hour representative morning window', () => {
     const windowStart = parseGtfsTimeToSeconds(
-      referenceScenario.serviceProfileWindow.start,
+      referenceScenario.morningWindow.start,
     );
     const windowEnd = parseGtfsTimeToSeconds(
-      referenceScenario.serviceProfileWindow.end,
+      referenceScenario.morningWindow.end,
     );
 
-    expect(referenceScenario.serviceProfileWindow.start).toBe('07:00:00');
-    expect(referenceScenario.serviceProfileWindow.end).toBe('09:00:00');
+    expect(referenceScenario.morningWindow.start).toBe('07:00:00');
+    expect(referenceScenario.morningWindow.end).toBe('09:00:00');
     expect(windowEnd - windowStart).toBe(2 * 60 * 60);
   });
 

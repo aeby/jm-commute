@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { arrivalAt, travelTimeTo } from '../result';
-import { runRaptorOneToAll } from '../run-raptor-one-to-all';
 import { UNREACHED_TIME } from '../state';
 import type {
   RaptorQuery,
   RaptorRoutingDiagnostics,
 } from '../types';
-import { testPattern, testTimetable } from './test-timetable';
+import {
+  arrivalAt,
+  runRaptorOneToAll,
+  testPattern,
+  testTimetable,
+  travelTimeTo,
+} from './test-timetable';
 
 const DEPARTURE_TIME = 28_800;
 

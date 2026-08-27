@@ -113,7 +113,7 @@ describe('generateStraightLineTransfers', () => {
 
   it('does not replace explicit, forbidden, or sibling edges', () => {
     const registry = new TransferEdgeRegistry(3);
-    registry.addExplicitEdge(0, 1, 900);
+    registry.addExplicitEdge(0, 1, 900, 2);
     registry.addExplicitForbidden(1, 0);
     registry.addGeneratedEdge(0, 2, 120, 'SIBLING');
 

@@ -1,6 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 
@@ -23,6 +23,7 @@ import {
   readUtf8Input,
 } from './transit-inspection-inputs';
 import { loadRaptorInspectionTimetable } from './load-raptor-inspection-timetable';
+import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
 const MANIFEST_PATH = resolve(
@@ -41,7 +42,8 @@ const DEFAULT_OUTPUT_PATH = resolve(
 interface RoutingManifestMetadata {
   readonly sourceFeedVersion: string;
   readonly serviceDate: string;
-  readonly departureTime: string;
+  readonly routingWindowStart: string;
+  readonly routingWindowEnd: string;
 }
 
 export interface ValidationDataBuildResult {
@@ -69,27 +71,39 @@ async function loadManifestMetadata(): Promise<RoutingManifestMetadata> {
   if (!isRecord(value)) {
     throw new Error('Routing manifest must contain a JSON object.');
   }
-  const { sourceFeedVersion, serviceDate, departureTime } = value;
+  const {
+    sourceFeedVersion,
+    serviceDate,
+    routingWindowStart,
+    routingWindowEnd,
+  } = value;
   if (
     typeof sourceFeedVersion !== 'string' ||
     sourceFeedVersion.length === 0 ||
     typeof serviceDate !== 'string' ||
-    typeof departureTime !== 'string'
+    typeof routingWindowStart !== 'string' ||
+    typeof routingWindowEnd !== 'string'
   ) {
     throw new Error(
-      'Routing manifest must contain feed version, service date, and departure time.',
+      'Routing manifest must contain feed version, service date, and routing window.',
     );
   }
   const scenario = PROJECT_CONFIG.transit.referenceScenario;
   if (
     serviceDate !== scenario.serviceDate ||
-    departureTime !== scenario.departureTime
+    routingWindowStart !== scenario.morningWindow.start ||
+    routingWindowEnd !== scenario.morningWindow.end
   ) {
     throw new Error(
       'Routing manifest metadata does not match PROJECT_CONFIG.',
     );
   }
-  return { sourceFeedVersion, serviceDate, departureTime };
+  return {
+    sourceFeedVersion,
+    serviceDate,
+    routingWindowStart,
+    routingWindowEnd,
+  };
 }
 
 function javascriptSafeJson(value: unknown): string {
@@ -97,18 +111,6 @@ function javascriptSafeJson(value: unknown): string {
     .replaceAll('<', '\\u003c')
     .replaceAll('\u2028', '\\u2028')
     .replaceAll('\u2029', '\\u2029');
-}
-
-async function writeAtomically(path: string, contents: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temporaryPath, contents, 'utf8');
-    await rename(temporaryPath, path);
-  } catch (error) {
-    await unlink(temporaryPath).catch(() => undefined);
-    throw error;
-  }
 }
 
 export async function buildValidationData(
@@ -200,7 +202,8 @@ export async function buildValidationData(
     schemaVersion: 1,
     feedVersion: manifest.sourceFeedVersion,
     serviceDate: manifest.serviceDate,
-    departureTime: manifest.departureTime,
+    routingWindowStart: manifest.routingWindowStart,
+    routingWindowEnd: manifest.routingWindowEnd,
     localities: localityIndex.entries.map(
       ({ localityId, postalCode, city }) => ({
         localityId,
@@ -219,7 +222,7 @@ export async function buildValidationData(
     timetable: serializeValidationTimetable(loadedTimetable.timetable),
   };
   const output = `window.__SWISS_COMMUTE_VALIDATION_DATA__=${javascriptSafeJson(dataset)};\n`;
-  await writeAtomically(outputPath, output);
+  await writeUtf8FileAtomically(outputPath, output);
   const buildMilliseconds = performance.now() - buildStart;
 
   return {

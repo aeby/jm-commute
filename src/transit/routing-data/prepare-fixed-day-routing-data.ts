@@ -39,7 +39,8 @@ export interface PrepareFixedDayRoutingDataOptions {
   readonly transitStopsPath: string;
   readonly outputDirectory: string;
   readonly serviceDate: string;
-  readonly departureTime: string;
+  readonly routingWindowStart: string;
+  readonly routingWindowEnd: string;
 }
 
 export interface FixedDayRoutingPreparationResult {
@@ -157,9 +158,17 @@ export async function prepareFixedDayRoutingData(
   options: PrepareFixedDayRoutingDataOptions,
 ): Promise<FixedDayRoutingPreparationResult> {
   const gtfsServiceDate = serviceDateToGtfsDate(options.serviceDate);
-  const referenceDepartureTimeSeconds = parseGtfsTimeToSeconds(
-    options.departureTime,
+  const routingWindowStartSeconds = parseGtfsTimeToSeconds(
+    options.routingWindowStart,
   );
+  const routingWindowEndSeconds = parseGtfsTimeToSeconds(
+    options.routingWindowEnd,
+  );
+  if (routingWindowStartSeconds >= routingWindowEndSeconds) {
+    throw new RangeError(
+      'Routing morning-window start must be earlier than its end.',
+    );
+  }
   const fixedDateFeed = await loadFixedDateGtfsFeed(
     options.gtfsDirectory,
     gtfsServiceDate,
@@ -206,7 +215,7 @@ export async function prepareFixedDayRoutingData(
   let frequencyTripCount = 0;
   let stopTimeCount = 0;
   let frequencyWindowCount = 0;
-  let excludedBeforeDepartureTripCount = 0;
+  let excludedBeforeRoutingWindowTripCount = 0;
   let blankActiveTripTimeCount = 0;
   let stopTimeRowsScanned = 0;
   let streamClosed = false;
@@ -240,10 +249,10 @@ export async function prepareFixedDayRoutingData(
       !shouldRetainRoutingTrip(
         stopTimes,
         frequencyWindows,
-        referenceDepartureTimeSeconds,
+        routingWindowStartSeconds,
       )
     ) {
-      excludedBeforeDepartureTripCount += 1;
+      excludedBeforeRoutingWindowTripCount += 1;
       return;
     }
 
@@ -389,13 +398,14 @@ export async function prepareFixedDayRoutingData(
         ? {}
         : { sourceFeedVersion: fixedDateFeed.feedInfo.version }),
       serviceDate: options.serviceDate,
-      departureTime: options.departureTime,
+      routingWindowStart: options.routingWindowStart,
+      routingWindowEnd: options.routingWindowEnd,
       tripCount,
       scheduledTripCount,
       frequencyTripCount,
       stopTimeCount,
       frequencyWindowCount,
-      excludedBeforeDepartureTripCount,
+      excludedBeforeRoutingWindowTripCount,
     };
 
     await writeFile(

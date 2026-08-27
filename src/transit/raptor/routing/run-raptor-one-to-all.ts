@@ -1,12 +1,20 @@
 import type { RaptorTimetable } from '../timetable';
 import {
+  collectInitialAccessStops,
+  createInitialAccessScratch,
+  type InitialAccessScratch,
+} from './collect-initial-access-stops';
+import {
   collectReachablePatterns,
   createReachablePatternScratch,
+  type ReachablePatternScratch,
 } from './collect-reachable-patterns';
 import { scanPattern } from './scan-pattern';
 import {
   createUnreachedArrivalTimes,
+  improveSharedBoardingReadyTime,
   UNREACHED_TIME,
+  type SharedRoundArrivalState,
 } from './state';
 import { relaxTransfers } from './relax-transfers';
 import type {
@@ -22,6 +30,141 @@ interface ValidatedQuery {
   readonly maxTransfers: number;
   readonly minTransferTimeSeconds: number;
 }
+
+export interface RaptorRunBuffers {
+  readonly stopCount: number;
+  readonly patternCount: number;
+  readonly globalArrivalTimes: Uint32Array;
+  readonly reachedStops: number[];
+  readonly reachedMembership: Uint8Array;
+  readonly globalBoardingReadyTimes: Uint32Array;
+  readonly bestVehicleArrivalTimes: Uint32Array;
+  readonly roundArrivalTimesA: Uint32Array;
+  readonly roundArrivalTimesB: Uint32Array;
+  readonly roundTransferAppliedA: Uint8Array;
+  readonly roundTransferAppliedB: Uint8Array;
+  readonly currentRoundVehicleArrivalTimes: Uint32Array;
+  readonly vehicleImprovedStops: number[];
+  readonly vehicleImprovedMembership: Uint8Array;
+  readonly markedStopsA: number[];
+  readonly markedStopsB: number[];
+  readonly nextMarkedMembership: Uint8Array;
+  readonly patternScratch: ReachablePatternScratch;
+  readonly initialAccessScratch: InitialAccessScratch;
+}
+
+export interface RaptorSharedRangeContext {
+  readonly rounds: readonly SharedRoundArrivalState[];
+}
+
+export const createRaptorRunBuffers = (
+  timetable: RaptorTimetable,
+): RaptorRunBuffers => {
+  const stopCount = timetable.sourceStopIds.length;
+  return {
+    stopCount,
+    patternCount: timetable.patterns.length,
+    globalArrivalTimes: createUnreachedArrivalTimes(stopCount),
+    reachedStops: [],
+    reachedMembership: new Uint8Array(stopCount),
+    globalBoardingReadyTimes: createUnreachedArrivalTimes(stopCount),
+    bestVehicleArrivalTimes: createUnreachedArrivalTimes(stopCount),
+    roundArrivalTimesA: createUnreachedArrivalTimes(stopCount),
+    roundArrivalTimesB: createUnreachedArrivalTimes(stopCount),
+    roundTransferAppliedA: new Uint8Array(stopCount),
+    roundTransferAppliedB: new Uint8Array(stopCount),
+    currentRoundVehicleArrivalTimes:
+      createUnreachedArrivalTimes(stopCount),
+    vehicleImprovedStops: [],
+    vehicleImprovedMembership: new Uint8Array(stopCount),
+    markedStopsA: [],
+    markedStopsB: [],
+    nextMarkedMembership: new Uint8Array(stopCount),
+    patternScratch: createReachablePatternScratch(timetable.patterns.length),
+    initialAccessScratch: createInitialAccessScratch(stopCount),
+  };
+};
+
+const resetMarkedStopBuffers = (
+  buffers: RaptorRunBuffers,
+  markedStops: number[],
+): void => {
+  for (const stopIndex of markedStops) {
+    buffers.roundArrivalTimesA[stopIndex] = UNREACHED_TIME;
+    buffers.roundArrivalTimesB[stopIndex] = UNREACHED_TIME;
+    buffers.roundTransferAppliedA[stopIndex] = 0;
+    buffers.roundTransferAppliedB[stopIndex] = 0;
+    buffers.nextMarkedMembership[stopIndex] = 0;
+  }
+  markedStops.length = 0;
+};
+
+const resetRunBuffers = (
+  timetable: RaptorTimetable,
+  buffers: RaptorRunBuffers,
+): void => {
+  if (
+    buffers.stopCount !== timetable.sourceStopIds.length ||
+    buffers.patternCount !== timetable.patterns.length
+  ) {
+    throw new Error('Reusable RAPTOR buffers do not match the timetable.');
+  }
+  for (const stopIndex of buffers.reachedStops) {
+    buffers.globalArrivalTimes[stopIndex] = UNREACHED_TIME;
+    buffers.globalBoardingReadyTimes[stopIndex] = UNREACHED_TIME;
+    buffers.bestVehicleArrivalTimes[stopIndex] = UNREACHED_TIME;
+    buffers.reachedMembership[stopIndex] = 0;
+  }
+  buffers.reachedStops.length = 0;
+  for (const stopIndex of buffers.vehicleImprovedStops) {
+    buffers.currentRoundVehicleArrivalTimes[stopIndex] = UNREACHED_TIME;
+    buffers.vehicleImprovedMembership[stopIndex] = 0;
+  }
+  buffers.vehicleImprovedStops.length = 0;
+  resetMarkedStopBuffers(buffers, buffers.markedStopsA);
+  resetMarkedStopBuffers(buffers, buffers.markedStopsB);
+};
+
+const initializeSharedRound = (
+  sharedContext: RaptorSharedRangeContext | undefined,
+  roundNumber: number,
+): SharedRoundArrivalState | undefined => {
+  if (sharedContext === undefined) {
+    return undefined;
+  }
+  const previous = sharedContext.rounds[roundNumber - 1];
+  const current = sharedContext.rounds[roundNumber];
+  if (previous === undefined || current === undefined) {
+    throw new Error(
+      `Shared Range-RAPTOR labels do not contain round ${roundNumber}.`,
+    );
+  }
+  for (const stopIndex of previous.changedVehicleStops) {
+    const arrival =
+      previous.vehicleArrivalTimes[stopIndex] ?? UNREACHED_TIME;
+    if (
+      arrival <
+      (current.vehicleArrivalTimes[stopIndex] ?? UNREACHED_TIME)
+    ) {
+      current.vehicleArrivalTimes[stopIndex] = arrival;
+      current.changedVehicleStops.push(stopIndex);
+    }
+  }
+  previous.changedVehicleStops.length = 0;
+  for (const stopIndex of previous.changedBoardingReadyStops) {
+    const boardingReadyTime =
+      previous.boardingReadyTimes[stopIndex] ?? UNREACHED_TIME;
+    if (
+      boardingReadyTime <
+      (current.boardingReadyTimes[stopIndex] ?? UNREACHED_TIME)
+    ) {
+      current.boardingReadyTimes[stopIndex] = boardingReadyTime;
+      current.changedBoardingReadyStops.push(stopIndex);
+    }
+  }
+  previous.changedBoardingReadyStops.length = 0;
+  return current;
+};
 
 const validateNonnegativeInteger = (
   value: number,
@@ -55,6 +198,11 @@ const validateQuery = (
   if (timetable.transfersByStop.length !== stopCount) {
     throw new Error(
       'Timetable source stops and transfer adjacency have different lengths',
+    );
+  }
+  if (timetable.accessTransfersByStop.length !== stopCount) {
+    throw new Error(
+      'Timetable source stops and initial-access adjacency have different lengths',
     );
   }
   const originMembership = new Uint8Array(stopCount);
@@ -117,41 +265,72 @@ const validateQuery = (
   };
 };
 
-export const runRaptorOneToAll = (
+export const runRaptorOneToAllWithBuffers = (
   timetable: RaptorTimetable,
   query: RaptorQuery,
+  buffers: RaptorRunBuffers,
+  sharedContext?: RaptorSharedRangeContext,
   onDiagnostics?: RaptorDiagnosticsCallback,
 ): RaptorResult => {
   const validated = validateQuery(timetable, query);
-  const stopCount = timetable.sourceStopIds.length;
-  const globalArrivalTimes = createUnreachedArrivalTimes(stopCount);
-  const globalBoardingReadyTimes = createUnreachedArrivalTimes(stopCount);
-  const bestVehicleArrivalTimes = createUnreachedArrivalTimes(stopCount);
-  let previousRoundArrivalTimes = createUnreachedArrivalTimes(stopCount);
-  let previousRoundTransferApplied = new Uint8Array(stopCount);
-  let currentRoundArrivalTimes = createUnreachedArrivalTimes(stopCount);
-  let currentRoundTransferApplied = new Uint8Array(stopCount);
-  const currentRoundVehicleArrivalTimes =
-    createUnreachedArrivalTimes(stopCount);
-  const vehicleImprovedStops: number[] = [];
-  const vehicleImprovedMembership = new Uint8Array(stopCount);
+  resetRunBuffers(timetable, buffers);
+  const {
+    globalArrivalTimes,
+    reachedStops,
+    reachedMembership,
+    globalBoardingReadyTimes,
+    bestVehicleArrivalTimes,
+    currentRoundVehicleArrivalTimes,
+    vehicleImprovedStops,
+    vehicleImprovedMembership,
+    nextMarkedMembership,
+    patternScratch,
+  } = buffers;
+  let previousRoundArrivalTimes = buffers.roundArrivalTimesA;
+  let previousRoundTransferApplied = buffers.roundTransferAppliedA;
+  let currentRoundArrivalTimes = buffers.roundArrivalTimesB;
+  let currentRoundTransferApplied = buffers.roundTransferAppliedB;
 
-  let markedStops = [...validated.originStopIndexes];
-  let nextMarkedStops: number[] = [];
-  const nextMarkedMembership = new Uint8Array(stopCount);
-  for (const originStopIndex of validated.originStopIndexes) {
-    globalArrivalTimes[originStopIndex] = validated.departureTimeSeconds;
-    globalBoardingReadyTimes[originStopIndex] =
-      validated.departureTimeSeconds;
-    previousRoundArrivalTimes[originStopIndex] =
-      validated.departureTimeSeconds;
-    previousRoundTransferApplied[originStopIndex] = 1;
+  const initialAccess = collectInitialAccessStops(
+    timetable.accessTransfersByStop,
+    validated.originStopIndexes,
+    validated.departureTimeSeconds,
+    validated.minTransferTimeSeconds,
+    validated.maxArrivalTime,
+    buffers.initialAccessScratch,
+  );
+  let markedStops = buffers.markedStopsA;
+  let nextMarkedStops = buffers.markedStopsB;
+  const sharedRoundZero = sharedContext?.rounds[0];
+  if (sharedContext !== undefined && sharedRoundZero === undefined) {
+    throw new Error('Shared Range-RAPTOR labels do not contain round zero.');
+  }
+  for (const { stopIndex, arrivalTimeSeconds } of initialAccess.stops) {
+    markedStops.push(stopIndex);
+    if (reachedMembership[stopIndex] === 0) {
+      reachedMembership[stopIndex] = 1;
+      reachedStops.push(stopIndex);
+    }
+    globalArrivalTimes[stopIndex] = arrivalTimeSeconds;
+    globalBoardingReadyTimes[stopIndex] = arrivalTimeSeconds;
+    previousRoundArrivalTimes[stopIndex] = arrivalTimeSeconds;
+    previousRoundTransferApplied[stopIndex] = 1;
+    improveSharedBoardingReadyTime(
+      sharedRoundZero,
+      stopIndex,
+      arrivalTimeSeconds,
+    );
   }
 
-  const patternScratch = createReachablePatternScratch(
-    timetable.patterns.length,
-  );
   const maximumRounds = validated.maxTransfers + 1;
+  if (
+    sharedContext !== undefined &&
+    sharedContext.rounds.length !== maximumRounds + 1
+  ) {
+    throw new Error(
+      'Shared Range-RAPTOR round count does not match maxTransfers.',
+    );
+  }
   const patternScansPerRound: number[] = [];
   let patternsScanned = 0;
   let stopsImproved = 0;
@@ -165,6 +344,10 @@ export const runRaptorOneToAll = (
     roundNumber += 1
   ) {
     roundsExecuted += 1;
+    const sharedRound = initializeSharedRound(
+      sharedContext,
+      roundNumber,
+    );
     const reachablePatternIds = collectReachablePatterns(
       timetable,
       markedStops,
@@ -182,6 +365,8 @@ export const runRaptorOneToAll = (
       }
       stopsImproved += scanPattern(pattern, firstStopIndex, {
         globalArrivalTimes,
+        reachedStops,
+        reachedMembership,
         globalBoardingReadyTimes,
         bestVehicleArrivalTimes,
         previousRoundArrivalTimes,
@@ -197,6 +382,7 @@ export const runRaptorOneToAll = (
         roundNumber,
         minTransferTimeSeconds: validated.minTransferTimeSeconds,
         maxArrivalTime: validated.maxArrivalTime,
+        sharedRound,
       });
     }
 
@@ -205,6 +391,8 @@ export const runRaptorOneToAll = (
       vehicleImprovedStops,
       currentRoundVehicleArrivalTimes,
       globalArrivalTimes,
+      reachedStops,
+      reachedMembership,
       globalBoardingReadyTimes,
       currentRoundArrivalTimes,
       currentRoundTransferApplied,
@@ -212,6 +400,7 @@ export const runRaptorOneToAll = (
       nextMarkedMembership,
       minTransferTimeSeconds: validated.minTransferTimeSeconds,
       maxArrivalTime: validated.maxArrivalTime,
+      sharedRound,
     });
     transferEdgesExamined += transferCounts.edgesExamined;
     transferArrivalImprovements += transferCounts.arrivalImprovements;
@@ -228,16 +417,33 @@ export const runRaptorOneToAll = (
     const previousMarkedStops = markedStops;
     markedStops = nextMarkedStops;
     nextMarkedStops = previousMarkedStops;
-    nextMarkedStops.length = 0;
 
     const reusableArrivalTimes = previousRoundArrivalTimes;
     previousRoundArrivalTimes = currentRoundArrivalTimes;
     currentRoundArrivalTimes = reusableArrivalTimes;
-    currentRoundArrivalTimes.fill(UNREACHED_TIME);
     const reusableTransferApplied = previousRoundTransferApplied;
     previousRoundTransferApplied = currentRoundTransferApplied;
     currentRoundTransferApplied = reusableTransferApplied;
-    currentRoundTransferApplied.fill(0);
+    for (const stopIndex of nextMarkedStops) {
+      currentRoundArrivalTimes[stopIndex] = UNREACHED_TIME;
+      currentRoundTransferApplied[stopIndex] = 0;
+    }
+    nextMarkedStops.length = 0;
+  }
+
+  // The last executed round may have produced labels for a round beyond the
+  // configured vehicle-leg limit. They are not scanned, but must be cleared
+  // before the buffers are reused by the next departure slot.
+  for (const stopIndex of markedStops) {
+    previousRoundArrivalTimes[stopIndex] = UNREACHED_TIME;
+    previousRoundTransferApplied[stopIndex] = 0;
+  }
+  markedStops.length = 0;
+
+  const lastSharedRound = sharedContext?.rounds[maximumRounds];
+  if (lastSharedRound !== undefined) {
+    lastSharedRound.changedVehicleStops.length = 0;
+    lastSharedRound.changedBoardingReadyStops.length = 0;
   }
 
   onDiagnostics?.({
@@ -247,6 +453,10 @@ export const runRaptorOneToAll = (
     stopsImproved,
     transferEdgesExamined,
     transferArrivalImprovements,
+    originalSeedStops: initialAccess.originalStopCount,
+    additionalInitialAccessStops: initialAccess.additionalStopCount,
+    initialAccessEdgesExamined: initialAccess.edgesExamined,
+    initialAccessArrivalImprovements: initialAccess.arrivalImprovements,
   });
 
   return {

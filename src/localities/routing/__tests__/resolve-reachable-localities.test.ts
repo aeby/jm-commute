@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { UNREACHED_TIME, type RaptorResult } from '../../../transit/raptor';
+import {
+  UNREACHED_TIME,
+  type FastestWindowResult,
+} from '../../../transit/raptor';
 import type {
   LocalityRoutingEntry,
-  LocalityRoutingIndex,
 } from '../types';
 import {
   createReachableLocalityMap,
-  resolveReachableLocalities,
+  resolveFastestReachableLocalities,
+  resolveFastestReachableLocalitiesDebug,
 } from '../resolve-reachable-localities';
 
 const DEPARTURE = 28_800;
@@ -26,78 +29,70 @@ function entry(
   };
 }
 
-function resolve(
-  arrivalTimes: readonly number[],
+function resolveFastest(
+  durations: readonly number[],
   entries: readonly LocalityRoutingEntry[],
-) {
-  const result: RaptorResult = {
-    departureTimeSeconds: DEPARTURE,
-    arrivalTimes: Uint32Array.from(arrivalTimes),
+  departures: readonly number[] = durations.map(() => DEPARTURE),
+): ReturnType<typeof resolveFastestReachableLocalities> {
+  const result: FastestWindowResult = {
+    durationSeconds: Uint32Array.from(durations),
+    departureTimes: Uint32Array.from(departures),
+    arrivalTimes: Uint32Array.from(
+      durations.map((duration, index) =>
+        duration === UNREACHED_TIME
+          ? UNREACHED_TIME
+          : (departures[index] ?? DEPARTURE) + duration,
+      ),
+    ),
   };
-  const index: LocalityRoutingIndex = { entries };
-  return resolveReachableLocalities(result, index);
+  return resolveFastestReachableLocalities(result, { entries });
 }
 
-describe('resolveReachableLocalities', () => {
-  it('makes a locality reachable through one stop', () => {
-    expect(resolve([DEPARTURE + 600], [entry('8001:zurich', [0])])).toEqual([
-      { localityId: '8001:zurich', travelMinutes: 10 },
-    ]);
-  });
-
-  it('uses the earliest of several destination stops', () => {
+describe('resolveFastestReachableLocalities', () => {
+  it('uses the shortest duration across all destination stops', () => {
     expect(
-      resolve(
-        [DEPARTURE + 1_800, DEPARTURE + 1_200, UNREACHED_TIME],
+      resolveFastest(
+        [1_800, 1_201, UNREACHED_TIME],
         [entry('3011:bern', [0, 1, 2])],
       ),
-    ).toEqual([{ localityId: '3011:bern', travelMinutes: 20 }]);
+    ).toEqual([{ localityId: '3011:bern', travelMinutes: 21 }]);
   });
 
-  it('omits localities whose stops are all unreachable or empty', () => {
+  it('omits all-unreachable and empty localities', () => {
     expect(
-      resolve(
+      resolveFastest(
         [UNREACHED_TIME],
-        [entry('1000:unreachable', [0]), entry('1001:empty', [])],
+        [entry('1000:none', [0]), entry('1001:empty', [])],
+        [UNREACHED_TIME],
       ),
     ).toEqual([]);
   });
 
-  it('supports a zero-minute origin locality', () => {
-    expect(resolve([DEPARTURE], [entry('8001:zurich', [0])])).toEqual([
-      { localityId: '8001:zurich', travelMinutes: 0 },
-    ]);
-  });
-
-  it('keeps exact minutes and rounds partial minutes upward', () => {
+  it('supports zero duration and rounds partial minutes upward', () => {
     expect(
-      resolve(
-        [DEPARTURE + 1_800, DEPARTURE + 1_801],
-        [entry('3000:exact', [0]), entry('3001:partial', [1])],
+      resolveFastest(
+        [0, 1_800, 1_801],
+        [
+          entry('1000:origin', [0]),
+          entry('1001:exact', [1]),
+          entry('1002:partial', [2]),
+        ],
       ),
     ).toEqual([
-      { localityId: '3000:exact', travelMinutes: 30 },
-      { localityId: '3001:partial', travelMinutes: 31 },
+      { localityId: '1000:origin', travelMinutes: 0 },
+      { localityId: '1001:exact', travelMinutes: 30 },
+      { localityId: '1002:partial', travelMinutes: 31 },
     ]);
   });
 
-  it('allows several localities to share one routing stop', () => {
+  it('sorts deterministically and permits several localities to share a stop', () => {
     expect(
-      resolve(
-        [DEPARTURE + 300],
-        [entry('8002:a', [0]), entry('8003:b', [0])],
-      ),
-    ).toHaveLength(2);
-  });
-
-  it('sorts by travel minutes and then lexical locality ID', () => {
-    expect(
-      resolve(
-        [DEPARTURE + 600, DEPARTURE + 300, DEPARTURE + 300],
+      resolveFastest(
+        [300, 600],
         [
-          entry('9000:later', [0]),
-          entry('8002:b', [1]),
-          entry('8001:a', [2]),
+          entry('8002:b', [0]),
+          entry('8001:a', [0]),
+          entry('9000:later', [1]),
         ],
       ),
     ).toEqual([
@@ -119,9 +114,30 @@ describe('resolveReachableLocalities', () => {
     ]);
   });
 
-  it('fails clearly when index and RAPTOR result stop spaces differ', () => {
-    expect(() => resolve([DEPARTURE], [entry('8001:zurich', [1])])).toThrow(
-      /references stop index/i,
-    );
+  it('fails clearly when index and result stop spaces differ', () => {
+    expect(() =>
+      resolveFastest([0], [entry('8001:zurich', [1])]),
+    ).toThrow(/references stop index/i);
+  });
+
+  it('preserves best departure and arrival in the diagnostic result only', () => {
+    const result: FastestWindowResult = {
+      durationSeconds: new Uint32Array([1_800, 1_800]),
+      departureTimes: new Uint32Array([27_000, 28_800]),
+      arrivalTimes: new Uint32Array([28_800, 30_600]),
+    };
+
+    expect(
+      resolveFastestReachableLocalitiesDebug(result, {
+        entries: [entry('8001:zurich', [0, 1])],
+      }),
+    ).toEqual([
+      {
+        localityId: '8001:zurich',
+        travelMinutes: 30,
+        departureTimeSeconds: 28_800,
+        arrivalTimeSeconds: 30_600,
+      },
+    ]);
   });
 });

@@ -1,12 +1,11 @@
 export {
-  arrivalAt,
-  runRaptorOneToAll,
-  travelTimeTo,
+  collectOriginDepartureSlots,
+  runRaptorFastestWindow,
   UNREACHED_TIME,
 } from './routing';
 
 export type {
-  RaptorQuery,
-  RaptorResult,
-  RaptorRoutingDiagnostics,
+  FastestWindowQuery,
+  FastestWindowResult,
+  FastestWindowRoutingDiagnostics,
 } from './routing';

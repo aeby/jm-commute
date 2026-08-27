@@ -53,9 +53,8 @@ function createDataset(
 
   return {
     serviceDate: referenceScenario.serviceDate,
-    departureTime: referenceScenario.departureTime,
-    windowStart: referenceScenario.serviceProfileWindow.start,
-    windowEnd: referenceScenario.serviceProfileWindow.end,
+    windowStart: referenceScenario.morningWindow.start,
+    windowEnd: referenceScenario.morningWindow.end,
     profiles,
     ...metadataOverrides,
   };
@@ -387,18 +386,6 @@ describe('selectTransitPlaceCandidates profile validation', () => {
         }),
       ),
     ).toThrow(/serviceDate mismatch/i);
-  });
-
-  it('rejects a departure-time mismatch', () => {
-    expect(() =>
-      selectTransitPlaceCandidates(
-        LOCALITY,
-        [place],
-        createDataset([createProfile('known')], {
-          departureTime: '08:01:00',
-        }),
-      ),
-    ).toThrow(/departureTime mismatch/i);
   });
 
   it.each([

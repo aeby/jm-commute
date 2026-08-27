@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { runRaptorOneToAll } from '../../transit/raptor';
+import { runRaptorFastestWindow } from '../../transit/raptor';
 import {
   buildPatternAdjacency,
   encodePickupDropOffTypes,
@@ -64,6 +64,12 @@ function timetable(): RaptorTimetable {
       new Uint32Array(),
       new Uint32Array([0, 300]),
     ],
+    accessTransfersByStop: [
+      new Uint32Array([1, 120]),
+      new Uint32Array(),
+      new Uint32Array(),
+      new Uint32Array(),
+    ],
   };
 }
 
@@ -110,6 +116,9 @@ describe('validation timetable serialization', () => {
     expect(decoded.transferOffsets).toEqual(
       new Uint32Array([0, 0, 2, 2, 4]),
     );
+    expect(decoded.accessTransferOffsets).toEqual(
+      new Uint32Array([0, 2, 2, 2, 2]),
+    );
   });
 
   it('round-trips a complete timetable using shared subarray views', () => {
@@ -124,6 +133,9 @@ describe('validation timetable serialization', () => {
       original.patternOccurrencesByStop,
     );
     expect(reconstructed.transfersByStop).toEqual(original.transfersByStop);
+    expect(reconstructed.accessTransfersByStop).toEqual(
+      original.accessTransfersByStop,
+    );
     expect(reconstructed.patterns[0]?.stops.buffer).toBe(
       reconstructed.patterns[1]?.stops.buffer,
     );
@@ -142,21 +154,22 @@ describe('validation timetable serialization', () => {
     );
   });
 
-  it('produces an identical RAPTOR result after deserialization', () => {
+  it('produces an identical fastest-window result after deserialization', () => {
     const original = timetable();
     const reconstructed = deserializeValidationTimetable(
       serializeValidationTimetable(original),
     );
     const query = {
       originStopIndexes: [0],
-      departureTimeSeconds: 28_800,
+      windowStartSeconds: 28_800,
+      windowEndSeconds: 32_400,
       maxTravelTimeSeconds: 3_600,
       maxTransfers: 1,
       minTransferTimeSeconds: 120,
     };
 
-    expect(runRaptorOneToAll(reconstructed, query).arrivalTimes).toEqual(
-      runRaptorOneToAll(original, query).arrivalTimes,
+    expect(runRaptorFastestWindow(reconstructed, query)).toEqual(
+      runRaptorFastestWindow(original, query),
     );
   });
 });

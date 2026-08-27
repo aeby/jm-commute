@@ -7,7 +7,12 @@ import {
   type RaptorRoutePattern,
 } from '../timetable';
 import { resolveSameStopTransferTime } from './relax-transfers';
-import { UNREACHED_TIME, type PatternScanState } from './state';
+import {
+  improveSharedBoardingReadyTime,
+  improveSharedVehicleArrival,
+  UNREACHED_TIME,
+  type PatternScanState,
+} from './state';
 
 const findBoardableTrip = (
   pattern: RaptorRoutePattern,
@@ -86,10 +91,19 @@ export const scanPattern = (
           arrivalTime <
           (state.globalArrivalTimes[numericStopId] ?? UNREACHED_TIME)
         ) {
+          if (state.reachedMembership[numericStopId] === 0) {
+            state.reachedMembership[numericStopId] = 1;
+            state.reachedStops.push(numericStopId);
+          }
           state.globalArrivalTimes[numericStopId] = arrivalTime;
           stopsImproved += 1;
         }
         if (
+          improveSharedVehicleArrival(
+            state.sharedRound,
+            numericStopId,
+            arrivalTime,
+          ) &&
           arrivalTime <
           (state.bestVehicleArrivalTimes[numericStopId] ?? UNREACHED_TIME)
         ) {
@@ -109,13 +123,18 @@ export const scanPattern = (
           numericStopId,
           state.minTransferTimeSeconds,
         );
+        const boardingReadyTime = arrivalTime + sameStopTransferTime;
         if (
           sameStopTransferTime <= state.maxArrivalTime - arrivalTime &&
-          arrivalTime + sameStopTransferTime <
+          improveSharedBoardingReadyTime(
+            state.sharedRound,
+            numericStopId,
+            boardingReadyTime,
+          ) &&
+          boardingReadyTime <
             (state.globalBoardingReadyTimes[numericStopId] ?? UNREACHED_TIME)
         ) {
-          state.globalBoardingReadyTimes[numericStopId] =
-            arrivalTime + sameStopTransferTime;
+          state.globalBoardingReadyTimes[numericStopId] = boardingReadyTime;
           state.currentRoundArrivalTimes[numericStopId] = arrivalTime;
           state.currentRoundTransferApplied[numericStopId] = 0;
           if (state.nextMarkedMembership[numericStopId] === 0) {

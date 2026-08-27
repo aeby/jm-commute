@@ -86,6 +86,7 @@ describe('buildTransferGraph', () => {
       USE_QUERY_TRANSFER_TIME,
     ]);
     expect(result.transfersByStop[1]).toHaveLength(0);
+    expect(result.accessTransfersByStop[0]).toHaveLength(0);
     expect(result.statistics.gtfsSupportedEdges).toBe(1);
     expect(result.statistics.gtfsForbiddenPairs).toBe(1);
     expect(result.statistics.siblingEdgesGenerated).toBe(0);
@@ -99,6 +100,10 @@ describe('buildTransferGraph', () => {
     );
 
     expect(Array.from(result.transfersByStop[0] ?? [])).toEqual([1, 300]);
+    expect(Array.from(result.accessTransfersByStop[0] ?? [])).toEqual([
+      1, 300,
+    ]);
+    expect(result.statistics.finalAccessTransferEdges).toBe(1);
     await expect(
       buildTransferGraph(
         options([rule({ transferType: 2 })], {
@@ -119,6 +124,7 @@ describe('buildTransferGraph', () => {
       1,
       USE_QUERY_TRANSFER_TIME,
     ]);
+    expect(result.accessTransfersByStop[0]).toHaveLength(0);
     expect(result.statistics.timedTransfersApproximated).toBe(1);
   });
 
@@ -185,6 +191,14 @@ describe('buildTransferGraph', () => {
     expect(result.statistics.finalTransferEdges).toBe(0);
   });
 
+  it('marks generated sibling edges as initial-access eligible', async () => {
+    const result = await buildTransferGraph(options([]));
+
+    expect(result.statistics.siblingEdgesGenerated).toBe(2);
+    expect(result.statistics.finalAccessTransferEdges).toBe(2);
+    expect(result.accessTransfersByStop).toEqual(result.transfersByStop);
+  });
+
   it('generates virtual transfers only when enabled', async () => {
     const result = await buildTransferGraph(
       options([], {
@@ -197,6 +211,8 @@ describe('buildTransferGraph', () => {
     );
 
     expect(result.statistics.virtualEdgesGenerated).toBe(2);
+    expect(result.statistics.finalAccessTransferEdges).toBe(2);
+    expect(result.accessTransfersByStop).toEqual(result.transfersByStop);
   });
 
   it('fails rather than guessing contradictory generic rules', async () => {
@@ -207,5 +223,25 @@ describe('buildTransferGraph', () => {
         }),
       ),
     ).rejects.toThrow(/contradictory/i);
+  });
+
+  it('exposes optional deterministic transfer provenance diagnostics', async () => {
+    const result = await buildTransferGraph(
+      options([rule({ transferType: 2, minimumTransferTimeSeconds: 300 })], {
+        deriveSiblingTransfers: false,
+        includeDiagnostics: true,
+      }),
+    );
+
+    expect(result.edgeDiagnostics).toEqual([
+      {
+        fromStopIndex: 0,
+        toStopIndex: 1,
+        minimumTransferTimeSeconds: 300,
+        source: 'EXPLICIT',
+        accessEligibility: 'ACCESS_ELIGIBLE',
+        diagnosticSource: 'GTFS_TYPE_2',
+      },
+    ]);
   });
 });

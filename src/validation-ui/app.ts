@@ -3,11 +3,14 @@ import styles from './style.css?inline';
 import { PROJECT_CONFIG } from '../config';
 import {
   normalizeCityName,
-  resolveReachableLocalities,
+  resolveFastestReachableLocalitiesDebug,
   type LocalityRoutingEntry,
   type LocalityRoutingIndex,
 } from '../localities';
-import { runRaptorOneToAll } from '../transit/raptor';
+import {
+  runRaptorFastestWindow,
+  type FastestWindowRoutingDiagnostics,
+} from '../transit/raptor';
 import { parseGtfsTimeToSeconds } from '../transit/service-profiles';
 import { searchValidationLocalities } from './autocomplete';
 import {
@@ -155,7 +158,8 @@ function validateData(
   }
   if (
     data.serviceDate !== scenario.serviceDate ||
-    data.departureTime !== scenario.departureTime
+    data.routingWindowStart !== scenario.morningWindow.start ||
+    data.routingWindowEnd !== scenario.morningWindow.end
   ) {
     throw new Error(
       'Generated validation data does not match PROJECT_CONFIG. Rebuild it.',
@@ -224,6 +228,12 @@ function createTable(
   return wrap;
 }
 
+function formatServiceTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 function main(): void {
   const style = document.createElement('style');
   style.textContent = styles;
@@ -231,7 +241,9 @@ function main(): void {
 
   const validationDataProperty =
     '__SWISS_COMMUTE_VALIDATION_DATA__' as const;
-  const data = validateData(window[validationDataProperty]);
+  const validationWindow = window as typeof window &
+    Partial<Record<typeof validationDataProperty, SwissCommuteValidationData>>;
+  const data = validateData(validationWindow[validationDataProperty]);
   const decodeStart = performance.now();
   const decodedTimetable = decodeValidationTimetable(data.timetable);
   const decodeMilliseconds = performance.now() - decodeStart;
@@ -245,29 +257,43 @@ function main(): void {
   const entryById = new Map(
     localityIndex.entries.map((entry) => [entry.localityId, entry]),
   );
-  const departureTimeSeconds = parseGtfsTimeToSeconds(data.departureTime);
+  const windowStartSeconds = parseGtfsTimeToSeconds(
+    data.routingWindowStart,
+  );
+  const windowEndSeconds = parseGtfsTimeToSeconds(data.routingWindowEnd);
   let routingMilliseconds = 0;
   let reductionMilliseconds = 0;
+  let routingDiagnostics: FastestWindowRoutingDiagnostics | undefined;
   const model = new ValidationViewModel(
     localityIndex,
     data.hubCandidatesByLocality,
     {
       run: (originStopIndexes, maxTravelTimeMinutes) => {
         const start = performance.now();
-        const result = runRaptorOneToAll(timetable, {
-          originStopIndexes: [...originStopIndexes],
-          departureTimeSeconds,
-          maxTravelTimeSeconds: maxTravelTimeMinutes * 60,
-          maxTransfers: PROJECT_CONFIG.transit.routing.maxTransfers,
-          minTransferTimeSeconds:
-            PROJECT_CONFIG.transit.routing.minTransferTimeSeconds,
-        });
+        const result = runRaptorFastestWindow(
+          timetable,
+          {
+            originStopIndexes: [...originStopIndexes],
+            windowStartSeconds,
+            windowEndSeconds,
+            maxTravelTimeSeconds: maxTravelTimeMinutes * 60,
+            maxTransfers: PROJECT_CONFIG.transit.routing.maxTransfers,
+            minTransferTimeSeconds:
+              PROJECT_CONFIG.transit.routing.minTransferTimeSeconds,
+          },
+          (value) => {
+            routingDiagnostics = value;
+          },
+        );
         routingMilliseconds = performance.now() - start;
         return result;
       },
       resolve: (result) => {
         const start = performance.now();
-        const reachable = resolveReachableLocalities(result, localityIndex);
+        const reachable = resolveFastestReachableLocalitiesDebug(
+          result,
+          localityIndex,
+        );
         reductionMilliseconds = performance.now() - start;
         return reachable;
       },
@@ -339,6 +365,14 @@ function main(): void {
         `Routing: ${routingMilliseconds.toFixed(1)} ms`,
         `Locality reduction: ${reductionMilliseconds.toFixed(1)} ms`,
         `Total calculation: ${totalMilliseconds.toFixed(1)} ms`,
+        `Meaningful departure slots: ${routingDiagnostics?.departureSlotCount ?? 0}`,
+        `Range runs: ${routingDiagnostics?.rangeRuns ?? 0}`,
+        `Runs without duration improvements: ${routingDiagnostics?.runsWithoutDurationImprovements ?? 0}`,
+        `Patterns scanned: ${routingDiagnostics?.patternsScanned ?? 0}`,
+        `Cross-run prunes: ${routingDiagnostics?.crossRunPrunes ?? 0}`,
+        `Original routing origins: ${routingDiagnostics?.originalSeedStops ?? 0}`,
+        `Maximum initial-access routing stops: ${routingDiagnostics?.maximumAdditionalInitialAccessStops ?? 0}`,
+        `Initial-access edges examined: ${routingDiagnostics?.initialAccessEdgesExamined ?? 0}`,
       );
     }
     diagnostics.textContent = lines.join('\n');
@@ -387,7 +421,7 @@ function main(): void {
     );
     calculationStatus.textContent =
       selection.entry.stopIndexes.length === 0
-        ? 'This locality has no active post-08:00 routing stops.'
+        ? 'This locality has no active routing stops during the morning timetable.'
         : `${selection.entry.stopIndexes.length} active origin routing stops selected.`;
   };
 
@@ -452,27 +486,13 @@ function main(): void {
     if (status.kind === 'NOT_CALCULATED') {
       destinationStatus.textContent = 'Calculate from the selected origin';
     } else if (status.kind === 'REACHABLE') {
-      destinationStatus.textContent = `${status.travelMinutes} minutes`;
+      destinationStatus.textContent = `Fastest estimated travel time: ${status.travelMinutes} minutes`;
     } else {
       destinationStatus.textContent = `Not reachable within ${status.maxTravelTimeMinutes} minutes`;
     }
 
     if (destinationLocalityId !== undefined) {
       const entry = entryById.get(destinationLocalityId);
-      const calculation = model.getCalculation();
-      let earliestArrival: number | undefined;
-      if (entry !== undefined && calculation !== undefined) {
-        for (const stopIndex of entry.stopIndexes) {
-          const arrival = calculation.routingResult.arrivalTimes[stopIndex];
-          if (
-            arrival !== undefined &&
-            arrival !== 0xffff_ffff &&
-            (earliestArrival === undefined || arrival < earliestArrival)
-          ) {
-            earliestArrival = arrival;
-          }
-        }
-      }
       const sourceStops = entry
         ? [...entry.stopIndexes]
             .slice(0, 10)
@@ -481,7 +501,8 @@ function main(): void {
       destinationDetailsContent.textContent = [
         `Locality: ${destinationLocalityId}`,
         `Candidate routing stops: ${entry?.stopIndexes.length ?? 0}`,
-        `Earliest arrival: ${earliestArrival === undefined ? 'not reached in current calculation' : `${Math.ceil((earliestArrival - departureTimeSeconds) / 60)} min after departure`}`,
+        `Best departure: ${status.kind === 'REACHABLE' ? formatServiceTime(status.departureTimeSeconds) : 'not reached in current calculation'}`,
+        `Arrival: ${status.kind === 'REACHABLE' ? formatServiceTime(status.arrivalTimeSeconds) : 'not reached in current calculation'}`,
         `Source stop IDs (first 10): ${sourceStops.join(', ') || 'none'}`,
       ].join('\n');
     }

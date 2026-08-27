@@ -9,8 +9,8 @@ import type {
   RoutingStopTime,
 } from '../types';
 
-const REFERENCE_DEPARTURE_SECONDS = parseGtfsTimeToSeconds(
-  PROJECT_CONFIG.transit.referenceScenario.departureTime,
+const ROUTING_WINDOW_START_SECONDS = parseGtfsTimeToSeconds(
+  PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
 );
 
 function stopTime(
@@ -43,30 +43,30 @@ function frequencyWindow(
 }
 
 describe('shouldRetainRoutingTrip', () => {
-  it('retains a scheduled trip boardable after the reference departure', () => {
+  it('retains a scheduled trip boardable after the routing-window start', () => {
     expect(
       shouldRetainRoutingTrip(
-        [stopTime(1, '08:01:00')],
+        [stopTime(1, '07:01:00')],
         [],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(true);
   });
 
-  it('includes the exact reference departure boundary', () => {
+  it('includes the exact routing-window start boundary', () => {
     expect(
       shouldRetainRoutingTrip(
-        [stopTime(1, '08:00:00')],
+        [stopTime(1, '07:00:00')],
         [],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(true);
   });
 
-  it('retains a trip that begins before 08:00 but is boardable later', () => {
+  it('retains a trip that begins before 07:00 but is boardable later', () => {
     const stopTimes = [
-      stopTime(1, '07:50:00'),
-      stopTime(2, '08:05:00'),
+      stopTime(1, '06:50:00'),
+      stopTime(2, '07:05:00'),
     ];
     const original = structuredClone(stopTimes);
 
@@ -74,28 +74,28 @@ describe('shouldRetainRoutingTrip', () => {
       shouldRetainRoutingTrip(
         stopTimes,
         [],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(true);
     expect(stopTimes).toEqual(original);
   });
 
-  it('excludes a scheduled trip entirely before 08:00', () => {
+  it('excludes a scheduled trip entirely before 07:00', () => {
     expect(
       shouldRetainRoutingTrip(
-        [stopTime(1, '07:30:00'), stopTime(2, '07:59:59')],
+        [stopTime(1, '06:30:00'), stopTime(2, '06:59:59')],
         [],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(false);
   });
 
-  it('excludes a trip with only prohibited pickups after 08:00', () => {
+  it('excludes a trip with only prohibited pickups after 07:00', () => {
     expect(
       shouldRetainRoutingTrip(
         [stopTime(1, '08:00:00', 1), stopTime(2, '09:00:00', 1)],
         [],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(false);
   });
@@ -107,31 +107,31 @@ describe('shouldRetainRoutingTrip', () => {
         shouldRetainRoutingTrip(
           [stopTime(1, '08:00:00', pickupType)],
           [],
-          REFERENCE_DEPARTURE_SECONDS,
+          ROUTING_WINDOW_START_SECONDS,
         ),
       ).toBe(true);
     },
   );
 
-  it('retains a boardable frequency template with a window beyond 08:00', () => {
+  it('retains a boardable frequency template with a window beyond 07:00', () => {
     expect(
       shouldRetainRoutingTrip(
         [stopTime(1, '06:00:00')],
         [frequencyWindow('07:00:00', '09:00:00')],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(true);
   });
 
-  it('excludes a frequency trip whose windows end at or before 08:00', () => {
+  it('excludes a frequency trip whose windows end at or before 07:00', () => {
     expect(
       shouldRetainRoutingTrip(
         [stopTime(1, '09:00:00')],
         [
+          frequencyWindow('05:00:00', '06:00:00'),
           frequencyWindow('06:00:00', '07:00:00'),
-          frequencyWindow('07:00:00', '08:00:00'),
         ],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(false);
   });
@@ -141,7 +141,7 @@ describe('shouldRetainRoutingTrip', () => {
       shouldRetainRoutingTrip(
         [stopTime(1, '09:00:00', 1)],
         [frequencyWindow('08:00:00', '09:00:00')],
-        REFERENCE_DEPARTURE_SECONDS,
+        ROUTING_WINDOW_START_SECONDS,
       ),
     ).toBe(false);
   });

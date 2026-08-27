@@ -37,8 +37,13 @@ export interface LoadedInspectionRaptorTimetable {
   readonly transferMemoryAfter: NodeJS.MemoryUsage;
 }
 
+export interface LoadRaptorInspectionTimetableOptions {
+  readonly virtualTransfersEnabled?: boolean;
+  readonly includeTransferDiagnostics?: boolean;
+}
+
 export async function loadRaptorInspectionTimetable(
-  virtualTransfersEnabled?: boolean,
+  options: LoadRaptorInspectionTimetableOptions = {},
 ): Promise<LoadedInspectionRaptorTimetable> {
   const timetableBuildStart = performance.now();
   const baseTimetable = await buildRaptorTimetable(
@@ -59,7 +64,8 @@ export async function loadRaptorInspectionTimetable(
   const virtualTransfers: VirtualTransferOptions = {
     ...configuredTransfers.virtualTransfers,
     enabled:
-      virtualTransfersEnabled ?? configuredTransfers.virtualTransfers.enabled,
+      options.virtualTransfersEnabled ??
+      configuredTransfers.virtualTransfers.enabled,
   };
   const transferMemoryBefore = process.memoryUsage();
   const transferBuildStart = performance.now();
@@ -70,15 +76,13 @@ export async function loadRaptorInspectionTimetable(
     denseStopLookup: stopIndexBySourceId,
     deriveSiblingTransfers: configuredTransfers.deriveSiblingTransfers,
     virtualTransfers,
+    includeDiagnostics: options.includeTransferDiagnostics,
   });
   const transferBuildMilliseconds = performance.now() - transferBuildStart;
   const transferMemoryAfter = process.memoryUsage();
 
   return {
-    timetable: attachTransferGraph(
-      baseTimetable,
-      transferGraph.transfersByStop,
-    ),
+    timetable: attachTransferGraph(baseTimetable, transferGraph),
     stopIndexBySourceId,
     transferGraph,
     virtualTransfers,

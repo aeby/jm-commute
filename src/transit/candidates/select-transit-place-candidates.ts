@@ -73,9 +73,8 @@ function validateDatasetMetadata(
   const { referenceScenario } = PROJECT_CONFIG.transit;
   const expectedMetadata = {
     serviceDate: referenceScenario.serviceDate,
-    departureTime: referenceScenario.departureTime,
-    windowStart: referenceScenario.serviceProfileWindow.start,
-    windowEnd: referenceScenario.serviceProfileWindow.end,
+    windowStart: referenceScenario.morningWindow.start,
+    windowEnd: referenceScenario.morningWindow.end,
   } as const;
 
   for (const [field, expectedValue] of Object.entries(expectedMetadata)) {

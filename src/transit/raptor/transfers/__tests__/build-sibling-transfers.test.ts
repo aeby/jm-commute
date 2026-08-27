@@ -78,7 +78,7 @@ describe('buildSiblingTransfers', () => {
 
   it('preserves an explicit edge and fills only the missing reverse edge', () => {
     const registry = new TransferEdgeRegistry(2);
-    registry.addExplicitEdge(0, 1, 300);
+    registry.addExplicitEdge(0, 1, 300, 2);
 
     expect(
       buildSiblingTransfers(

@@ -8,10 +8,10 @@ import { createTransitPlaceProfileAccumulator } from '../transit-place-profile-a
 
 const REFERENCE_SCENARIO = PROJECT_CONFIG.transit.referenceScenario;
 const WINDOW_START = parseGtfsTimeToSeconds(
-  REFERENCE_SCENARIO.serviceProfileWindow.start,
+  REFERENCE_SCENARIO.morningWindow.start,
 );
 const WINDOW_END = parseGtfsTimeToSeconds(
-  REFERENCE_SCENARIO.serviceProfileWindow.end,
+  REFERENCE_SCENARIO.morningWindow.end,
 );
 
 const PLACES: readonly TransitPlace[] = [
@@ -59,7 +59,7 @@ function stopTime(
 ) {
   return {
     tripId: 'bus-trip',
-    departureTime: REFERENCE_SCENARIO.departureTime,
+    departureTime: '08:00:00',
     stopId: 'stop-a',
     pickupType: '0',
     ...overrides,
@@ -111,14 +111,14 @@ describe('createTransitPlaceProfileAccumulator', () => {
     expect(
       accumulator.addStopTime(
         stopTime({
-          departureTime: REFERENCE_SCENARIO.serviceProfileWindow.start,
+          departureTime: REFERENCE_SCENARIO.morningWindow.start,
         }),
       ),
     ).toBe(true);
     expect(
       accumulator.addStopTime(
         stopTime({
-          departureTime: REFERENCE_SCENARIO.serviceProfileWindow.end,
+          departureTime: REFERENCE_SCENARIO.morningWindow.end,
         }),
       ),
     ).toBe(false);

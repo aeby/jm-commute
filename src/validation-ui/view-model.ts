@@ -1,18 +1,20 @@
 import {
-  createReachableLocalityMap,
   type LocalityRoutingEntry,
   type LocalityRoutingIndex,
   type ReachableLocality,
+  type ReachableLocalityDebug,
 } from '../localities';
-import type { RaptorResult } from '../transit/raptor';
+import type { FastestWindowResult } from '../transit/raptor';
 import type { ValidationHubCandidate } from './validation-data';
 
 export interface ValidationRoutingEngine {
   readonly run: (
     originStopIndexes: Uint32Array,
     maxTravelTimeMinutes: number,
-  ) => RaptorResult;
-  readonly resolve: (result: RaptorResult) => readonly ReachableLocality[];
+  ) => FastestWindowResult;
+  readonly resolve: (
+    result: FastestWindowResult,
+  ) => readonly ReachableLocalityDebug[];
 }
 
 export interface OriginSelectionView {
@@ -28,8 +30,9 @@ export interface ReachabilityBucket {
 
 export interface ValidationCalculation {
   readonly maxTravelTimeMinutes: number;
-  readonly routingResult: RaptorResult;
+  readonly routingResult: FastestWindowResult;
   readonly reachableLocalities: readonly ReachableLocality[];
+  readonly reachableLocalitiesDebug: readonly ReachableLocalityDebug[];
   readonly buckets: readonly ReachabilityBucket[];
 }
 
@@ -40,6 +43,8 @@ export type DestinationTravelStatus =
       readonly kind: 'REACHABLE';
       readonly localityId: string;
       readonly travelMinutes: number;
+      readonly departureTimeSeconds: number;
+      readonly arrivalTimeSeconds: number;
     }
   | {
       readonly kind: 'NOT_REACHABLE_WITHIN_LIMIT';
@@ -139,11 +144,16 @@ export class ValidationViewModel {
       entry.stopIndexes,
       maxTravelTimeMinutes,
     );
-    const reachableLocalities = this.routingEngine.resolve(routingResult);
+    const reachableLocalitiesDebug =
+      this.routingEngine.resolve(routingResult);
+    const reachableLocalities = reachableLocalitiesDebug.map(
+      ({ localityId, travelMinutes }) => ({ localityId, travelMinutes }),
+    );
     this.calculation = {
       maxTravelTimeMinutes,
       routingResult,
       reachableLocalities,
+      reachableLocalitiesDebug,
       buckets: createReachabilityBuckets(
         reachableLocalities,
         maxTravelTimeMinutes,
@@ -167,10 +177,10 @@ export class ValidationViewModel {
     if (this.calculation === undefined) {
       return { kind: 'NOT_CALCULATED' };
     }
-    const travelMinutes = createReachableLocalityMap(
-      this.calculation.reachableLocalities,
-    ).get(this.destinationLocalityId);
-    return travelMinutes === undefined
+    const debugResult = this.calculation.reachableLocalitiesDebug.find(
+      ({ localityId }) => localityId === this.destinationLocalityId,
+    );
+    return debugResult === undefined
       ? {
           kind: 'NOT_REACHABLE_WITHIN_LIMIT',
           localityId: this.destinationLocalityId,
@@ -179,7 +189,9 @@ export class ValidationViewModel {
       : {
           kind: 'REACHABLE',
           localityId: this.destinationLocalityId,
-          travelMinutes,
+          travelMinutes: debugResult.travelMinutes,
+          departureTimeSeconds: debugResult.departureTimeSeconds,
+          arrivalTimeSeconds: debugResult.arrivalTimeSeconds,
         };
   }
 

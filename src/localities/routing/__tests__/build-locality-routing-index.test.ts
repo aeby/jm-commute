@@ -41,9 +41,8 @@ function dataset(
   const scenario = PROJECT_CONFIG.transit.referenceScenario;
   return {
     serviceDate: scenario.serviceDate,
-    departureTime: scenario.departureTime,
-    windowStart: scenario.serviceProfileWindow.start,
-    windowEnd: scenario.serviceProfileWindow.end,
+    windowStart: scenario.morningWindow.start,
+    windowEnd: scenario.morningWindow.end,
     profiles: places.map(({ id }) => profile(id)),
   };
 }

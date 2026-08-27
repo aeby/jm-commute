@@ -47,19 +47,22 @@ Source attribution: **©swisstopo**
 
 Static Swiss public-transport data comes from the GTFS timetable published by opentransportdata.swiss.
 
-Timetable files are used to build fixed-time transit-place service profiles, fixed-day routing input, and an in-memory RAPTOR timetable.
+Timetable files are used to build morning transit-place service profiles, fixed-day routing input, and an in-memory RAPTOR timetable.
 
 ### Central configuration
 
-The reference service date, departure time, service-profile window, local-access radius, fallback candidate count, routing limits, and transfer-generation settings are configured in `src/config.ts`.
+The reference service date, representative morning window, local-access radius, fallback candidate count, routing limits, and transfer-generation settings are configured in `src/config.ts`.
 
-### Representative timetable scenario
+### Representative morning commute
 
-Commute estimates use a fixed representative service date and time:
+Commute estimates use a fixed representative Monday and search for the fastest journey whose origin departure falls within 07:00–09:00:
 
 - Monday, 7 September 2026
-- departure at 08:00
 - transit-place activity measured from 07:00 until 09:00
+
+Travel time is measured from the selected origin departure to destination arrival, including initial access transfers and waiting time.
+
+The morning window is intended to represent a normal commuting period rather than an exact requested departure.
 
 Local access candidates normally include every transit place within 700 metres of the locality coordinate. When none exists, the ten geographically nearest places are returned as fallback candidates.
 
@@ -67,7 +70,7 @@ Candidate ranking uses all-mode route diversity and service frequency. Railway c
 
 ### Fixed-day routing data
 
-Routing data is prepared for the configured representative Monday. Scheduled trips that can still be boarded at or after 08:00 are retained with their complete stop sequence.
+Routing data is prepared for the configured representative Monday. Scheduled trips that can still be boarded at or after the 07:00 morning-window start are retained with their complete stop sequence. The 09:00 boundary limits only origin departures; later connecting services remain in the timetable.
 
 GTFS frequency windows are preserved in the fixed-day input and expanded only when the compact timetable is built.
 
@@ -79,9 +82,9 @@ Frequency templates are expanded at their declared headways during timetable con
 
 ### RAPTOR reachability
 
-The router performs a multi-source, one-to-all RAPTOR query against the compact fixed-day timetable.
+The router performs multi-source, one-to-all Range-RAPTOR queries against the compact fixed-day timetable.
 
-All selected origin routing stops are seeded at the configured 08:00 departure time. The result contains the earliest arrival time at every reachable stop, bounded by the requested maximum commute duration.
+Meaningful direct and access-adjusted departure opportunities are evaluated latest-to-earliest within 07:00–09:00. The result stores the shortest travel duration to every reachable stop together with its best departure and corresponding arrival, bounded by the requested maximum commute duration.
 
 Transfers can connect different dense routing-stop IDs without consuming another vehicle leg. Only one transfer edge is traversed after a vehicle arrival; transfer edges are not chained within a RAPTOR round.
 
@@ -102,11 +105,19 @@ Virtual transfers are deliberately treated as an approximation rather than autho
 
 Trip-specific guaranteed transfers, route-specific transfer restrictions, and in-seat continuations are classified during preparation but are not yet modeled by the router.
 
+### Initial station access
+
+Before the first RAPTOR vehicle is boarded, the router may follow one access-eligible transfer from each selected origin stop.
+
+This allows a nearby surface stop or platform to reach another platform inside the same interchange before the first vehicle.
+
+Initial access currently uses one transfer edge only; it does not chain walking transfers.
+
 ### Reachable localities
 
 Every Swiss ZIP-and-city pair has a deterministic, transport-independent locality ID derived from its postal code and normalized city name. The offline locality routing index maps each locality to all active RAPTOR stops contributed by the existing local-access candidate policy.
 
-One RAPTOR result is reduced to the earliest arrival for each locality and rounded upward to whole travel minutes. The product-facing result contains only a locality ID and travel minutes, so a future road router can produce the same shape without exposing GTFS or RAPTOR identifiers.
+One Range-RAPTOR result is reduced to the shortest duration across each locality's routing stops and rounded upward to whole travel minutes. The product-facing result contains only a locality ID and travel minutes, so a future road router can produce the same shape without exposing GTFS or RAPTOR identifiers.
 
 The intended job boundary is a transport-independent value such as `job.locality_id = "8001:zurich"`. A future matching layer can run routing once when a user's location or commute preference changes, cache the reachable locality IDs, and use an indexed relational join or `job.locality_id IN (...)`. No database integration is implemented yet.
 

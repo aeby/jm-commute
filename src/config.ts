@@ -2,8 +2,7 @@ export const PROJECT_CONFIG = {
   transit: {
     referenceScenario: {
       serviceDate: '2026-09-07',
-      departureTime: '08:00:00',
-      serviceProfileWindow: {
+      morningWindow: {
         start: '07:00:00',
         end: '09:00:00',
       },

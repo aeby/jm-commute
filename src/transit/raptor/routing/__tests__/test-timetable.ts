@@ -5,6 +5,54 @@ import {
   type RaptorTimetable,
 } from '../../timetable';
 import type { PickupDropOffType } from '../../../routing-data';
+import {
+  createRaptorRunBuffers,
+  runRaptorOneToAllWithBuffers,
+} from '../run-raptor-one-to-all';
+import { UNREACHED_TIME } from '../state';
+import type {
+  RaptorDiagnosticsCallback,
+  RaptorQuery,
+  RaptorResult,
+} from '../types';
+
+export const arrivalAt = (
+  result: RaptorResult,
+  stopIndex: number,
+): number | undefined => {
+  if (
+    !Number.isInteger(stopIndex) ||
+    stopIndex < 0 ||
+    stopIndex >= result.arrivalTimes.length
+  ) {
+    throw new RangeError(`Invalid RAPTOR result stop index ${stopIndex}`);
+  }
+  const arrivalTime = result.arrivalTimes[stopIndex];
+  return arrivalTime === UNREACHED_TIME ? undefined : arrivalTime;
+};
+
+export const travelTimeTo = (
+  result: RaptorResult,
+  stopIndex: number,
+): number | undefined => {
+  const arrivalTime = arrivalAt(result, stopIndex);
+  return arrivalTime === undefined
+    ? undefined
+    : arrivalTime - result.departureTimeSeconds;
+};
+
+export const runRaptorOneToAll = (
+  timetable: RaptorTimetable,
+  query: RaptorQuery,
+  onDiagnostics?: RaptorDiagnosticsCallback,
+): RaptorResult =>
+  runRaptorOneToAllWithBuffers(
+    timetable,
+    query,
+    createRaptorRunBuffers(timetable),
+    undefined,
+    onDiagnostics,
+  );
 
 export interface TestStopTime {
   readonly arrival: number;
@@ -57,6 +105,10 @@ export const testTimetable = (
   patterns,
   patternOccurrencesByStop: buildPatternAdjacency(patterns, stopCount),
   transfersByStop: Array.from(
+    { length: stopCount },
+    () => new Uint32Array(),
+  ),
+  accessTransfersByStop: Array.from(
     { length: stopCount },
     () => new Uint32Array(),
   ),

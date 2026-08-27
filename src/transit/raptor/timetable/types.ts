@@ -32,6 +32,7 @@ export interface RaptorTimetable {
   readonly patterns: readonly RaptorRoutePattern[];
   readonly patternOccurrencesByStop: readonly Uint32Array[];
   readonly transfersByStop: readonly Uint32Array[];
+  readonly accessTransfersByStop: readonly Uint32Array[];
 }
 
 export interface OvertakingSplitDiagnostic {
@@ -48,7 +49,7 @@ export interface RaptorTimetableBuildStatistics {
   readonly scheduledConcreteTrips: number;
   readonly frequencyTemplates: number;
   readonly generatedFrequencyTrips: number;
-  readonly frequencyInstancesExcludedBeforeDeparture: number;
+  readonly frequencyInstancesExcludedBeforeRoutingWindow: number;
   readonly finalConcreteTrips: number;
   readonly activeNumericStops: number;
   readonly baseRoutePatterns: number;
@@ -70,7 +71,6 @@ export type RaptorTimetableBuildStage =
   | 'AFTER_TEMPORARY_BUILDERS_RELEASED';
 
 export interface BuildRaptorTimetableOptions {
-  readonly referenceDepartureSeconds?: number;
   readonly onStage?: (stage: RaptorTimetableBuildStage) => void;
   readonly onStatistics?: (
     statistics: RaptorTimetableBuildStatistics,

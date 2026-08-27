@@ -14,7 +14,7 @@ import {
   getPackedPickupType,
 } from '../pickup-dropoff-codec';
 
-const REFERENCE_DEPARTURE = 8 * 60 * 60;
+const ROUTING_WINDOW_START = 7 * 60 * 60;
 
 const createTrip = ({
   tripId = 'template',
@@ -64,7 +64,7 @@ const expand = (trip: RoutingTrip) => {
   const concreteTrips: ExpandedConcreteTrip[] = [];
   const counts = expandRoutingTrip(
     trip,
-    REFERENCE_DEPARTURE,
+    ROUTING_WINDOW_START,
     (concreteTrip) => concreteTrips.push(concreteTrip),
   );
   return { concreteTrips, counts };
@@ -204,13 +204,13 @@ describe('expandRoutingTrip', () => {
     );
   });
 
-  it('discards generated instances that cannot be boarded at or after 08:00', () => {
+  it('discards generated instances that cannot be boarded at or after the routing-window start', () => {
     const { concreteTrips, counts } = expand(
       createTrip({
-        departures: [25_200, 25_800],
+        departures: [21_600, 22_200],
         frequency: {
-          start: 25_200,
-          end: 26_401,
+          start: 21_600,
+          end: 22_801,
           headway: 600,
           exactTimes: 0,
         },
@@ -218,16 +218,16 @@ describe('expandRoutingTrip', () => {
     );
 
     expect(concreteTrips).toEqual([]);
-    expect(counts.frequencyInstancesExcludedBeforeDeparture).toBe(3);
+    expect(counts.frequencyInstancesExcludedBeforeRoutingWindow).toBe(3);
   });
 
-  it('retains a complete instance beginning before 08:00 when boardable later', () => {
+  it('retains a complete instance beginning before 07:00 when boardable later', () => {
     const { concreteTrips } = expand(
       createTrip({
-        departures: [27_000, 29_400],
+        departures: [23_400, 25_800],
         frequency: {
-          start: 27_000,
-          end: 27_001,
+          start: 23_400,
+          end: 23_401,
           headway: 600,
           exactTimes: 1,
         },
@@ -235,8 +235,8 @@ describe('expandRoutingTrip', () => {
     );
 
     expect(concreteTrips).toHaveLength(1);
-    expect(concreteTrips[0]?.stopTimes[1]).toBe(27_000);
-    expect(concreteTrips[0]?.stopTimes[3]).toBe(29_400);
+    expect(concreteTrips[0]?.stopTimes[1]).toBe(23_400);
+    expect(concreteTrips[0]?.stopTimes[3]).toBe(25_800);
   });
 
   it('keeps GTFS times beyond 24 hours as seconds', () => {

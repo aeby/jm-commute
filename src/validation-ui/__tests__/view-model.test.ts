@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { UNREACHED_TIME, type RaptorResult } from '../../transit/raptor';
-import type { LocalityRoutingIndex, ReachableLocality } from '../../localities';
+import {
+  UNREACHED_TIME,
+  type FastestWindowResult,
+} from '../../transit/raptor';
+import type {
+  LocalityRoutingIndex,
+  ReachableLocalityDebug,
+} from '../../localities';
 import type { ValidationHubCandidate } from '../validation-data';
 import {
   createReachabilityBuckets,
@@ -38,10 +44,21 @@ const HUB: ValidationHubCandidate = {
   railDepartureCount: 80,
 };
 
-function setup(reachable: readonly ReachableLocality[] = []) {
+function setup(reachable: readonly ReachableLocalityDebug[] = []) {
   const calls: { readonly origins: readonly number[]; readonly minutes: number }[] = [];
-  const result: RaptorResult = {
-    departureTimeSeconds: 28_800,
+  const result: FastestWindowResult = {
+    durationSeconds: new Uint32Array([
+      UNREACHED_TIME,
+      0,
+      600,
+      3_840,
+    ]),
+    departureTimes: new Uint32Array([
+      UNREACHED_TIME,
+      25_200,
+      28_800,
+      28_800,
+    ]),
     arrivalTimes: new Uint32Array([UNREACHED_TIME, 28_800, 29_400, 32_640]),
   };
   const engine: ValidationRoutingEngine = {
@@ -83,9 +100,24 @@ describe('ValidationViewModel', () => {
 
   it('returns reachable localities and bucket counts', () => {
     const reachable = [
-      { localityId: '8001:zurich', travelMinutes: 0 },
-      { localityId: '8002:zurich', travelMinutes: 14 },
-      { localityId: '3011:bern', travelMinutes: 60 },
+      {
+        localityId: '8001:zurich',
+        travelMinutes: 0,
+        departureTimeSeconds: 25_200,
+        arrivalTimeSeconds: 25_200,
+      },
+      {
+        localityId: '8002:zurich',
+        travelMinutes: 14,
+        departureTimeSeconds: 28_800,
+        arrivalTimeSeconds: 29_640,
+      },
+      {
+        localityId: '3011:bern',
+        travelMinutes: 60,
+        departureTimeSeconds: 27_000,
+        arrivalTimeSeconds: 30_600,
+      },
     ];
     const { model } = setup(reachable);
     model.selectOrigin('8001:zurich');
@@ -101,7 +133,12 @@ describe('ValidationViewModel', () => {
 
   it('finds reachable and unreachable-within-limit destinations', () => {
     const { model } = setup([
-      { localityId: '3011:bern', travelMinutes: 64 },
+      {
+        localityId: '3011:bern',
+        travelMinutes: 64,
+        departureTimeSeconds: 28_560,
+        arrivalTimeSeconds: 32_400,
+      },
     ]);
     model.selectOrigin('8001:zurich');
     model.selectDestination('3011:bern');
@@ -110,6 +147,8 @@ describe('ValidationViewModel', () => {
       kind: 'REACHABLE',
       localityId: '3011:bern',
       travelMinutes: 64,
+      departureTimeSeconds: 28_560,
+      arrivalTimeSeconds: 32_400,
     });
 
     model.selectDestination('8001:zurich');

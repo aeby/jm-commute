@@ -31,8 +31,8 @@ interface PartitionedRoutePatternGroup {
   readonly chains: GroupedConcreteTrip[][];
 }
 
-const DEFAULT_REFERENCE_DEPARTURE_SECONDS = parseGtfsTimeToSeconds(
-  PROJECT_CONFIG.transit.referenceScenario.departureTime,
+const ROUTING_WINDOW_START_SECONDS = parseGtfsTimeToSeconds(
+  PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
 );
 
 const buildNumericStops = (
@@ -97,17 +97,6 @@ export const buildRaptorTimetable = async (
   routingTrips: Iterable<RoutingTrip> | AsyncIterable<RoutingTrip>,
   options: BuildRaptorTimetableOptions = {},
 ): Promise<RaptorTimetable> => {
-  const referenceDepartureSeconds =
-    options.referenceDepartureSeconds ?? DEFAULT_REFERENCE_DEPARTURE_SECONDS;
-  if (
-    !Number.isInteger(referenceDepartureSeconds) ||
-    referenceDepartureSeconds < 0
-  ) {
-    throw new RangeError(
-      'referenceDepartureSeconds must be a nonnegative integer',
-    );
-  }
-
   const grouper = new BaseRoutePatternGrouper();
   const sourceStopIdSet = new Set<string>();
   const inputTripIds = new Set<string>();
@@ -117,7 +106,7 @@ export const buildRaptorTimetable = async (
   let scheduledConcreteTrips = 0;
   let frequencyTemplates = 0;
   let generatedFrequencyTrips = 0;
-  let frequencyInstancesExcludedBeforeDeparture = 0;
+  let frequencyInstancesExcludedBeforeRoutingWindow = 0;
 
   const addConcreteTrip = (trip: ExpandedConcreteTrip): void => {
     trip.sourceStopIds.forEach((stopId) => sourceStopIdSet.add(stopId));
@@ -135,14 +124,14 @@ export const buildRaptorTimetable = async (
 
     const expansionCounts = expandRoutingTrip(
       routingTrip,
-      referenceDepartureSeconds,
+      ROUTING_WINDOW_START_SECONDS,
       addConcreteTrip,
     );
     scheduledConcreteTrips += expansionCounts.scheduledConcreteTrips;
     frequencyTemplates += expansionCounts.frequencyTemplates;
     generatedFrequencyTrips += expansionCounts.generatedFrequencyTrips;
-    frequencyInstancesExcludedBeforeDeparture +=
-      expansionCounts.frequencyInstancesExcludedBeforeDeparture;
+    frequencyInstancesExcludedBeforeRoutingWindow +=
+      expansionCounts.frequencyInstancesExcludedBeforeRoutingWindow;
   }
 
   const baseGroups = grouper.finish();
@@ -224,7 +213,7 @@ export const buildRaptorTimetable = async (
     scheduledConcreteTrips,
     frequencyTemplates,
     generatedFrequencyTrips,
-    frequencyInstancesExcludedBeforeDeparture,
+    frequencyInstancesExcludedBeforeRoutingWindow,
     finalConcreteTrips,
     activeNumericStops: denseStopIds.sourceStopIds.length,
     baseRoutePatterns:
@@ -259,6 +248,10 @@ export const buildRaptorTimetable = async (
     patterns,
     patternOccurrencesByStop,
     transfersByStop: Array.from(
+      { length: denseStopIds.sourceStopIds.length },
+      () => new Uint32Array(),
+    ),
+    accessTransfersByStop: Array.from(
       { length: denseStopIds.sourceStopIds.length },
       () => new Uint32Array(),
     ),

@@ -8,7 +8,8 @@ export {
   createLocalityRoutingEntryMap,
   createReachableLocalityMap,
   parseLocalityRoutingIndexJson,
-  resolveReachableLocalities,
+  resolveFastestReachableLocalities,
+  resolveFastestReachableLocalitiesDebug,
 } from './routing';
 
 export type { Locality, LocalityId, LocalityQuery } from './types';
@@ -17,4 +18,5 @@ export type {
   LocalityRoutingIndex,
   LocalityRoutingSelectionMode,
   ReachableLocality,
+  ReachableLocalityDebug,
 } from './routing';

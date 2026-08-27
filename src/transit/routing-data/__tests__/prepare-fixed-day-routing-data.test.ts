@@ -68,7 +68,8 @@ async function prepareFixture(workspace: FixtureWorkspace) {
     transitStopsPath: workspace.transitStopsPath,
     outputDirectory: workspace.outputDirectory,
     serviceDate: referenceScenario.serviceDate,
-    departureTime: referenceScenario.departureTime,
+    routingWindowStart: referenceScenario.morningWindow.start,
+    routingWindowEnd: referenceScenario.morningWindow.end,
   });
 }
 
@@ -118,17 +119,21 @@ describe('prepareFixedDayRoutingData', () => {
       schemaVersion: 1,
       sourceFeedVersion: 'fixture-20260826',
       serviceDate: PROJECT_CONFIG.transit.referenceScenario.serviceDate,
-      departureTime: PROJECT_CONFIG.transit.referenceScenario.departureTime,
-      tripCount: 5,
-      scheduledTripCount: 4,
+      routingWindowStart:
+        PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
+      routingWindowEnd:
+        PROJECT_CONFIG.transit.referenceScenario.morningWindow.end,
+      tripCount: 6,
+      scheduledTripCount: 5,
       frequencyTripCount: 1,
-      stopTimeCount: 10,
+      stopTimeCount: 12,
       frequencyWindowCount: 1,
-      excludedBeforeDepartureTripCount: 2,
+      excludedBeforeRoutingWindowTripCount: 1,
     });
     expect(tripIds).toEqual([
       'scheduled-exact',
       'before-later',
+      'before-only',
       'frequency-special',
       'after-24',
       'tram-after',

@@ -5,7 +5,8 @@ export {
 } from './parse-locality-routing-index';
 export {
   createReachableLocalityMap,
-  resolveReachableLocalities,
+  resolveFastestReachableLocalities,
+  resolveFastestReachableLocalitiesDebug,
 } from './resolve-reachable-localities';
 
 export type {
@@ -13,4 +14,5 @@ export type {
   LocalityRoutingIndex,
   LocalityRoutingSelectionMode,
   ReachableLocality,
+  ReachableLocalityDebug,
 } from './types';

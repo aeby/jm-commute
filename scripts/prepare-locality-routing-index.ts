@@ -1,6 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import {
@@ -17,6 +16,7 @@ import {
   loadTransitCandidateInputs,
   readUtf8Input,
 } from './transit-inspection-inputs';
+import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
 const ROUTING_TRIPS_PATH = resolve(
@@ -37,18 +37,6 @@ function median(sortedValues: readonly number[]): number {
   return sortedValues.length % 2 === 1
     ? (sortedValues[middle] ?? 0)
     : ((sortedValues[middle - 1] ?? 0) + (sortedValues[middle] ?? 0)) / 2;
-}
-
-async function writeAtomically(path: string, contents: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temporaryPath, contents, 'utf8');
-    await rename(temporaryPath, path);
-  } catch (error) {
-    await unlink(temporaryPath).catch(() => undefined);
-    throw error;
-  }
 }
 
 async function main(): Promise<void> {
@@ -85,7 +73,7 @@ async function main(): Promise<void> {
   };
   const output = `${JSON.stringify(dataset, null, 2)}\n`;
   const sha256 = createHash('sha256').update(output).digest('hex');
-  await writeAtomically(OUTPUT_PATH, output);
+  await writeUtf8FileAtomically(OUTPUT_PATH, output);
 
   const stopCounts = index.entries
     .map(({ stopIndexes }) => stopIndexes.length)

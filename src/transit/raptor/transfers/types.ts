@@ -49,11 +49,14 @@ export interface TransferGraphStatistics {
   readonly unsupportedInSeatRows: number;
   readonly unsupportedOtherConstrainedRows: number;
   readonly finalTransferEdges: number;
+  readonly finalAccessTransferEdges: number;
 }
 
 export interface TransferGraphBuildResult {
   readonly transfersByStop: readonly Uint32Array[];
+  readonly accessTransfersByStop: readonly Uint32Array[];
   readonly statistics: TransferGraphStatistics;
+  readonly edgeDiagnostics?: readonly TransferEdgeDiagnostic[];
 }
 
 export interface BuildTransferGraphOptions {
@@ -65,13 +68,27 @@ export interface BuildTransferGraphOptions {
   readonly denseStopLookup: ReadonlyMap<string, number>;
   readonly deriveSiblingTransfers: boolean;
   readonly virtualTransfers: VirtualTransferOptions;
+  readonly includeDiagnostics?: boolean;
 }
 
 export type TransferEdgeSource = 'EXPLICIT' | 'SIBLING' | 'VIRTUAL';
+export type TransferAccessEligibility =
+  | 'ACCESS_ELIGIBLE'
+  | 'TRANSFER_ONLY';
+export type TransferEdgeDiagnosticSource =
+  | 'GTFS_TYPE_0'
+  | 'GTFS_TYPE_1'
+  | 'GTFS_TYPE_2'
+  | 'GENERATED_SIBLING'
+  | 'GENERATED_VIRTUAL';
 
 export interface TransferEdge {
   readonly fromStopIndex: number;
   readonly toStopIndex: number;
   readonly minimumTransferTimeSeconds: number;
   readonly source: TransferEdgeSource;
+  readonly accessEligibility: TransferAccessEligibility;
+  readonly diagnosticSource: TransferEdgeDiagnosticSource;
 }
+
+export type TransferEdgeDiagnostic = TransferEdge;

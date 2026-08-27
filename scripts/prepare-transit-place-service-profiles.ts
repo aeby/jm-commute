@@ -8,7 +8,10 @@ import {
   processGtfsCsvRows,
   readCsvColumn,
 } from '../src/transit/gtfs/read-csv-rows';
-import type { TransitPlace } from '../src/transit/places';
+import {
+  parseTransitPlacesJson,
+  type TransitPlace,
+} from '../src/transit/places';
 import {
   isRailRouteType,
   parseGtfsTimeToSeconds,
@@ -27,69 +30,6 @@ const OUTPUT_PATH = join(PROJECT_ROOT, OUTPUT_RELATIVE_PATH);
 const REFERENCE_SCENARIO = PROJECT_CONFIG.transit.referenceScenario;
 const SERVICE_DATE = REFERENCE_SCENARIO.serviceDate.replaceAll('-', '');
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function invalidPlace(index: number, message: string): never {
-  throw new Error(
-    `Invalid transit place at index ${index} in ${TRANSIT_PLACES_RELATIVE_PATH}: ${message}.`,
-  );
-}
-
-function parseTransitPlacesJson(json: string): readonly TransitPlace[] {
-  let value: unknown;
-
-  try {
-    value = JSON.parse(json);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Unable to parse ${TRANSIT_PLACES_RELATIVE_PATH} as JSON: ${message}`,
-      { cause: error },
-    );
-  }
-
-  if (!Array.isArray(value)) {
-    throw new Error(
-      `${TRANSIT_PLACES_RELATIVE_PATH} must contain a JSON array.`,
-    );
-  }
-
-  return value.map((entry, index): TransitPlace => {
-    if (!isRecord(entry)) {
-      return invalidPlace(index, 'expected an object');
-    }
-
-    const { id, name, latitude, longitude, stopIds } = entry;
-
-    if (typeof id !== 'string' || id.trim().length === 0) {
-      return invalidPlace(index, '"id" must be a nonempty string');
-    }
-
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      return invalidPlace(index, '"name" must be a nonempty string');
-    }
-
-    if (typeof latitude !== 'number' || !Number.isFinite(latitude)) {
-      return invalidPlace(index, '"latitude" must be a finite number');
-    }
-
-    if (typeof longitude !== 'number' || !Number.isFinite(longitude)) {
-      return invalidPlace(index, '"longitude" must be a finite number');
-    }
-
-    if (
-      !Array.isArray(stopIds) ||
-      !stopIds.every((stopId) => typeof stopId === 'string')
-    ) {
-      return invalidPlace(index, '"stopIds" must be an array of strings');
-    }
-
-    return { id, name, latitude, longitude, stopIds };
-  });
-}
-
 async function loadTransitPlaces(): Promise<readonly TransitPlace[]> {
   let json: string;
 
@@ -103,7 +43,7 @@ async function loadTransitPlaces(): Promise<readonly TransitPlace[]> {
     );
   }
 
-  return parseTransitPlacesJson(json);
+  return parseTransitPlacesJson(json, TRANSIT_PLACES_RELATIVE_PATH);
 }
 
 async function main(): Promise<void> {
@@ -121,10 +61,10 @@ async function main(): Promise<void> {
   );
   const places = await loadTransitPlaces();
   const windowStartSeconds = parseGtfsTimeToSeconds(
-    REFERENCE_SCENARIO.serviceProfileWindow.start,
+    REFERENCE_SCENARIO.morningWindow.start,
   );
   const windowEndSeconds = parseGtfsTimeToSeconds(
-    REFERENCE_SCENARIO.serviceProfileWindow.end,
+    REFERENCE_SCENARIO.morningWindow.end,
   );
   const accumulator = createTransitPlaceProfileAccumulator(
     places,
@@ -154,9 +94,8 @@ async function main(): Promise<void> {
   const profiles = accumulator.buildProfiles();
   const dataset: TransitPlaceServiceProfileDataset = {
     serviceDate: REFERENCE_SCENARIO.serviceDate,
-    departureTime: REFERENCE_SCENARIO.departureTime,
-    windowStart: REFERENCE_SCENARIO.serviceProfileWindow.start,
-    windowEnd: REFERENCE_SCENARIO.serviceProfileWindow.end,
+    windowStart: REFERENCE_SCENARIO.morningWindow.start,
+    windowEnd: REFERENCE_SCENARIO.morningWindow.end,
     profiles,
   };
   const placesWithMorningService = profiles.filter(
@@ -170,9 +109,8 @@ async function main(): Promise<void> {
   await writeFile(OUTPUT_PATH, `${JSON.stringify(dataset, null, 2)}\n`, 'utf8');
 
   console.log(`Reference date: ${REFERENCE_SCENARIO.serviceDate}`);
-  console.log(`Departure time: ${REFERENCE_SCENARIO.departureTime}`);
   console.log(
-    `Hub window: ${REFERENCE_SCENARIO.serviceProfileWindow.start}–${REFERENCE_SCENARIO.serviceProfileWindow.end}`,
+    `Morning window: ${REFERENCE_SCENARIO.morningWindow.start}–${REFERENCE_SCENARIO.morningWindow.end}`,
   );
   console.log('');
   console.log(`Active services: ${fixedDateFeed.activeServiceIds.size}`);
