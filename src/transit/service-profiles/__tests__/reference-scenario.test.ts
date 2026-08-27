@@ -1,35 +1,36 @@
 import { describe, expect, it } from 'vitest';
 
-import { REFERENCE_TRANSIT_SCENARIO } from '../../reference-scenario';
+import { PROJECT_CONFIG } from '../../../config';
 import { parseGtfsTimeToSeconds } from '../parse-gtfs-time';
 import { validateFeedDateRange } from '../validate-feed-date-range';
 
-const serviceDate = REFERENCE_TRANSIT_SCENARIO.serviceDate.replaceAll('-', '');
+const referenceScenario = PROJECT_CONFIG.transit.referenceScenario;
+const serviceDate = referenceScenario.serviceDate.replaceAll('-', '');
 
-describe('REFERENCE_TRANSIT_SCENARIO', () => {
+describe('PROJECT_CONFIG transit reference scenario', () => {
   it('uses a Monday as its configured service date', () => {
     const date = new Date(
-      `${REFERENCE_TRANSIT_SCENARIO.serviceDate}T00:00:00Z`,
+      `${referenceScenario.serviceDate}T00:00:00Z`,
     );
 
     expect(date.getUTCDay()).toBe(1);
   });
 
   it('keeps the fixed service date and reference departure time', () => {
-    expect(REFERENCE_TRANSIT_SCENARIO.serviceDate).toBe('2026-09-07');
-    expect(REFERENCE_TRANSIT_SCENARIO.departureTime).toBe('08:00:00');
+    expect(referenceScenario.serviceDate).toBe('2026-09-07');
+    expect(referenceScenario.departureTime).toBe('08:00:00');
   });
 
   it('uses an exact two-hour service-profile interval', () => {
     const windowStart = parseGtfsTimeToSeconds(
-      REFERENCE_TRANSIT_SCENARIO.hubWindowStart,
+      referenceScenario.serviceProfileWindow.start,
     );
     const windowEnd = parseGtfsTimeToSeconds(
-      REFERENCE_TRANSIT_SCENARIO.hubWindowEnd,
+      referenceScenario.serviceProfileWindow.end,
     );
 
-    expect(REFERENCE_TRANSIT_SCENARIO.hubWindowStart).toBe('07:00:00');
-    expect(REFERENCE_TRANSIT_SCENARIO.hubWindowEnd).toBe('09:00:00');
+    expect(referenceScenario.serviceProfileWindow.start).toBe('07:00:00');
+    expect(referenceScenario.serviceProfileWindow.end).toBe('09:00:00');
     expect(windowEnd - windowStart).toBe(2 * 60 * 60);
   });
 

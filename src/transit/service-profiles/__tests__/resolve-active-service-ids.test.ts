@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { REFERENCE_TRANSIT_SCENARIO } from '../../reference-scenario';
+import { PROJECT_CONFIG } from '../../../config';
 import { resolveActiveServiceIds } from '../resolve-active-service-ids';
 
-const SERVICE_DATE = REFERENCE_TRANSIT_SCENARIO.serviceDate.replaceAll('-', '');
+const SERVICE_DATE =
+  PROJECT_CONFIG.transit.referenceScenario.serviceDate.replaceAll('-', '');
 
 function createCalendarEntry(
   overrides: Readonly<Record<string, string | number>> = {},

@@ -1,0 +1,6 @@
+route_id,route_type
+route-bus,700
+route-rail,102
+route-tram,0
+route-special,1300
+route-inactive,700

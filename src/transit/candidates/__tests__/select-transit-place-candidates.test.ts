@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { PROJECT_CONFIG } from '../../../config';
 import type { Locality } from '../../../localities';
 import type { TransitPlace } from '../../places';
-import { REFERENCE_TRANSIT_SCENARIO } from '../../reference-scenario';
 import type {
   TransitPlaceServiceProfile,
   TransitPlaceServiceProfileDataset,
@@ -49,11 +49,13 @@ function createDataset(
   profiles: readonly TransitPlaceServiceProfile[],
   metadataOverrides: Partial<TransitPlaceServiceProfileDataset> = {},
 ): TransitPlaceServiceProfileDataset {
+  const { referenceScenario } = PROJECT_CONFIG.transit;
+
   return {
-    serviceDate: REFERENCE_TRANSIT_SCENARIO.serviceDate,
-    departureTime: REFERENCE_TRANSIT_SCENARIO.departureTime,
-    windowStart: REFERENCE_TRANSIT_SCENARIO.hubWindowStart,
-    windowEnd: REFERENCE_TRANSIT_SCENARIO.hubWindowEnd,
+    serviceDate: referenceScenario.serviceDate,
+    departureTime: referenceScenario.departureTime,
+    windowStart: referenceScenario.serviceProfileWindow.start,
+    windowEnd: referenceScenario.serviceProfileWindow.end,
     profiles,
     ...metadataOverrides,
   };

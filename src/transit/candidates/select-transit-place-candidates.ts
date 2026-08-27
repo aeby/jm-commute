@@ -1,16 +1,15 @@
 import type { Locality } from '../../localities';
+import { PROJECT_CONFIG } from '../../config';
 import {
   findNearbyTransitPlaces,
   type NearbyTransitPlace,
   type TransitPlace,
 } from '../places';
-import { REFERENCE_TRANSIT_SCENARIO } from '../reference-scenario';
 import type {
   TransitPlaceServiceProfile,
   TransitPlaceServiceProfileDataset,
 } from '../service-profiles';
 import { compareTransitPlaceCandidates } from './compare-transit-place-candidates';
-import { TRANSIT_CANDIDATE_SELECTION } from './configuration';
 import type {
   SelectTransitPlaceCandidatesOptions,
   TransitCandidateSelectionMode,
@@ -42,10 +41,10 @@ function validateOptions(
 
   const maxAccessDistanceMeters =
     options?.maxAccessDistanceMeters ??
-    TRANSIT_CANDIDATE_SELECTION.maxAccessDistanceMeters;
+    PROJECT_CONFIG.transit.candidateSelection.maxAccessDistanceMeters;
   const fallbackCandidateCount =
     options?.fallbackCandidateCount ??
-    TRANSIT_CANDIDATE_SELECTION.fallbackCandidateCount;
+    PROJECT_CONFIG.transit.candidateSelection.fallbackCandidateCount;
 
   if (
     !Number.isFinite(maxAccessDistanceMeters) ||
@@ -71,11 +70,12 @@ function validateOptions(
 function validateDatasetMetadata(
   dataset: TransitPlaceServiceProfileDataset,
 ): void {
+  const { referenceScenario } = PROJECT_CONFIG.transit;
   const expectedMetadata = {
-    serviceDate: REFERENCE_TRANSIT_SCENARIO.serviceDate,
-    departureTime: REFERENCE_TRANSIT_SCENARIO.departureTime,
-    windowStart: REFERENCE_TRANSIT_SCENARIO.hubWindowStart,
-    windowEnd: REFERENCE_TRANSIT_SCENARIO.hubWindowEnd,
+    serviceDate: referenceScenario.serviceDate,
+    departureTime: referenceScenario.departureTime,
+    windowStart: referenceScenario.serviceProfileWindow.start,
+    windowEnd: referenceScenario.serviceProfileWindow.end,
   } as const;
 
   for (const [field, expectedValue] of Object.entries(expectedMetadata)) {

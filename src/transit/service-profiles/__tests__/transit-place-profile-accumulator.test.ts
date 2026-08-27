@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import { PROJECT_CONFIG } from '../../../config';
 import type { TransitPlace } from '../../places';
-import { REFERENCE_TRANSIT_SCENARIO } from '../../reference-scenario';
 import { buildStopToPlaceMap } from '../build-stop-to-place-map';
 import { parseGtfsTimeToSeconds } from '../parse-gtfs-time';
 import { createTransitPlaceProfileAccumulator } from '../transit-place-profile-accumulator';
 
+const REFERENCE_SCENARIO = PROJECT_CONFIG.transit.referenceScenario;
 const WINDOW_START = parseGtfsTimeToSeconds(
-  REFERENCE_TRANSIT_SCENARIO.hubWindowStart,
+  REFERENCE_SCENARIO.serviceProfileWindow.start,
 );
 const WINDOW_END = parseGtfsTimeToSeconds(
-  REFERENCE_TRANSIT_SCENARIO.hubWindowEnd,
+  REFERENCE_SCENARIO.serviceProfileWindow.end,
 );
 
 const PLACES: readonly TransitPlace[] = [
@@ -58,7 +59,7 @@ function stopTime(
 ) {
   return {
     tripId: 'bus-trip',
-    departureTime: REFERENCE_TRANSIT_SCENARIO.departureTime,
+    departureTime: REFERENCE_SCENARIO.departureTime,
     stopId: 'stop-a',
     pickupType: '0',
     ...overrides,
@@ -110,14 +111,14 @@ describe('createTransitPlaceProfileAccumulator', () => {
     expect(
       accumulator.addStopTime(
         stopTime({
-          departureTime: REFERENCE_TRANSIT_SCENARIO.hubWindowStart,
+          departureTime: REFERENCE_SCENARIO.serviceProfileWindow.start,
         }),
       ),
     ).toBe(true);
     expect(
       accumulator.addStopTime(
         stopTime({
-          departureTime: REFERENCE_TRANSIT_SCENARIO.hubWindowEnd,
+          departureTime: REFERENCE_SCENARIO.serviceProfileWindow.end,
         }),
       ),
     ).toBe(false);

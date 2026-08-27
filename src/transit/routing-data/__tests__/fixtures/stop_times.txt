@@ -1,0 +1,17 @@
+trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type
+scheduled-exact,07:55:00,07:55:00,stop-1,1,1,0
+scheduled-exact,08:00:00,08:00:00,stop-2,2,2,3
+before-later,07:50:00,07:50:00,stop-3,1,0,0
+before-later,08:05:00,08:05:00,stop-4,3,3,2
+before-only,07:00:00,07:00:00,stop-5,1,0,0
+before-only,07:30:00,07:30:00,stop-6,2,0,0
+frequency-special,00:00:00,00:00:00,stop-7,1,0,0
+frequency-special,00:10:00,00:10:00,stop-8,2,0,0
+pickup-prohibited,08:10:00,08:10:00,stop-9,1,1,0
+pickup-prohibited,08:20:00,08:20:00,stop-10,2,1,0
+after-24,24:15:00,24:15:00,stop-11,1,0,0
+after-24,25:03:30,25:03:30,stop-12,2,0,0
+tram-after,08:30:00,08:30:00,stop-13,1,0,0
+tram-after,08:40:00,08:40:00,stop-14,2,0,0
+inactive-trip,09:00:00,09:00:00,stop-15,1,0,0
+inactive-trip,09:10:00,09:10:00,stop-16,2,0,0

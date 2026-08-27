@@ -1,0 +1,2 @@
+feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_version
+Fixture,https://example.test,en,20251214,20261212,fixture-20260826

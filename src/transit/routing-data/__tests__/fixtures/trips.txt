@@ -1,0 +1,9 @@
+route_id,service_id,trip_id
+route-bus,service-active,scheduled-exact
+route-rail,service-active,before-later
+route-tram,service-active,before-only
+route-special,service-active,frequency-special
+route-bus,service-active,pickup-prohibited
+route-rail,service-active,after-24
+route-tram,service-active,tram-after
+route-inactive,service-inactive,inactive-trip

@@ -31,3 +31,6 @@ dist-ssr
 
 /data/processed/*
 !/data/processed/.gitkeep
+!/data/processed/fixed-day-routing/
+/data/processed/fixed-day-routing/*
+!/data/processed/fixed-day-routing/.gitkeep

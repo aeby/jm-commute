@@ -1,0 +1,39 @@
+export type PickupDropOffType = 0 | 1 | 2 | 3;
+export type ExactTimes = 0 | 1;
+
+export interface RoutingFrequencyWindow {
+  readonly startTimeSeconds: number;
+  readonly endTimeSeconds: number;
+  readonly headwaySeconds: number;
+  readonly exactTimes: ExactTimes;
+}
+
+export interface RoutingStopTime {
+  readonly stopId: string;
+  readonly stopSequence: number;
+  readonly arrivalTimeSeconds: number;
+  readonly departureTimeSeconds: number;
+  readonly pickupType: PickupDropOffType;
+  readonly dropOffType: PickupDropOffType;
+}
+
+export interface RoutingTrip {
+  readonly tripId: string;
+  readonly routeId: string;
+  readonly routeType: number;
+  readonly stopTimes: readonly RoutingStopTime[];
+  readonly frequencyWindows: readonly RoutingFrequencyWindow[];
+}
+
+export interface FixedDayRoutingManifest {
+  readonly schemaVersion: 1;
+  readonly sourceFeedVersion?: string;
+  readonly serviceDate: string;
+  readonly departureTime: string;
+  readonly tripCount: number;
+  readonly scheduledTripCount: number;
+  readonly frequencyTripCount: number;
+  readonly stopTimeCount: number;
+  readonly frequencyWindowCount: number;
+  readonly excludedBeforeDepartureTripCount: number;
+}
