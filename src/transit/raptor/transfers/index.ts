@@ -11,7 +11,6 @@ export {
 export {
   parseGtfsTransferRow,
   parseGtfsTransfersCsv,
-  readGtfsTransfers,
 } from './parse-gtfs-transfers';
 export { forEachSpatialTransferCandidate } from './spatial-transfer-grid';
 export { USE_QUERY_TRANSFER_TIME } from './types';

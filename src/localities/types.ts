@@ -1,3 +1,5 @@
+export type LocalityId = string;
+
 export interface LocalityQuery {
   readonly postalCode: string;
   readonly city: string;

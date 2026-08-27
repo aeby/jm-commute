@@ -188,29 +188,44 @@ export function selectTransitPlaceCandidates(
   profileDataset: TransitPlaceServiceProfileDataset,
   options?: SelectTransitPlaceCandidatesOptions,
 ): TransitPlaceCandidateSelection {
+  return createTransitPlaceCandidateSelector(
+    places,
+    profileDataset,
+    options,
+  )(locality);
+}
+
+export function createTransitPlaceCandidateSelector(
+  places: readonly TransitPlace[],
+  profileDataset: TransitPlaceServiceProfileDataset,
+  options?: SelectTransitPlaceCandidatesOptions,
+): (locality: Locality) => TransitPlaceCandidateSelection {
   const { maxAccessDistanceMeters, fallbackCandidateCount } =
     validateOptions(options);
   const profileByPlaceId = buildProfileByPlaceId(places, profileDataset);
   const maximumNormalResults = Math.max(places.length, 1);
-  const placesWithinAccessRadius = findNearbyTransitPlaces(locality, places, {
-    maxResults: maximumNormalResults,
-    maxDistanceMeters: maxAccessDistanceMeters,
-  });
-  let mode: TransitCandidateSelectionMode;
-  let memberPlaces: readonly NearbyTransitPlace[];
 
-  if (placesWithinAccessRadius.length > 0) {
-    mode = 'WITHIN_ACCESS_RADIUS';
-    memberPlaces = placesWithinAccessRadius;
-  } else {
-    mode = 'NEAREST_FALLBACK';
-    memberPlaces = findNearbyTransitPlaces(locality, places, {
-      maxResults: fallbackCandidateCount,
+  return (locality): TransitPlaceCandidateSelection => {
+    const placesWithinAccessRadius = findNearbyTransitPlaces(locality, places, {
+      maxResults: maximumNormalResults,
+      maxDistanceMeters: maxAccessDistanceMeters,
     });
-  }
+    let mode: TransitCandidateSelectionMode;
+    let memberPlaces: readonly NearbyTransitPlace[];
 
-  return Object.freeze({
-    mode,
-    candidates: rankCandidates(memberPlaces, profileByPlaceId),
-  });
+    if (placesWithinAccessRadius.length > 0) {
+      mode = 'WITHIN_ACCESS_RADIUS';
+      memberPlaces = placesWithinAccessRadius;
+    } else {
+      mode = 'NEAREST_FALLBACK';
+      memberPlaces = findNearbyTransitPlaces(locality, places, {
+        maxResults: fallbackCandidateCount,
+      });
+    }
+
+    return Object.freeze({
+      mode,
+      candidates: rankCandidates(memberPlaces, profileByPlaceId),
+    });
+  };
 }

@@ -1,6 +1,3 @@
-import { createReadStream } from 'node:fs';
-
-import { parse } from 'csv-parse';
 import { parse as parseSync } from 'csv-parse/sync';
 
 import type { CsvColumnIndexes } from '../../gtfs/read-csv-rows';
@@ -68,14 +65,18 @@ const parseMinimumTransferTime = (
   return seconds;
 };
 
-const requireCsvRow = (record: unknown): readonly string[] => {
+export const requireGtfsTransferCsvRow = (
+  record: unknown,
+): readonly string[] => {
   if (!Array.isArray(record)) {
     throw new Error('CSV parser returned a non-array transfer record.');
   }
   return record as string[];
 };
 
-const createColumnIndexes = (header: readonly string[]): CsvColumnIndexes => {
+export const createGtfsTransferColumnIndexes = (
+  header: readonly string[],
+): CsvColumnIndexes => {
   const missingColumns = REQUIRED_COLUMNS.filter(
     (column) => !header.includes(column),
   );
@@ -122,11 +123,11 @@ export const parseGtfsTransfersCsv = (
   if (!Array.isArray(records) || records.length === 0) {
     throw new Error('transfers.txt is empty.');
   }
-  const header = requireCsvRow(records[0]);
-  const columns = createColumnIndexes(header);
+  const header = requireGtfsTransferCsvRow(records[0]);
+  const columns = createGtfsTransferColumnIndexes(header);
   return records.slice(1).map((record, index) => {
     try {
-      return parseGtfsTransferRow(requireCsvRow(record), columns);
+      return parseGtfsTransferRow(requireGtfsTransferCsvRow(record), columns);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
@@ -136,46 +137,3 @@ export const parseGtfsTransfersCsv = (
     }
   });
 };
-
-/** Streams the large Swiss transfers.txt without retaining every row. */
-export async function* readGtfsTransfers(
-  path: string,
-): AsyncGenerator<ParsedGtfsTransfer> {
-  const input = createReadStream(path);
-  const parser = parse({
-    bom: true,
-    delimiter: ',',
-    skip_empty_lines: true,
-  });
-  input.once('error', (error) => parser.destroy(error));
-  input.pipe(parser);
-
-  let rowNumber = 0;
-  let columns: CsvColumnIndexes | undefined;
-  try {
-    for await (const record of parser) {
-      rowNumber += 1;
-      const row = requireCsvRow(record);
-      if (columns === undefined) {
-        columns = createColumnIndexes(row);
-        continue;
-      }
-      try {
-        yield parseGtfsTransferRow(row, columns);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Invalid transfers.txt row ${rowNumber}: ${message}`,
-          { cause: error },
-        );
-      }
-    }
-  } finally {
-    input.destroy();
-    parser.destroy();
-  }
-
-  if (rowNumber === 0) {
-    throw new Error(`${path} is empty.`);
-  }
-}

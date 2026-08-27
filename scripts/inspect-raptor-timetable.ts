@@ -8,11 +8,11 @@ import { PROJECT_CONFIG } from '../src/config';
 import type { FixedDayRoutingManifest } from '../src/transit/routing-data';
 import {
   buildRaptorTimetable,
-  readRoutingTripsNdjson,
   type RaptorTimetable,
   type RaptorTimetableBuildStage,
   type RaptorTimetableBuildStatistics,
 } from '../src/transit/raptor/timetable';
+import { readRoutingTripsNdjson } from '../src/transit/raptor/timetable/node';
 
 const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ROUTING_DIRECTORY = join(

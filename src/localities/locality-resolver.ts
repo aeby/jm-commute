@@ -1,7 +1,6 @@
 import { normalizeCityName } from './normalize-city-name';
+import { normalizeSwissPostalCode } from './postal-code';
 import type { Locality, LocalityQuery } from './types';
-
-const POSTAL_CODE_PATTERN = /^[0-9]{4}$/;
 
 function createLocalityKey(postalCode: string, city: string): string {
   return `${postalCode.trim()}\u0000${normalizeCityName(city)}`;
@@ -29,10 +28,10 @@ export class LocalityResolver {
       return undefined;
     }
 
-    const postalCode = query.postalCode.trim();
+    const postalCode = normalizeSwissPostalCode(query.postalCode);
     const city = normalizeCityName(query.city);
 
-    if (!POSTAL_CODE_PATTERN.test(postalCode) || city.length === 0) {
+    if (postalCode === undefined || city.length === 0) {
       return undefined;
     }
 

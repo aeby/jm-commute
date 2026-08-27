@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Swiss Commute Validation</title>
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <p class="eyebrow">Offline routing diagnostic</p>
+        <h1>Swiss Commute Validation</h1>
+        <p class="intro">
+          Inspect origin hubs and fixed-Monday public-transport reachability.
+        </p>
+      </header>
+
+      <div id="startup-error" class="alert alert-error" hidden></div>
+
+      <section class="card controls-card" aria-labelledby="origin-heading">
+        <div>
+          <p class="section-number">01</p>
+          <h2 id="origin-heading">Origin and commute</h2>
+        </div>
+
+        <div class="form-grid">
+          <div class="field autocomplete-field">
+            <label for="origin-search">Origin ZIP or city</label>
+            <input
+              id="origin-search"
+              type="text"
+              placeholder="e.g. 8001 Zürich"
+              autocomplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="origin-results"
+              aria-expanded="false"
+            >
+            <div
+              id="origin-results"
+              class="autocomplete-results"
+              role="listbox"
+              hidden
+            ></div>
+          </div>
+
+          <div class="field range-field">
+            <div class="range-heading">
+              <label for="travel-time">Maximum commute</label>
+              <output id="travel-time-value" for="travel-time"></output>
+            </div>
+            <input id="travel-time" type="range">
+            <div class="range-limits">
+              <span id="travel-time-min"></span>
+              <span id="travel-time-max"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button id="calculate" class="primary-button" type="button">
+            Calculate reachability
+          </button>
+          <p id="calculation-status" class="status-text" aria-live="polite">
+            Select a known origin locality.
+          </p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="hubs-heading">
+        <div class="section-heading-row">
+          <div>
+            <p class="section-number">02</p>
+            <h2 id="hubs-heading">Origin transit candidates</h2>
+          </div>
+          <span id="selection-mode" class="mode-badge">No origin selected</span>
+        </div>
+        <div id="fallback-warning" class="alert alert-warning" hidden>
+          No transit place was found inside the configured normal access radius.
+          The nearest fallback transit places are being used.
+        </div>
+        <div id="hub-candidates" class="empty-state">
+          Select an origin to inspect its ranked hubs and stops.
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="destination-heading">
+        <div>
+          <p class="section-number">03</p>
+          <h2 id="destination-heading">Optional destination</h2>
+        </div>
+        <div class="destination-grid">
+          <div class="field autocomplete-field">
+            <label for="destination-search">Destination ZIP or city</label>
+            <input
+              id="destination-search"
+              type="text"
+              placeholder="e.g. 3011 Bern"
+              autocomplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="destination-results"
+              aria-expanded="false"
+            >
+            <div
+              id="destination-results"
+              class="autocomplete-results"
+              role="listbox"
+              hidden
+            ></div>
+          </div>
+          <div class="destination-result">
+            <span class="result-label">Estimated travel time</span>
+            <strong id="destination-status">No destination selected</strong>
+          </div>
+        </div>
+        <details id="destination-details" class="diagnostics" hidden>
+          <summary>Destination routing-stop details</summary>
+          <pre id="destination-details-content"></pre>
+        </details>
+      </section>
+
+      <section class="card" aria-labelledby="reachability-heading">
+        <div class="section-heading-row">
+          <div>
+            <p class="section-number">04</p>
+            <h2 id="reachability-heading">Reachability</h2>
+          </div>
+          <strong id="reachable-total" class="total-count">Not calculated</strong>
+        </div>
+        <div id="reachability-buckets" class="metric-grid"></div>
+
+        <div class="field list-filter">
+          <label for="reachable-filter">Filter reachable localities</label>
+          <input
+            id="reachable-filter"
+            type="search"
+            placeholder="ZIP or city"
+            disabled
+          >
+        </div>
+        <div id="reachable-localities" class="empty-state">
+          Run a calculation to list reachable localities.
+        </div>
+      </section>
+
+      <aside class="notice">
+        <strong>Approximation notice</strong>
+        <p>
+          This is an approximate commute model using a fixed representative
+          Monday at 08:00. Local walking/access time is not currently included.
+          Geographic virtual transfers are disabled by default.
+        </p>
+      </aside>
+
+      <details class="diagnostics">
+        <summary>Performance diagnostics</summary>
+        <pre id="performance-diagnostics">Waiting for application startup…</pre>
+      </details>
+    </main>
+
+    <!-- VALIDATION_UI_SCRIPTS -->
+  </body>
+</html>

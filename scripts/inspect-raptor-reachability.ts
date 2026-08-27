@@ -9,7 +9,6 @@ import {
   parseLocalitiesCsv,
 } from '../src/localities';
 import { selectTransitPlaceCandidates } from '../src/transit/candidates';
-import { loadFixedDateActiveServices } from '../src/transit/gtfs/load-fixed-date-feed';
 import {
   runRaptorOneToAll,
   UNREACHED_TIME,
@@ -17,31 +16,14 @@ import {
   type RaptorResult,
   type RaptorRoutingDiagnostics,
 } from '../src/transit/raptor';
-import {
-  buildRaptorTimetable,
-  buildSourceStopIndex,
-  readRoutingTripsNdjson,
-} from '../src/transit/raptor/timetable';
-import {
-  attachTransferGraph,
-  buildTransferGraph,
-  readGtfsTransfers,
-} from '../src/transit/raptor/transfers';
 import { parseGtfsTimeToSeconds } from '../src/transit/service-profiles';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
-  loadTransitStopsInput,
   readUtf8Input,
 } from './transit-inspection-inputs';
+import { loadRaptorInspectionTimetable } from './load-raptor-inspection-timetable';
 
-const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const ROUTING_TRIPS_PATH = resolve(
-  PROJECT_ROOT,
-  'data/processed/fixed-day-routing/trips.ndjson',
-);
-const GTFS_DIRECTORY = resolve(PROJECT_ROOT, 'data/raw/gtfs');
-const GTFS_TRANSFERS_PATH = resolve(GTFS_DIRECTORY, 'transfers.txt');
 const WARM_UP_QUERY_COUNT = 5;
 const BENCHMARK_QUERY_COUNT = 50;
 
@@ -223,44 +205,16 @@ async function main(): Promise<void> {
     );
   }
 
-  const timetableBuildStart = performance.now();
-  const baseTimetable = await buildRaptorTimetable(
-    readRoutingTripsNdjson(ROUTING_TRIPS_PATH),
-  );
-  const timetableBuildMilliseconds = performance.now() - timetableBuildStart;
-  const stopIndexBySourceId = buildSourceStopIndex(
-    baseTimetable.sourceStopIds,
-  );
-  const transitStops = await loadTransitStopsInput();
-  const serviceDate =
-    PROJECT_CONFIG.transit.referenceScenario.serviceDate.replaceAll('-', '');
-  const { activeServiceIds } = await loadFixedDateActiveServices(
-    GTFS_DIRECTORY,
-    serviceDate,
-  );
-  const configuredTransfers = PROJECT_CONFIG.transit.routing.transfers;
-  const virtualTransfers = {
-    ...configuredTransfers.virtualTransfers,
-    enabled:
-      values['virtual-transfers'] ??
-      configuredTransfers.virtualTransfers.enabled,
-  };
-  const transferMemoryBefore = process.memoryUsage();
-  const transferBuildStart = performance.now();
-  const transferGraph = await buildTransferGraph({
-    transferRules: readGtfsTransfers(GTFS_TRANSFERS_PATH),
-    activeServiceIds,
-    transitStops,
-    denseStopLookup: stopIndexBySourceId,
-    deriveSiblingTransfers: configuredTransfers.deriveSiblingTransfers,
+  const {
+    timetable,
+    stopIndexBySourceId,
+    transferGraph,
     virtualTransfers,
-  });
-  const transferBuildMilliseconds = performance.now() - transferBuildStart;
-  const transferMemoryAfter = process.memoryUsage();
-  const timetable = attachTransferGraph(
-    baseTimetable,
-    transferGraph.transfersByStop,
-  );
+    timetableBuildMilliseconds,
+    transferBuildMilliseconds,
+    transferMemoryBefore,
+    transferMemoryAfter,
+  } = await loadRaptorInspectionTimetable(values['virtual-transfers']);
   const transferDegrees = transferDegreeStatistics(
     transferGraph.transfersByStop,
   );

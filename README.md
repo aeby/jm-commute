@@ -15,11 +15,11 @@ Users and jobs are identified approximately by postcode and/or city name. The sy
 
 ## Current milestone
 
-The current implementation prepares a compact fixed-day timetable and runs multi-source, one-to-all public-transport reachability queries from resolved localities.
+The current implementation prepares a compact fixed-day timetable, runs multi-source one-to-all public-transport queries, and reduces reachable stops to transport-independent Swiss localities.
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
-Journey reconstruction, transfer chaining, locality reachability, job matching, and visualization remain out of scope.
+Journey reconstruction, transfer chaining, job matching, and visualization remain out of scope.
 
 ## Development
 
@@ -32,6 +32,7 @@ npm run data:prepare:stops
 npm run data:prepare:places
 npm run data:prepare:service-profiles
 npm run data:prepare:routing-trips
+npm run data:prepare:locality-routing-index
 ```
 
 The downloaded source data is stored under `data/raw/` and is not committed to Git. Unit tests use a small local fixture and require no network access.
@@ -100,3 +101,23 @@ Default virtual-transfer parameters are:
 Virtual transfers are deliberately treated as an approximation rather than authoritative timetable data.
 
 Trip-specific guaranteed transfers, route-specific transfer restrictions, and in-seat continuations are classified during preparation but are not yet modeled by the router.
+
+### Reachable localities
+
+Every Swiss ZIP-and-city pair has a deterministic, transport-independent locality ID derived from its postal code and normalized city name. The offline locality routing index maps each locality to all active RAPTOR stops contributed by the existing local-access candidate policy.
+
+One RAPTOR result is reduced to the earliest arrival for each locality and rounded upward to whole travel minutes. The product-facing result contains only a locality ID and travel minutes, so a future road router can produce the same shape without exposing GTFS or RAPTOR identifiers.
+
+The intended job boundary is a transport-independent value such as `job.locality_id = "8001:zurich"`. A future matching layer can run routing once when a user's location or commute preference changes, cache the reachable locality IDs, and use an indexed relational join or `job.locality_id IN (...)`. No database integration is implemented yet.
+
+### Local validation UI
+
+Build the standalone validation page with:
+
+```bash
+npm run build:validation-ui
+```
+
+Then open `dist-validation/index.html` directly in a browser.
+
+The page works without a server or network connection and can be used to inspect locality selection, transit hubs, reachable localities, and estimated commute times.

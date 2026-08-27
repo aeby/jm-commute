@@ -1,5 +1,20 @@
+export { createLocalityId } from './locality-id';
 export { LocalityResolver } from './locality-resolver';
 export { normalizeCityName } from './normalize-city-name';
 export { parseLocalitiesCsv } from './parse-localities-csv';
 
-export type { Locality, LocalityQuery } from './types';
+export {
+  buildLocalityRoutingIndex,
+  createLocalityRoutingEntryMap,
+  createReachableLocalityMap,
+  parseLocalityRoutingIndexJson,
+  resolveReachableLocalities,
+} from './routing';
+
+export type { Locality, LocalityId, LocalityQuery } from './types';
+export type {
+  LocalityRoutingEntry,
+  LocalityRoutingIndex,
+  LocalityRoutingSelectionMode,
+  ReachableLocality,
+} from './routing';

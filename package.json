@@ -8,9 +8,12 @@
     "data:prepare:places": "tsx scripts/prepare-transit-places.ts",
     "data:prepare:service-profiles": "tsx scripts/prepare-transit-place-service-profiles.ts",
     "data:prepare:routing-trips": "tsx scripts/prepare-fixed-day-routing-trips.ts",
+    "data:prepare:locality-routing-index": "tsx scripts/prepare-locality-routing-index.ts",
     "inspect:transit-candidates": "tsx scripts/inspect-transit-candidates.ts",
     "inspect:raptor-timetable": "node --expose-gc --import tsx scripts/inspect-raptor-timetable.ts",
     "inspect:raptor-reachability": "tsx scripts/inspect-raptor-reachability.ts",
+    "inspect:locality-reachability": "tsx scripts/inspect-locality-reachability.ts",
+    "build:validation-ui": "tsx scripts/build-validation-ui.ts",
     "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src scripts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

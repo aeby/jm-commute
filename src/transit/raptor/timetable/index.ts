@@ -16,7 +16,6 @@ export {
   getDropOffType,
   getPickupType,
 } from './route-pattern-access';
-export { readRoutingTripsNdjson } from './read-routing-trips-ndjson';
 export {
   splitOvertakingTrips,
   tripPrecedesAtEveryStop,
