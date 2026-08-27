@@ -25,6 +25,8 @@ Locality-to-stop mapping, timetable routing, stop selection, and visualization a
 npm install
 npm test
 npm run typecheck
+npm run lint
+npm run data:prepare:stops
 ```
 
 The downloaded source data is stored under `data/raw/` and is not committed to Git. Unit tests use a small local fixture and require no network access.

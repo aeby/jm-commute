@@ -25,6 +25,9 @@ dist-ssr
 
 /data/raw/*
 !/data/raw/.gitkeep
+!/data/raw/gtfs/
 /data/raw/gtfs/*
-/data/generated/*
-!/data/generated/.gitkeep
+!/data/raw/gtfs/.gitkeep
+
+/data/processed/*
+!/data/processed/.gitkeep

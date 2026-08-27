@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "data:prepare:transit-locations": "tsx scripts/prepare-transit-locations.ts",
+    "data:prepare:stops": "tsx scripts/prepare-transit-stops.ts",
+    "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src scripts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
+    "oxlint": "^1.80.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",

@@ -1,8 +1,0 @@
-stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code,original_stop_id,didok
-"platform-zurich-2"," Zürich HB ","47.3782","8.5402","0"," station-zurich ","2","platform-zurich-2","8503000"
-"entrance-zurich","Zürich HB entrance","47.3785","8.5405","2","station-zurich","","entrance-zurich","8503000"
-"000123","Bern, Bärenplatz","46.9480","7.4474","0","","","000123","8576646"
-" platform-zurich-1 ","Zürich HB","47.3781","8.5401","","station-zurich","1","platform-zurich-1","8503000"
-"node-zurich","Zürich HB internal node","47.3784","8.5404","3","station-zurich","","node-zurich","8503000"
-"station-zurich"," Zürich HB ","47.3780","8.5400","1","","","station-zurich","8503000"
-"boarding-zurich","Zürich HB boarding area","47.3783","8.5403","4","platform-zurich-2","","boarding-zurich","8503000"

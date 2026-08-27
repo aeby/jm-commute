@@ -1,6 +1,6 @@
 import { parse } from 'csv-parse/sync';
 
-import type { TransitLocation, TransitLocationKind } from './types';
+import type { TransitStop, TransitStopKind } from './types';
 
 const ID_COLUMN = 'stop_id';
 const NAME_COLUMN = 'stop_name';
@@ -18,12 +18,29 @@ const REQUIRED_COLUMNS = [
   PARENT_STATION_COLUMN,
 ] as const;
 
-interface ParsedLocation {
-  readonly location: TransitLocation;
+interface ParsedStop {
+  readonly stop: TransitStop;
   readonly rowNumber: number;
 }
 
-function readRequiredField(
+function readRequiredIdentifier(
+  row: readonly string[],
+  columnIndex: number,
+  columnName: string,
+  rowNumber: number,
+): string {
+  const value = row[columnIndex];
+
+  if (value === undefined || value.trim().length === 0) {
+    throw new Error(
+      `GTFS stops CSV row ${rowNumber} is missing required field "${columnName}".`,
+    );
+  }
+
+  return value;
+}
+
+function readRequiredText(
   row: readonly string[],
   columnIndex: number,
   columnName: string,
@@ -45,9 +62,9 @@ function parseCoordinate(
   columnIndex: number,
   columnName: typeof LATITUDE_COLUMN | typeof LONGITUDE_COLUMN,
   rowNumber: number,
-  locationId: string,
+  stopId: string,
 ): number {
-  const rawValue = readRequiredField(
+  const rawValue = readRequiredText(
     row,
     columnIndex,
     columnName,
@@ -60,21 +77,21 @@ function parseCoordinate(
 
   if (!Number.isFinite(value) || value < minimum || value > maximum) {
     throw new Error(
-      `GTFS stops CSV row ${rowNumber} (stop_id "${locationId}") has invalid "${columnName}" coordinate: "${rawValue}".`,
+      `GTFS stops CSV row ${rowNumber} (stop_id "${stopId}") has invalid "${columnName}" coordinate: "${rawValue}".`,
     );
   }
 
   return value;
 }
 
-function parseLocationKind(
+function parseStopKind(
   value: string,
   rowNumber: number,
-): TransitLocationKind | undefined {
+): TransitStopKind | undefined {
   switch (value) {
     case '':
     case '0':
-      return 'STOP';
+      return 'STOP_OR_PLATFORM';
     case '1':
       return 'STATION';
     case '2':
@@ -88,7 +105,7 @@ function parseLocationKind(
   }
 }
 
-function compareById(left: TransitLocation, right: TransitLocation): number {
+function compareById(left: TransitStop, right: TransitStop): number {
   if (left.id < right.id) {
     return -1;
   }
@@ -101,40 +118,40 @@ function compareById(left: TransitLocation, right: TransitLocation): number {
 }
 
 function validateParentRelationships(
-  locationsById: ReadonlyMap<string, ParsedLocation>,
+  stopsById: ReadonlyMap<string, ParsedStop>,
 ): void {
-  for (const { location, rowNumber } of locationsById.values()) {
-    if (location.kind === 'STATION') {
-      if (location.parentId !== undefined) {
+  for (const { stop, rowNumber } of stopsById.values()) {
+    if (stop.kind === 'STATION') {
+      if (stop.parentStationId !== undefined) {
         throw new Error(
-          `GTFS stops CSV row ${rowNumber}: station "${location.id}" must not have parent station "${location.parentId}".`,
+          `GTFS stops CSV row ${rowNumber}: station "${stop.id}" must not have parent station "${stop.parentStationId}".`,
         );
       }
 
       continue;
     }
 
-    if (location.parentId === undefined) {
+    if (stop.parentStationId === undefined) {
       continue;
     }
 
-    const parent = locationsById.get(location.parentId);
+    const parent = stopsById.get(stop.parentStationId);
 
     if (!parent) {
       throw new Error(
-        `GTFS stops CSV row ${rowNumber}: stop "${location.id}" references missing parent station "${location.parentId}".`,
+        `GTFS stops CSV row ${rowNumber}: stop "${stop.id}" references missing parent station "${stop.parentStationId}".`,
       );
     }
 
-    if (parent.location.kind !== 'STATION') {
+    if (parent.stop.kind !== 'STATION') {
       throw new Error(
-        `GTFS stops CSV row ${rowNumber}: stop "${location.id}" references "${location.parentId}", which is not a station.`,
+        `GTFS stops CSV row ${rowNumber}: stop "${stop.id}" references "${stop.parentStationId}", which is not a station.`,
       );
     }
   }
 }
 
-export function parseGtfsStops(csv: string): readonly TransitLocation[] {
+export function parseGtfsStopsCsv(csv: string): readonly TransitStop[] {
   let records: string[][];
 
   try {
@@ -172,29 +189,31 @@ export function parseGtfsStops(csv: string): readonly TransitLocation[] {
   const longitudeIndex = headers.indexOf(LONGITUDE_COLUMN);
   const locationTypeIndex = headers.indexOf(LOCATION_TYPE_COLUMN);
   const parentStationIndex = headers.indexOf(PARENT_STATION_COLUMN);
-  const locationsById = new Map<string, ParsedLocation>();
+  const stopsById = new Map<string, ParsedStop>();
 
   records.slice(1).forEach((row, index) => {
     const rowNumber = index + 2;
     const locationType = row[locationTypeIndex]?.trim() ?? '';
-    const kind = parseLocationKind(locationType, rowNumber);
+    const kind = parseStopKind(locationType, rowNumber);
 
     if (kind === undefined) {
       return;
     }
 
-    const id = readRequiredField(row, idIndex, ID_COLUMN, rowNumber);
-    const previousLocation = locationsById.get(id);
+    const id = readRequiredIdentifier(row, idIndex, ID_COLUMN, rowNumber);
+    const previousStop = stopsById.get(id);
 
-    if (previousLocation) {
+    if (previousStop) {
       throw new Error(
-        `GTFS stops CSV row ${rowNumber} has duplicate stop_id "${id}"; first seen at row ${previousLocation.rowNumber}.`,
+        `GTFS stops CSV row ${rowNumber} has duplicate stop_id "${id}"; first seen at row ${previousStop.rowNumber}.`,
       );
     }
 
-    const name = readRequiredField(row, nameIndex, NAME_COLUMN, rowNumber);
-    const parentId = row[parentStationIndex]?.trim() || undefined;
-    const location: TransitLocation = {
+    const name = readRequiredText(row, nameIndex, NAME_COLUMN, rowNumber);
+    const rawParentStationId = row[parentStationIndex] ?? '';
+    const parentStationId =
+      rawParentStationId.trim().length === 0 ? undefined : rawParentStationId;
+    const stop: TransitStop = {
       id,
       name,
       latitude: parseCoordinate(
@@ -212,16 +231,15 @@ export function parseGtfsStops(csv: string): readonly TransitLocation[] {
         id,
       ),
       kind,
-      ...(parentId === undefined ? {} : { parentId }),
+      ...(parentStationId === undefined ? {} : { parentStationId }),
     };
 
-    locationsById.set(id, { location, rowNumber });
+    stopsById.set(id, { stop, rowNumber });
   });
 
-  validateParentRelationships(locationsById);
+  validateParentRelationships(stopsById);
 
-  return Array.from(
-    locationsById.values(),
-    ({ location }) => location,
-  ).sort(compareById);
+  return Array.from(stopsById.values(), ({ stop }) => stop).toSorted(
+    compareById,
+  );
 }

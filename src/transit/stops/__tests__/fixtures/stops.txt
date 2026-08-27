@@ -1,0 +1,8 @@
+stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code,original_stop_id,didok
+"ch:1:sloid:7000:0:2"," Zürich HB ","47.3782","8.5402","0","Parentch:1:sloid:7000","2","ch:1:sloid:7000:0:2","8503000"
+"entrance-zurich","Zürich HB entrance","47.3785","8.5405","2","Parentch:1:sloid:7000","","entrance-zurich","8503000"
+"000123","Bern, Bärenplatz","46.9480","7.4474","0","","","000123","8576646"
+"ch:1:sloid:7000:0:1","Zürich HB","47.3781","8.5401","","Parentch:1:sloid:7000","1","ch:1:sloid:7000:0:1","8503000"
+"node-zurich","Zürich HB internal node","47.3784","8.5404","3","Parentch:1:sloid:7000","","node-zurich","8503000"
+"Parentch:1:sloid:7000"," Zürich HB ","47.3780","8.5400","1","","","Parentch:1:sloid:7000","8503000"
+"boarding-zurich","Zürich HB boarding area","47.3783","8.5403","4","ch:1:sloid:7000:0:2","","boarding-zurich","8503000"

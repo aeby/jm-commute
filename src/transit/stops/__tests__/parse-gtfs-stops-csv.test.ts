@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import fixtureCsv from './fixtures/stops.txt?raw';
-import { parseGtfsStops } from '../parse-gtfs-stops';
+import { parseGtfsStopsCsv } from '../parse-gtfs-stops-csv';
 
 const REQUIRED_HEADERS = [
   'stop_id',
@@ -16,81 +16,92 @@ function createCsv(...rows: readonly string[]): string {
   return [REQUIRED_HEADERS.join(','), ...rows].join('\n');
 }
 
-describe('parseGtfsStops', () => {
-  it('maps, trims, and sorts included GTFS locations', () => {
-    expect(parseGtfsStops(fixtureCsv)).toEqual([
+describe('parseGtfsStopsCsv', () => {
+  it('maps, trims, and sorts retained GTFS stops', () => {
+    expect(parseGtfsStopsCsv(fixtureCsv)).toEqual([
       {
         id: '000123',
         name: 'Bern, Bärenplatz',
         latitude: 46.948,
         longitude: 7.4474,
-        kind: 'STOP',
+        kind: 'STOP_OR_PLATFORM',
       },
       {
-        id: 'platform-zurich-1',
-        name: 'Zürich HB',
-        latitude: 47.3781,
-        longitude: 8.5401,
-        kind: 'STOP',
-        parentId: 'station-zurich',
-      },
-      {
-        id: 'platform-zurich-2',
-        name: 'Zürich HB',
-        latitude: 47.3782,
-        longitude: 8.5402,
-        kind: 'STOP',
-        parentId: 'station-zurich',
-      },
-      {
-        id: 'station-zurich',
+        id: 'Parentch:1:sloid:7000',
         name: 'Zürich HB',
         latitude: 47.378,
         longitude: 8.54,
         kind: 'STATION',
       },
+      {
+        id: 'ch:1:sloid:7000:0:1',
+        name: 'Zürich HB',
+        latitude: 47.3781,
+        longitude: 8.5401,
+        kind: 'STOP_OR_PLATFORM',
+        parentStationId: 'Parentch:1:sloid:7000',
+      },
+      {
+        id: 'ch:1:sloid:7000:0:2',
+        name: 'Zürich HB',
+        latitude: 47.3782,
+        longitude: 8.5402,
+        kind: 'STOP_OR_PLATFORM',
+        parentStationId: 'Parentch:1:sloid:7000',
+      },
     ]);
   });
 
   it('keeps IDs as strings, including leading zeroes', () => {
-    const [location] = parseGtfsStops(fixtureCsv);
+    const [stop] = parseGtfsStopsCsv(fixtureCsv);
 
-    expect(location?.id).toBe('000123');
-    expect(typeof location?.id).toBe('string');
+    expect(stop?.id).toBe('000123');
+    expect(typeof stop?.id).toBe('string');
   });
 
-  it('maps an empty location_type to STOP', () => {
-    const location = parseGtfsStops(fixtureCsv).find(
-      ({ id }) => id === 'platform-zurich-1',
+  it('preserves long nonnumeric IDs and parent IDs unchanged', () => {
+    const stop = parseGtfsStopsCsv(fixtureCsv).find(
+      ({ id }) => id === 'ch:1:sloid:7000:0:1',
     );
 
-    expect(location?.kind).toBe('STOP');
+    expect(stop?.id).toBe('ch:1:sloid:7000:0:1');
+    expect(stop?.parentStationId).toBe('Parentch:1:sloid:7000');
+    expect(typeof stop?.parentStationId).toBe('string');
   });
 
-  it('maps location_type 0 to STOP and location_type 1 to STATION', () => {
-    const locations = parseGtfsStops(fixtureCsv);
+  it('maps an empty location_type to STOP_OR_PLATFORM', () => {
+    const stop = parseGtfsStopsCsv(fixtureCsv).find(
+      ({ id }) => id === 'ch:1:sloid:7000:0:1',
+    );
 
-    expect(locations.find(({ id }) => id === 'platform-zurich-2')?.kind).toBe(
-      'STOP',
-    );
-    expect(locations.find(({ id }) => id === 'station-zurich')?.kind).toBe(
-      'STATION',
-    );
+    expect(stop?.kind).toBe('STOP_OR_PLATFORM');
   });
 
-  it('maps parent_station and accepts a standalone stop', () => {
-    const locations = parseGtfsStops(fixtureCsv);
+  it('maps location_type 0 to STOP_OR_PLATFORM and 1 to STATION', () => {
+    const stops = parseGtfsStopsCsv(fixtureCsv);
 
     expect(
-      locations.find(({ id }) => id === 'platform-zurich-1')?.parentId,
-    ).toBe('station-zurich');
-    expect(locations.find(({ id }) => id === '000123')).not.toHaveProperty(
-      'parentId',
+      stops.find(({ id }) => id === 'ch:1:sloid:7000:0:2')?.kind,
+    ).toBe('STOP_OR_PLATFORM');
+    expect(
+      stops.find(({ id }) => id === 'Parentch:1:sloid:7000')?.kind,
+    ).toBe('STATION');
+  });
+
+  it('preserves parent_station and accepts a standalone stop', () => {
+    const stops = parseGtfsStopsCsv(fixtureCsv);
+
+    expect(
+      stops.find(({ id }) => id === 'ch:1:sloid:7000:0:1')
+        ?.parentStationId,
+    ).toBe('Parentch:1:sloid:7000');
+    expect(stops.find(({ id }) => id === '000123')).not.toHaveProperty(
+      'parentStationId',
     );
   });
 
   it('ignores entrances, internal nodes, and boarding areas', () => {
-    const ids = parseGtfsStops(fixtureCsv).map(({ id }) => id);
+    const ids = parseGtfsStopsCsv(fixtureCsv).map(({ id }) => id);
 
     expect(ids).not.toContain('entrance-zurich');
     expect(ids).not.toContain('node-zurich');
@@ -98,23 +109,25 @@ describe('parseGtfsStops', () => {
   });
 
   it('parses quoted names containing commas', () => {
-    expect(parseGtfsStops(fixtureCsv)[0]?.name).toBe('Bern, Bärenplatz');
+    expect(parseGtfsStopsCsv(fixtureCsv)[0]?.name).toBe(
+      'Bern, Bärenplatz',
+    );
   });
 
   it('supports a UTF-8 BOM and CRLF line endings', () => {
     const bomAndCrlfCsv = `\uFEFF${fixtureCsv.replace(/\r?\n/g, '\r\n')}`;
 
-    expect(parseGtfsStops(bomAndCrlfCsv)).toEqual(
-      parseGtfsStops(fixtureCsv),
+    expect(parseGtfsStopsCsv(bomAndCrlfCsv)).toEqual(
+      parseGtfsStopsCsv(fixtureCsv),
     );
   });
 
   it('returns results in deterministic ID order', () => {
-    expect(parseGtfsStops(fixtureCsv).map(({ id }) => id)).toEqual([
+    expect(parseGtfsStopsCsv(fixtureCsv).map(({ id }) => id)).toEqual([
       '000123',
-      'platform-zurich-1',
-      'platform-zurich-2',
-      'station-zurich',
+      'Parentch:1:sloid:7000',
+      'ch:1:sloid:7000:0:1',
+      'ch:1:sloid:7000:0:2',
     ]);
   });
 
@@ -126,7 +139,7 @@ describe('parseGtfsStops', () => {
       );
       const csv = `${headers.join(',')}\n${headers.map(() => 'value').join(',')}`;
 
-      expect(() => parseGtfsStops(csv)).toThrowError(
+      expect(() => parseGtfsStopsCsv(csv)).toThrowError(
         new RegExp(`missing required column.*${missingHeader}`, 'i'),
       );
     },
@@ -147,7 +160,7 @@ describe('parseGtfsStops', () => {
         `location,Location,${latitude},${longitude},0,`,
       );
 
-      expect(() => parseGtfsStops(csv)).toThrowError(
+      expect(() => parseGtfsStopsCsv(csv)).toThrowError(
         new RegExp(
           column === 'stop_lat'
             ? '(missing required field|invalid).*stop_lat'
@@ -162,18 +175,18 @@ describe('parseGtfsStops', () => {
     ['stop_id', ' ,Location,47.37,8.54,0,'],
     ['stop_name', 'location,   ,47.37,8.54,0,'],
   ])('reports a blank required %s field', (field, row) => {
-    expect(() => parseGtfsStops(createCsv(row))).toThrowError(
+    expect(() => parseGtfsStopsCsv(createCsv(row))).toThrowError(
       new RegExp(`missing required field.*${field}`, 'i'),
     );
   });
 
-  it('rejects duplicate trimmed stop IDs', () => {
+  it('rejects duplicate stop IDs', () => {
     const csv = createCsv(
       'duplicate,First,47.37,8.54,0,',
-      ' duplicate ,Second,47.38,8.55,0,',
+      'duplicate,Second,47.38,8.55,0,',
     );
 
-    expect(() => parseGtfsStops(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
       /duplicate stop_id "duplicate".*first seen at row/i,
     );
   });
@@ -183,7 +196,7 @@ describe('parseGtfsStops', () => {
       'child,Child platform,47.37,8.54,0,missing-station',
     );
 
-    expect(() => parseGtfsStops(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
       /stop "child" references missing parent station "missing-station"/i,
     );
   });
@@ -194,7 +207,7 @@ describe('parseGtfsStops', () => {
       'child,Child platform,47.38,8.55,0,parent-stop',
     );
 
-    expect(() => parseGtfsStops(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
       /stop "child" references "parent-stop".*not a station/i,
     );
   });
@@ -204,7 +217,7 @@ describe('parseGtfsStops', () => {
       'station,Station,47.37,8.54,1,parent-station',
     );
 
-    expect(() => parseGtfsStops(csv)).toThrowError(
+    expect(() => parseGtfsStopsCsv(csv)).toThrowError(
       /station "station" must not have parent station "parent-station"/i,
     );
   });
@@ -216,7 +229,7 @@ describe('parseGtfsStops', () => {
         `location,Location,47.37,8.54,${locationType},`,
       );
 
-      expect(() => parseGtfsStops(csv)).toThrowError(
+      expect(() => parseGtfsStopsCsv(csv)).toThrowError(
         new RegExp(`unknown.*location_type.*${locationType}`, 'i'),
       );
     },
@@ -229,6 +242,6 @@ describe('parseGtfsStops', () => {
       'boarding,,not-a-latitude,not-a-longitude,4,missing-parent',
     );
 
-    expect(parseGtfsStops(csv)).toEqual([]);
+    expect(parseGtfsStopsCsv(csv)).toEqual([]);
   });
 });
