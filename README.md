@@ -45,6 +45,7 @@ npm run data:prepare:service-profiles
 npm run data:prepare:routing-trips
 npm run data:prepare:locality-routing-index
 npm run car:osrm:prepare
+npm run car:anchors:prepare
 npm run viewer:dev
 ```
 
@@ -106,6 +107,44 @@ Run the reproducible snap and route diagnostic suite with:
 ```bash
 npm run car:inspect -- --diagnostics
 ```
+
+The next offline preprocessing step persists one routable road anchor for every
+official locality:
+
+```text
+official locality
+    ↓
+nearest routable road point
+    ↓
+persisted locality road anchor
+    ↓
+future OSRM table preprocessing
+    ↓
+future compact travel-time matrix
+```
+
+With the local OSRM service running, generate the strictly validated anchor
+artifact at `data/processed/car/locality-road-anchors.json`:
+
+```bash
+npm run car:anchors:prepare
+```
+
+Inspect the persisted distribution, ten longest snaps, and reference
+localities without running OSRM (the current official locality CSV supplies
+display names, original coordinates, and staleness validation):
+
+```bash
+npm run car:anchors:inspect
+```
+
+Large snap distances are retained rather than excluded. For now the nearest
+routable point is intentionally the complete car-anchor approximation, and the
+stored snap distance makes mountain and other unusual cases visible for later
+policy decisions. These anchors are preprocessing data, not a public runtime
+API. Anchors are stored in locale-independent lexical `localityId` order. Their
+input fingerprint is the SHA-256 of compact JSON containing exactly
+`localityId`, `latitude`, and `longitude` in that same order, with no timestamp.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly

@@ -13,6 +13,13 @@ import {
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
+import {
+  OSRM_ALGORITHM,
+  OSRM_IMAGE,
+  OSRM_PROFILE,
+  OSRM_VERSION,
+} from '@core/car/preprocessing';
+
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');
 const INPUT_RELATIVE_PATH =
   'data/raw/osm/switzerland-latest.osm.pbf';
@@ -27,10 +34,6 @@ const OUTPUT_PARENT_DIRECTORY = resolve(
 const OUTPUT_BASENAME = 'switzerland.osrm';
 const CONTAINER_INPUT_PATH = '/input/switzerland-latest.osm.pbf';
 const CONTAINER_OUTPUT_PATH = `/data/${OUTPUT_BASENAME}`;
-
-const OSRM_VERSION = '26.8.0';
-const OSRM_IMAGE =
-  'ghcr.io/project-osrm/osrm-backend:26.8.0-debian';
 
 interface InputSnapshot {
   readonly size: number;
@@ -280,7 +283,7 @@ function printStartCommand(): void {
   );
   console.log(`  ${OSRM_IMAGE} \\`);
   console.log(
-    `  osrm-routed --algorithm ch /data/${OUTPUT_BASENAME}`,
+    `  osrm-routed --algorithm ${OSRM_ALGORITHM} /data/${OUTPUT_BASENAME}`,
   );
 }
 
@@ -337,7 +340,7 @@ async function main(): Promise<void> {
         [
           'osrm-extract',
           '--profile',
-          '/opt/car.lua',
+          `/opt/${OSRM_PROFILE}`,
           '--output',
           CONTAINER_OUTPUT_PATH,
           CONTAINER_INPUT_PATH,
