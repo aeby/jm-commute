@@ -41,7 +41,7 @@ input {
 
 .viewer-header {
   display: grid;
-  grid-template-columns: minmax(210px, 0.65fr) minmax(560px, 1.35fr);
+  grid-template-columns: minmax(210px, 0.5fr) minmax(760px, 1.5fr);
   gap: 28px;
   align-items: end;
   margin-bottom: 16px;
@@ -81,8 +81,8 @@ input {
   position: relative;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
-  gap: 26px;
+  grid-template-columns: minmax(250px, 1fr) minmax(190px, 0.7fr) minmax(290px, 1.2fr);
+  gap: 18px;
   padding: 18px 20px;
   border: 1px solid rgb(31 77 70 / 13%);
   border-radius: 18px;
@@ -111,6 +111,20 @@ input {
   color: #0d746a;
   font-size: 0.8rem;
   font-weight: 760;
+}
+
+.transport-control {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.transport-control .control-label {
+  display: block;
+  min-height: 21px;
+  margin: 0 0 9px;
+  padding: 0;
 }
 
 .autocomplete {
@@ -149,6 +163,52 @@ input {
 .autocomplete-input:focus {
   border-color: #2d9589;
   box-shadow: 0 0 0 3px rgb(45 149 137 / 15%);
+}
+
+.autocomplete-input:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.transport-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  height: 42px;
+  padding: 4px;
+  border: 1px solid #cbdad6;
+  border-radius: 10px;
+  background: #f2f7f5;
+}
+
+.transport-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border-radius: 7px;
+  color: #52716b;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.transport-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.transport-option:has(input:checked) {
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(16 59 52 / 14%);
+  color: #0d746a;
+}
+
+.transport-option:has(input:focus-visible) {
+  outline: 3px solid rgb(45 149 137 / 18%);
 }
 
 .autocomplete-results {
@@ -320,7 +380,7 @@ input {
   z-index: 4;
   right: 14px;
   bottom: 30px;
-  width: 206px;
+  width: 238px;
   padding: 10px 11px 8px;
   border: 1px solid rgb(28 72 65 / 12%);
   border-radius: 10px;
@@ -341,7 +401,7 @@ input {
   display: block;
   height: 7px;
   border-radius: 99px;
-  background: linear-gradient(90deg, #0a665f, #138f84 24%, #3aaba1 48%, #78c9c1 74%, #b7e3de);
+  background: linear-gradient(90deg, #07554f, #08786f 14%, #15998e 28%, #38ada4 43%, #65c1b9 57%, #a4d9d4 77%, #d8ece9);
 }
 
 .legend-labels {
@@ -399,7 +459,8 @@ input {
   font-size: 0.82rem;
 }
 
-.startup-error {
+.startup-error,
+.startup-loading {
   display: grid;
   min-height: 420px;
   place-content: center;
@@ -411,6 +472,21 @@ input {
   text-align: center;
 }
 
+.startup-loading {
+  border-color: rgb(31 77 70 / 14%);
+  background: rgb(255 255 255 / 76%);
+  color: #385853;
+}
+
+.startup-loading p {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
 .startup-error h2 {
   margin: 0 0 8px;
   font-size: 1.15rem;
@@ -420,6 +496,26 @@ input {
   max-width: 42rem;
   margin: 0;
   line-height: 1.5;
+}
+
+.retry-button {
+  margin: 16px auto 0;
+  padding: 8px 14px;
+  border: 1px solid #bd7769;
+  border-radius: 8px;
+  background: #fff;
+  color: #713b31;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.retry-button:hover {
+  background: #fff3ef;
+}
+
+.retry-button--inline {
+  margin: 0 0 0 10px;
+  padding: 5px 9px;
 }
 
 .diagnostics {
@@ -459,7 +555,7 @@ input {
   color: #78908b;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .viewer-page {
     padding: 14px;
   }
@@ -473,13 +569,17 @@ input {
     display: none;
   }
 
+  .control-deck {
+    grid-template-columns: minmax(250px, 1fr) minmax(190px, 0.7fr) minmax(280px, 1.2fr);
+  }
+
   .map-panel {
     height: calc(100dvh - 255px);
     min-height: 460px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 860px) {
   .viewer-page {
     padding: 10px;
   }
@@ -504,7 +604,7 @@ input {
   .map-legend {
     right: 8px;
     bottom: 24px;
-    width: 180px;
+    width: 216px;
   }
 
   .diagnostics-detail {

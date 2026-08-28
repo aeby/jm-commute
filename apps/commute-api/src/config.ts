@@ -24,7 +24,7 @@ export const DEFAULT_COMMUTE_API_CONFIG: CommuteApiConfig = Object.freeze({
   corsAllowedOrigins: DEFAULT_DEVELOPMENT_ORIGINS,
   maxRequestBodyBytes: 16 * 1_024,
   visualization: Object.freeze({
-    hexCellDiameterMeters: 2_000,
+    hexCellDiameterMeters: 4_000,
     hexRenderScale: 0.88,
   }),
 });

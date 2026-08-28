@@ -30,6 +30,10 @@ npm run commute:api:verify
 npm run commute:api:benchmark
 ```
 
+Running `npm run dev` directly in this workspace is also supported. Its
+`predev` step authenticates and rebuilds `@jm/commute` before starting the
+TypeScript watcher, so the generated package entry points cannot be stale.
+
 Defaults are `127.0.0.1:3001`. Override them with `COMMUTE_API_HOST` and
 `COMMUTE_API_PORT`. Development CORS allows only
 `http://127.0.0.1:5173` and `http://localhost:5173` by default.

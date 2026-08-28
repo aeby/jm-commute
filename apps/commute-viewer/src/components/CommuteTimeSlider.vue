@@ -20,6 +20,16 @@ const progress = computed(
     100,
 );
 
+function formatDuration(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  if (minutes % 60 === 0) {
+    return `${minutes / 60} h`;
+  }
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
 function readMinutes(event: Event): number {
   if (!(event.currentTarget instanceof HTMLInputElement)) {
     throw new Error('Commute slider event did not come from an input.');
@@ -39,8 +49,8 @@ function handleChange(event: Event): void {
 <template>
   <div class="commute-control">
     <div class="control-heading">
-      <label for="commute-time">Commute</label>
-      <output for="commute-time">{{ modelValue }} min</output>
+      <label for="commute-time">Maximum commute time</label>
+      <output for="commute-time">{{ formatDuration(modelValue) }}</output>
     </div>
     <div class="slider-row">
       <span aria-hidden="true">{{ minimum }}</span>
@@ -50,7 +60,7 @@ function handleChange(event: Event): void {
         :min="minimum"
         :max="maximum"
         :step="step"
-        :aria-valuetext="`${modelValue} minutes`"
+        :aria-valuetext="formatDuration(modelValue)"
         :style="{ '--slider-progress': `${progress}%` }"
         type="range"
         @input="handleInput"

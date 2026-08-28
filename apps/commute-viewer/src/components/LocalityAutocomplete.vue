@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
+import type { Locality } from '../api/types';
 import { VIEWER_CONFIG } from '../config';
 import {
-  searchCommuteViewerLocalities,
-  type ViewerLocality,
-} from '../data/runtime-data';
+  formatLocality,
+  searchLocalities,
+} from '../locality-search';
 
 const props = defineProps<{
-  readonly localities: readonly ViewerLocality[];
-  readonly modelValue: ViewerLocality | undefined;
+  readonly localities: readonly Locality[];
+  readonly modelValue: Locality | undefined;
+  readonly disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
-  'update:modelValue': [locality: ViewerLocality | undefined];
+  'update:modelValue': [locality: Locality | undefined];
 }>();
 
 const query = ref('');
@@ -21,11 +23,8 @@ const focused = ref(false);
 const activeIndex = ref(0);
 const input = ref<HTMLInputElement>();
 
-const localityLabel = (locality: ViewerLocality): string =>
-  `${locality.postalCode} ${locality.city}`;
-
 const matches = computed(() =>
-  searchCommuteViewerLocalities(
+  searchLocalities(
     props.localities,
     query.value,
     VIEWER_CONFIG.autocomplete.resultLimit,
@@ -44,7 +43,7 @@ watch(
   () => props.modelValue,
   (locality) => {
     if (locality !== undefined) {
-      query.value = localityLabel(locality);
+      query.value = formatLocality(locality);
     } else if (!focused.value) {
       query.value = '';
     }
@@ -64,16 +63,10 @@ function handleInput(event: Event): void {
   }
   query.value = event.currentTarget.value;
   activeIndex.value = 0;
-  if (
-    props.modelValue !== undefined &&
-    query.value !== localityLabel(props.modelValue)
-  ) {
-    emit('update:modelValue', undefined);
-  }
 }
 
-function selectLocality(locality: ViewerLocality): void {
-  query.value = localityLabel(locality);
+function selectLocality(locality: Locality): void {
+  query.value = formatLocality(locality);
   focused.value = false;
   emit('update:modelValue', locality);
   void nextTick(() => input.value?.blur());
@@ -108,7 +101,7 @@ function handleKeydown(event: KeyboardEvent): void {
     case 'Escape':
       focused.value = false;
       query.value = props.modelValue
-        ? localityLabel(props.modelValue)
+        ? formatLocality(props.modelValue)
         : '';
       input.value?.blur();
       break;
@@ -118,6 +111,9 @@ function handleKeydown(event: KeyboardEvent): void {
 function handleBlur(): void {
   window.setTimeout(() => {
     focused.value = false;
+    query.value = props.modelValue
+      ? formatLocality(props.modelValue)
+      : '';
   }, 100);
 }
 </script>
@@ -125,7 +121,7 @@ function handleBlur(): void {
 <template>
   <div class="locality-control">
     <div class="control-heading">
-      <label for="origin-locality">Origin locality</label>
+      <label for="origin-locality">Location</label>
     </div>
     <div class="autocomplete">
       <div class="autocomplete-input-wrap">
@@ -140,6 +136,7 @@ function handleBlur(): void {
           aria-haspopup="listbox"
           autocomplete="off"
           class="autocomplete-input"
+          :disabled="disabled"
           placeholder="ZIP or city"
           role="combobox"
           type="text"

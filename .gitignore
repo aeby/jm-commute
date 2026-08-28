@@ -55,9 +55,6 @@ dist-ssr
 /data/runtime/transit/*
 !/data/runtime/transit/.gitkeep
 
-/apps/commute-viewer/public/generated/*
-!/apps/commute-viewer/public/generated/.gitkeep
-
 /packages/commute/data/localities.json
 /packages/commute/data/car/*
 !/packages/commute/data/car/.gitkeep

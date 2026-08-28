@@ -1,41 +1,29 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import {
-  onMounted,
-  onUnmounted,
-  shallowRef,
-  watch,
-} from 'vue';
+import { onMounted, onUnmounted, shallowRef, watch } from 'vue';
 
+import type {
+  Locality,
+  ReachabilityFeatureCollection,
+} from '../api/types';
 import { VIEWER_CONFIG } from '../config';
-import { calculateVisibleMapBounds } from '../map/map-bounds';
 import {
   applyOriginMapUpdate,
   applySliderMapUpdate,
 } from '../map/map-update-actions';
-import type {
-  ReachabilityHex,
-  ReachabilityHexFeatureCollection,
-} from '../map/reachability-hexes';
 
 const HEX_SOURCE_ID = 'commute-hexes';
 const HEX_FILL_LAYER_ID = 'commute-hex-fill';
 const HEX_OUTLINE_LAYER_ID = 'commute-hex-outline';
 const MAP_LOAD_TIMEOUT_MILLISECONDS = 15_000;
-
-interface OriginPoint {
-  readonly longitude: number;
-  readonly latitude: number;
-}
+const ORIGIN_ZOOM = 10.5;
 
 const props = defineProps<{
-  readonly origin: OriginPoint | undefined;
-  readonly originLabel: string;
-  readonly hexes: readonly ReachabilityHex[];
-  readonly featureCollection: ReachabilityHexFeatureCollection;
+  readonly origin: Locality | undefined;
+  readonly featureCollection: ReachabilityFeatureCollection;
   readonly selectedMinutes: number;
-  readonly calculating: boolean;
+  readonly loading: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -48,19 +36,16 @@ const map = shallowRef<maplibregl.Map>();
 const originMarker = shallowRef<maplibregl.Marker>();
 const mapError = shallowRef<string>();
 
-let fitTimeout: ReturnType<typeof setTimeout> | undefined;
 let loadTimeout: ReturnType<typeof setTimeout> | undefined;
 let resizeObserver: ResizeObserver | undefined;
 let sourceUpdateGeneration = 0;
 let styleReady = false;
 
-const durationFilter = (
+function durationFilter(
   maximumMinutes: number,
-): Parameters<maplibregl.Map['setFilter']>[1] => [
-  '<=',
-  ['get', 'travelMinutes'],
-  maximumMinutes,
-];
+): Parameters<maplibregl.Map['setFilter']>[1] {
+  return ['<=', ['get', 'travelMinutes'], maximumMinutes];
+}
 
 function reportMapError(message: string): void {
   mapError.value = message;
@@ -75,14 +60,14 @@ function updateFilter(): void {
   ) {
     return;
   }
+
   const filter = durationFilter(props.selectedMinutes);
   currentMap.setFilter(HEX_FILL_LAYER_ID, filter);
   currentMap.setFilter(HEX_OUTLINE_LAYER_ID, filter);
 }
 
 function updateSource(): void {
-  const currentMap = map.value;
-  const source = currentMap?.getSource(HEX_SOURCE_ID);
+  const source = map.value?.getSource(HEX_SOURCE_ID);
   if (!(source instanceof maplibregl.GeoJSONSource)) {
     return;
   }
@@ -93,6 +78,8 @@ function updateSource(): void {
     .setData(props.featureCollection, true)
     .then(() => {
       if (generation === sourceUpdateGeneration) {
+        mapError.value = undefined;
+        emit('mapError', undefined);
         emit('sourceUpdate', performance.now() - startedAt);
       }
     })
@@ -132,58 +119,25 @@ function updateOriginMarker(): void {
 
   const markerElement = originMarker.value.getElement();
   const label = markerElement.querySelector('.origin-marker__label');
+  const originLabel = `${origin.postalCode} ${origin.city}`;
   if (label !== null) {
-    label.textContent = props.originLabel;
+    label.textContent = originLabel;
   }
-  markerElement.setAttribute('aria-label', `Origin: ${props.originLabel}`);
+  markerElement.setAttribute('aria-label', `Origin: ${originLabel}`);
   originMarker.value.setLngLat([origin.longitude, origin.latitude]);
 }
 
-function fitVisibleReachability(animate = true): void {
+function centerOrigin(): void {
   const currentMap = map.value;
   const origin = props.origin;
-  if (currentMap === undefined || origin === undefined) {
+  if (currentMap === undefined || origin === undefined || !styleReady) {
     return;
   }
-
-  const visibleHexes = props.hexes.filter(
-    ({ travelMinutes }) => travelMinutes <= props.selectedMinutes,
-  );
-  if (visibleHexes.length === 0) {
-    currentMap.easeTo({
-      center: [origin.longitude, origin.latitude],
-      zoom: 11,
-      duration: animate ? 350 : 0,
-    });
-    return;
-  }
-
-  const bounds = calculateVisibleMapBounds(
-    origin,
-    props.hexes,
-    props.selectedMinutes,
-  );
-  currentMap.fitBounds(
-    [
-      [bounds.west, bounds.south],
-      [bounds.east, bounds.north],
-    ],
-    {
-      padding: 52,
-      maxZoom: 13,
-      duration: animate ? 450 : 0,
-    },
-  );
-}
-
-function scheduleOriginFit(): void {
-  if (fitTimeout !== undefined) {
-    clearTimeout(fitTimeout);
-  }
-  fitTimeout = setTimeout(() => {
-    fitTimeout = undefined;
-    fitVisibleReachability();
-  }, 0);
+  currentMap.easeTo({
+    center: [origin.longitude, origin.latitude],
+    zoom: ORIGIN_ZOOM,
+    duration: 400,
+  });
 }
 
 function addReachabilityLayers(currentMap: maplibregl.Map): void {
@@ -207,17 +161,21 @@ function addReachabilityLayers(currentMap: maplibregl.Map): void {
           ['linear'],
           ['get', 'travelMinutes'],
           0,
-          '#0a665f',
+          '#07554f',
           30,
-          '#138f84',
+          '#08786f',
           60,
-          '#3aaba1',
+          '#15998e',
           90,
-          '#78c9c1',
+          '#38ada4',
           120,
-          '#b7e3de',
+          '#65c1b9',
+          180,
+          '#a4d9d4',
+          240,
+          '#d8ece9',
         ],
-        'fill-opacity': 0.57,
+        'fill-opacity': 0.6,
       },
     },
     firstSymbolLayerId,
@@ -229,7 +187,7 @@ function addReachabilityLayers(currentMap: maplibregl.Map): void {
       source: HEX_SOURCE_ID,
       paint: {
         'line-color': '#075f59',
-        'line-opacity': 0.55,
+        'line-opacity': 0.52,
         'line-width': 0.65,
       },
     },
@@ -253,7 +211,7 @@ onMounted(() => {
       center: props.origin
         ? [props.origin.longitude, props.origin.latitude]
         : [8.23, 46.82],
-      zoom: props.origin ? 11 : 7,
+      zoom: props.origin ? ORIGIN_ZOOM : 7,
       pitch: 0,
       bearing: 0,
       dragRotate: false,
@@ -265,10 +223,10 @@ onMounted(() => {
     );
     return;
   }
+
   map.value = currentMap;
   currentMap.touchZoomRotate.disableRotation();
   currentMap.keyboard.disableRotation();
-
   loadTimeout = setTimeout(() => {
     if (!styleReady) {
       reportMapError(
@@ -287,13 +245,11 @@ onMounted(() => {
     emit('mapError', undefined);
     addReachabilityLayers(currentMap);
     updateOriginMarker();
-    scheduleOriginFit();
+    centerOrigin();
   });
   currentMap.on('error', (event) => {
     if (!styleReady) {
-      reportMapError(
-        `The basemap could not be loaded: ${event.error.message}`,
-      );
+      reportMapError(`The basemap could not be loaded: ${event.error.message}`);
     }
   });
 
@@ -301,33 +257,22 @@ onMounted(() => {
   resizeObserver.observe(container.value);
 });
 
-watch(
-  () => props.featureCollection,
-  () => {
-    updateSource();
-  },
-);
+watch(() => props.featureCollection, updateSource);
 watch(
   () => props.selectedMinutes,
-  () => {
-    applySliderMapUpdate({ updateHexVisibility: updateFilter });
-  },
+  () => applySliderMapUpdate({ updateHexVisibility: updateFilter }),
 );
 watch(
-  () => [props.origin, props.originLabel] as const,
-  () => {
+  () => props.origin?.localityId,
+  () =>
     applyOriginMapUpdate({
       updateOriginMarker,
-      updateCamera: scheduleOriginFit,
-    });
-  },
+      updateCamera: centerOrigin,
+    }),
 );
 
 onUnmounted(() => {
   sourceUpdateGeneration += 1;
-  if (fitTimeout !== undefined) {
-    clearTimeout(fitTimeout);
-  }
   if (loadTimeout !== undefined) {
     clearTimeout(loadTimeout);
   }
@@ -340,12 +285,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="map-panel" aria-label="Public-transport commute reachability map">
+  <section class="map-panel" aria-label="Commute reachability map">
     <div ref="container" class="map-canvas"></div>
 
-    <div v-if="calculating" class="map-status" role="status">
+    <div v-if="loading" class="map-status" role="status">
       <span class="spinner" aria-hidden="true"></span>
-      Calculating reachability…
+      Loading reachability…
     </div>
 
     <div v-if="mapError" class="map-error" role="alert">
@@ -356,11 +301,12 @@ onUnmounted(() => {
       <span class="legend-title">Travel time</span>
       <span class="legend-gradient" aria-hidden="true"></span>
       <span class="legend-labels">
-        <span>15m</span>
         <span>30m</span>
         <span>60m</span>
         <span>90m</span>
-        <span>120m</span>
+        <span>2h</span>
+        <span>3h</span>
+        <span>4h</span>
       </span>
     </div>
   </section>

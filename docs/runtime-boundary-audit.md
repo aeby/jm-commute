@@ -21,7 +21,7 @@ locality catalog + matrix runtime <- Node/server integration
 
 Platform-neutral algorithms and typed arrays stay shared where that is natural.
 Browser compatibility is not a constraint on Node loaders or preprocessing.
-No browser package is currently planned; a future browser UI can call a small
+No browser package is currently planned; the browser viewer calls the small
 server that uses `@jm/commute`.
 
 ## Extracted package boundary
@@ -91,39 +91,36 @@ locality-ID/stop-index data to a preprocessing-only query closure. The former
 opaque `TransitRuntime`/`WeakMap` bridge and separate runtime locality type file
 are gone; production transit lookup does not import locality-routing or RAPTOR.
 
-## BROWSER_ONLY_LATER
+## RESOLVED_BROWSER_LEGACY
 
-| Current module | Why it exists | Recommended ownership |
+| Former module | Historical purpose | Final disposition |
 | --- | --- | --- |
-| `apps/commute-viewer/src/data/browser-timetable.ts` | Legacy Base64, `btoa`/`atob`, flattening, and reconstruction for generated viewer data | Viewer ownership; remove when the viewer moves behind a server API |
-| `apps/commute-viewer/src/data/runtime-data.ts` | Viewer schema, `window` global loading, Base64 validation, autocomplete data, and stop coordinates | Viewer application |
-| `apps/commute-viewer/src/viewer-routing.ts` | Paint yielding, request supersession, timings, stop sampling, hexes, and GeoJSON | Viewer application |
-| `scripts/build-commute-viewer-data.ts` | Emits a generated JavaScript `window` global | Viewer-specific preprocessing; not a runtime contract |
-| `apps/commute-viewer/vite.config.ts` alias to all of `src` | Lets the legacy viewer consume internal modules directly | Remove during the later viewer/server-API migration |
+| `apps/commute-viewer/src/data/browser-timetable.ts` | Base64, `btoa`/`atob`, flattening, and RAPTOR reconstruction | Deleted |
+| `apps/commute-viewer/src/data/runtime-data.ts` | Generated `window` schema, timetable/stop validation, and coordinates | Deleted; viewer now fetches canonical localities |
+| `apps/commute-viewer/src/viewer-routing.ts` | Browser RAPTOR, stop sampling, client hexes, and timings | Deleted; API supplies final GeoJSON |
+| `scripts/build-commute-viewer-data.ts` | Generated a 46.2 MB JavaScript routing bundle | Deleted |
+| Root-source Vite alias | Allowed the browser to import compiler internals | Deleted |
 
 Git history confirms that `browser-timetable.ts` was moved with high similarity
 from the former validation UI data module in viewer commit `a44e3fc`. Its only
-production consumers are the viewer data parser and viewer-data build script.
-There is no generic browser fetch loader or worker implementation today.
+production consumers were the viewer data parser and viewer-data build script.
+The viewer is now a small HTTP client of `apps/commute-api`; there is no browser
+package, matrix loader, or worker implementation.
 
-## DELETE_AS_VIEWER_LEGACY
+## Browser cleanup invariants
 
-- Remove every Base64/timetable-browser codec re-export from
-  `src/transit/raptor/index.ts`.
-- Remove raw RAPTOR query/result/timetable structures from the future public
-  transit entry. Internal scripts and tests may use explicit internal paths.
-- Keep manifest parsers and diagnostics out of the package root export;
-  repository scripts may use the root-only internal source alias.
-- Keep `createReachableLocalityMap` in root diagnostics rather than the package
+- Base64/timetable-browser codec re-exports are absent from transit.
+- Raw RAPTOR query, result, and timetable structures remain internal compiler
+  details; repository scripts and tests use explicit internal paths.
+- Manifest parsers and diagnostics stay out of the package root export.
+- `createReachableLocalityMap` remains a root diagnostic rather than package
   locality API.
-- Do not turn the generated `window.__SWISS_COMMUTE_VIEWER_DATA__` pipeline into
-  the future browser package contract.
-- Remove browser-first wording and the root core dependency on Vite client
-  ambient types.
+- The generated `window.__SWISS_COMMUTE_VIEWER_DATA__` pipeline is deleted.
+- Root core type checking has no Vite-client ambient dependency.
 
-The viewer itself is not deleted or repaired as part of the canonical runtime.
-Its current direct imports of RAPTOR arrays are legacy and may break. No
-compatibility aliases will be added.
+The server-mediated viewer migration removed these files without compatibility
+aliases. Vue now owns only catalog search, controls, request state, and MapLibre
+presentation.
 
 ## Public export classification
 
@@ -170,22 +167,23 @@ packages/
   commute/          # canonical server/runtime package; exports . and ./node
 
 apps/
-  commute-viewer/   # legacy validation app; not migrated in Milestone 6C
+  commute-api/      # Node visualization adapter over @jm/commute
+  commute-viewer/   # presentation-only Vue/MapLibre client
 ```
 
 No browser package was created. OSRM and RAPTOR remain offline compilers outside
-the production package. Any later visualization or autocomplete layer should
-use the catalog and reachability results through a server API rather than
-placing presentation policy in `@jm/commute`.
+the production package. The viewer uses the catalog and reachability results
+through the API, while presentation policy remains outside `@jm/commute`.
 
 ## Implemented disposition
 
-- The Base64 timetable codec and its tests now live with the legacy viewer in
-  `apps/commute-viewer/src/data/`; the canonical transit tree no longer exports
-  or imports it.
+- The legacy Base64 timetable codec, generated viewer data, browser RAPTOR,
+  stop-level sampling, and client hex construction were deleted after the
+  viewer moved to the API.
 - The broad RAPTOR, routing, timetable, and transfer barrels were removed.
-  Runtime code, preprocessing scripts, tests, and the legacy viewer now use
-  explicit owner-module imports; no compatibility barrels were retained.
+  Runtime code, preprocessing scripts, and tests use explicit owner-module
+  imports; the viewer has no compiler imports and no compatibility barrels
+  were retained.
 - The package transit module exposes only the opaque matrix-backed
   `TransitTravelTimeIndex`, injected-data constructor, point lookup, and
   high-level locality query.
@@ -209,4 +207,4 @@ placing presentation policy in `@jm/commute`.
   ingestion and diagnostic map construction remain in root `src/`.
 - `packages/commute/tsconfig.json` builds the real Node ESM package and
   declarations. `tsconfig.core.json` checks the root compiler against that
-  package without requiring the intentionally unmigrated viewer.
+  package, while the migrated viewer is checked by its own explicit tsconfig.

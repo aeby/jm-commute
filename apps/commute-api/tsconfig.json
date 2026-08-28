@@ -10,8 +10,9 @@
     "sourceMap": false,
     "noEmit": false,
     "paths": {
-      "@jm/commute": ["../../packages/commute/dist/index.d.ts"],
-      "@jm/commute/node": ["../../packages/commute/dist/node.d.ts"]
+      // TypeScript selects the declarations; tsx selects the sibling JavaScript.
+      "@jm/commute": ["../../packages/commute/dist/index"],
+      "@jm/commute/node": ["../../packages/commute/dist/node"]
     },
     "types": ["node"]
   },

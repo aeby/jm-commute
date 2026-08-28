@@ -10,9 +10,9 @@ Users and jobs are identified approximately by postcode and/or city name. The sy
 1. Resolve postcode and city names to official locality coordinates.
 2. Map each locality to nearby public-transport stops.
 3. Load Swiss GTFS timetable data.
-4. Calculate reachable stops with RAPTOR.
+4. Compile representative-morning transit reachability with RAPTOR.
 5. Match reachable localities to jobs.
-6. Visualize stop-level reachability on an interactive commute map.
+6. Serve locality-based reachability GeoJSON to an interactive commute map.
 
 ## Current milestone
 
@@ -20,8 +20,9 @@ The current implementation compiles car and representative-morning transit
 journeys into deterministic dense locality-to-locality matrices. The
 `@jm/commute` workspace package ships those matrices together with the 4,073
 official locality records and answers production queries without either
-routing engine. The existing Vue/MapLibre viewer still uses its legacy
-in-browser RAPTOR path; viewer migration is intentionally deferred.
+routing engine. A small Node API joins reachable locality IDs to representative
+coordinates and serves deterministic GeoJSON to the Vue/MapLibre viewer. The
+browser performs presentation and local threshold filtering only.
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
@@ -45,9 +46,9 @@ The backend/runtime implementation is canonical. Its boundaries are:
 - **HTTP visualization adapter:** `apps/commute-api` loads the package once and
   owns locality JSON, strict request validation, coordinate joining, hex-grid
   aggregation, GeoJSON, caching headers, and development CORS.
-- **Browser/viewer:** the legacy Base64 RAPTOR codec, generated `window` data,
-  paint scheduling, stop sampling, and map schemas are viewer-owned under
-  `apps/commute-viewer`. They are not canonical runtime formats.
+- **Browser/viewer:** `apps/commute-viewer` fetches the locality catalog and one
+  complete 240-minute GeoJSON overlay per origin/mode selection. It owns only
+  autocomplete, MapLibre presentation, and local duration filtering.
 
 Platform-neutral runtime code is shared where natural, but browser
 compatibility is not a constraint on the canonical Node loader or
@@ -63,7 +64,7 @@ backend matching / future UI API
         exports . and ./node
 ```
 
-There is no browser package. A future UI can call a small server/API that joins
+There is no browser package. The viewer calls the small server/API that joins
 reachable IDs with the packaged representative coordinates. Presentation
 choices such as autocomplete ranking, hex grids, map projection, and GeoJSON
 remain outside `@jm/commute`. RAPTOR and OSRM are offline compilers and do not
@@ -238,8 +239,8 @@ npm run commute:api:verify
 npm run commute:api:benchmark
 ```
 
-The existing Vue viewer is intentionally not migrated to these endpoints in
-this milestone.
+The Vue viewer consumes these endpoints without importing package or compiler
+code and never downloads the matrices.
 
 ### Offline car-routing preprocessing
 
@@ -437,8 +438,8 @@ The canonical runtime format is row-major `UInt8`: `0–240` are whole travel
 minutes, `255` means unavailable or beyond the published four-hour horizon,
 and `241–254` are reserved and invalid in schema version 1. The four-hour
 dataset capability is separate from product policy. An application may expose
-a smaller maximum, including the viewer's current 120-minute setting, without
-changing or regenerating the matrix.
+a smaller maximum without changing or regenerating the matrix; the validation
+viewer deliberately exposes the full 15–240-minute range.
 
 Because each cell is one byte, the common runtime path uses a zero-copy
 `Uint8Array` view over approximately 15.82 MiB rather than retaining a second
@@ -591,8 +592,9 @@ The transit matrix publishes the fastest representative-morning journey whose
 origin departure occurs within 07:00–09:00, preserving durations up to 240
 minutes. The window restricts departure, not arrival: for example, a
 journey departing at 08:55 and arriving after 09:00 remains eligible when its
-total duration is no more than four hours. The current viewer can continue to
-offer only a 120-minute slider over that richer dataset.
+total duration is no more than four hours. The validation viewer exposes the
+complete 15–240-minute range so both compiled datasets can be inspected across
+their full four-hour horizon.
 
 Transfers can connect different dense routing-stop IDs without consuming another vehicle leg. Only one transfer edge is traversed after a vehicle arrival; transfer edges are not chained within a RAPTOR round.
 
@@ -631,16 +633,11 @@ The intended job boundary is a transport-independent value such as `job.locality
 
 ### Commute viewer
 
-A legacy Vue/Vite validation viewer remains under `apps/commute-viewer`. It is
-not part of `@jm/commute` and was deliberately not migrated in this package
-milestone. Its temporary direct import of the former root locality runtime is
-now broken; no compatibility re-export was added. A later UI service can use
-the server package and decide how to aggregate the 4,073 representative points
-for visualization.
-
-Its historical development commands remain documented for the later migration:
+The Vue/Vite validation viewer under `apps/commute-viewer` is a presentation-
+only client of `apps/commute-api`. Start the API and viewer separately:
 
 ```bash
+npm run commute:api:dev
 npm run viewer:dev
 ```
 
@@ -650,8 +647,11 @@ Create a production Vite build with:
 npm run viewer:build
 ```
 
-The viewer uses the same fastest-window public-transport routing implementation, compact timetable, transfer graph, and locality routing index as the core project. It visualizes reachable transit-stop positions as deterministic approximately one-kilometre hexagons above an OpenFreeMap/OpenStreetMap basemap.
-
-Changing the origin recalculates routing once at the viewer's 120-minute maximum. Changing only the commute-time slider filters that existing result without rerunning RAPTOR.
-
-Routing data stays local and no routing API is used. The OpenFreeMap basemap tiles require network connectivity, and the viewer is served through Vite rather than opened with `file://`.
+The viewer fetches all 4,073 canonical localities once. Selecting an origin or
+switching between car and public transport requests one complete 240-minute
+GeoJSON overlay; moving the 15–240-minute slider only changes MapLibre layer
+filters. Origin changes recenter at city scale, while mode and slider changes
+preserve the camera. The browser contains no RAPTOR, timetable, matrix, Base64,
+stop-level, or hex-construction runtime. OpenFreeMap basemap tiles still require
+network connectivity, and the viewer is served through Vite rather than opened
+with `file://`.

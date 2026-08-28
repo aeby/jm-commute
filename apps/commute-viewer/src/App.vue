@@ -1,191 +1,180 @@
 <script setup lang="ts">
-import type { FastestWindowResult } from '@core/transit/raptor/routing/types';
-import { computed, ref, shallowRef } from 'vue';
+import {
+  computed,
+  onUnmounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
 
+import { CommuteApiClient } from './api/commute-api-client';
+import type {
+  CommuteMode,
+  Locality,
+  ReachabilityFeatureCollection,
+  ReachabilityResponse,
+} from './api/types';
 import CommuteMap from './components/CommuteMap.vue';
 import CommuteTimeSlider from './components/CommuteTimeSlider.vue';
 import LocalityAutocomplete from './components/LocalityAutocomplete.vue';
 import { VIEWER_CONFIG } from './config';
 import {
-  loadGeneratedCommuteViewerData,
-  type ViewerLocality,
-  type ViewerRuntimeData,
-} from './data/runtime-data';
-import type {
-  ReachabilityHex,
-  ReachabilityHexFeatureCollection,
-  ReachableStopSample,
-} from './map/reachability-hexes';
-import {
-  countVisibleReachabilityHexes,
-  countVisibleReachableStops,
-  createBrowserViewerRoutingEngine,
-  ViewerOriginRoutingCoordinator,
-  type ViewerRoutingOutcome,
-} from './viewer-routing';
+  countVisibleHexagons,
+  ViewerReachabilityCoordinator,
+} from './viewer-controller';
 
-type CalculationState =
-  | { readonly kind: 'idle' }
-  | { readonly kind: 'calculating' }
-  | { readonly kind: 'ready' }
-  | { readonly kind: 'error'; readonly message: string };
-
-const emptyFeatureCollection = (): ReachabilityHexFeatureCollection => ({
+const EMPTY_FEATURE_COLLECTION: ReachabilityFeatureCollection = {
   type: 'FeatureCollection',
   features: [],
+};
+
+const apiClient = new CommuteApiClient({
+  baseUrl: VIEWER_CONFIG.api.baseUrl,
 });
+const reachabilityCoordinator = new ViewerReachabilityCoordinator(apiClient);
 
-const runtimeData = shallowRef<ViewerRuntimeData>();
-const startupError = ref<string>();
-const selectedLocality = ref<ViewerLocality>();
-const selectedCommuteMinutes = ref(
-  VIEWER_CONFIG.commute.defaultMinutes,
-);
-const routingResult = shallowRef<FastestWindowResult>();
-const calculationState = ref<CalculationState>({ kind: 'idle' });
+const localities = shallowRef<readonly Locality[]>([]);
+const selectedLocalityId = ref<string>();
+const selectedMode = ref<CommuteMode>('transit');
+const selectedCommuteMinutes = ref(VIEWER_CONFIG.commute.defaultMinutes);
+const reachabilityResponse = shallowRef<ReachabilityResponse>();
 
-const reachableStopSamples = shallowRef<readonly ReachableStopSample[]>([]);
-const reachabilityHexes = shallowRef<readonly ReachabilityHex[]>([]);
-const featureCollection = shallowRef<ReachabilityHexFeatureCollection>(
-  emptyFeatureCollection(),
-);
-const routingOutcome = shallowRef<ViewerRoutingOutcome>();
+const loadingLocalities = ref(true);
+const localitiesError = ref<string>();
+const loadingReachability = ref(false);
+const reachabilityError = ref<string>();
+const requestMilliseconds = ref<number>();
 const sourceUpdateMilliseconds = ref<number>();
 const mapErrorMessage = ref<string>();
 
-let routingCoordinator: ViewerOriginRoutingCoordinator | undefined;
+let reachabilityLoadGeneration = 0;
 
-try {
-  const loaded = loadGeneratedCommuteViewerData();
-  runtimeData.value = loaded;
-  routingCoordinator = new ViewerOriginRoutingCoordinator(
-    createBrowserViewerRoutingEngine(loaded),
-    loaded.stopCoordinates,
-  );
-  selectedLocality.value =
-    loaded.localities.find(
-      ({ localityId }) => localityId === '3011:bern',
-    ) ?? loaded.localities[0];
-} catch (error) {
-  startupError.value = error instanceof Error ? error.message : String(error);
-}
-
-const localityEntriesById = computed(
-  () =>
-    new Map(
-      runtimeData.value?.localityRoutingIndex.entries.map((entry) => [
-        entry.localityId,
-        entry,
-      ]) ?? [],
-    ),
+const localitiesById = computed(
+  () => new Map(localities.value.map((locality) => [locality.localityId, locality])),
 );
-
-const originPoint = computed(() => {
-  const locality = selectedLocality.value;
-  return locality === undefined
+const selectedLocality = computed(() =>
+  selectedLocalityId.value === undefined
     ? undefined
-    : { longitude: locality.longitude, latitude: locality.latitude };
-});
-const originLabel = computed(() =>
-  selectedLocality.value === undefined
-    ? ''
-    : `${selectedLocality.value.postalCode} ${selectedLocality.value.city}`,
+    : localitiesById.value.get(selectedLocalityId.value),
 );
-const visibleReachableStopCount = computed(() =>
-  countVisibleReachableStops(
-    reachableStopSamples.value,
-    selectedCommuteMinutes.value,
-  ),
+const featureCollection = computed(
+  () => reachabilityResponse.value?.geojson ?? EMPTY_FEATURE_COLLECTION,
 );
 const visibleHexagonCount = computed(() =>
-  countVisibleReachabilityHexes(
-    reachabilityHexes.value,
+  countVisibleHexagons(
+    featureCollection.value,
     selectedCommuteMinutes.value,
   ),
 );
 
-function clearRoutingResult(): void {
-  routingResult.value = undefined;
-  routingOutcome.value = undefined;
-  reachableStopSamples.value = [];
-  reachabilityHexes.value = [];
-  featureCollection.value = emptyFeatureCollection();
-  sourceUpdateMilliseconds.value = undefined;
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
-async function calculateReachability(locality: ViewerLocality): Promise<void> {
-  const coordinator = routingCoordinator;
-  const entry = localityEntriesById.value.get(locality.localityId);
-  clearRoutingResult();
-  calculationState.value = { kind: 'calculating' };
-
-  if (coordinator === undefined || entry === undefined) {
-    calculationState.value = {
-      kind: 'error',
-      message: `Routing data is missing locality "${locality.localityId}".`,
-    };
-    return;
-  }
-
+async function loadLocalities(): Promise<void> {
+  loadingLocalities.value = true;
+  localitiesError.value = undefined;
   try {
-    const outcome = await coordinator.calculateOrigin(entry);
-    if (
-      outcome === undefined ||
-      selectedLocality.value?.localityId !== outcome.originLocalityId
-    ) {
-      return;
-    }
-    routingResult.value = outcome.routingResult;
-    reachableStopSamples.value = outcome.reachableStopSamples;
-    reachabilityHexes.value = outcome.hexes;
-    featureCollection.value = outcome.featureCollection;
-    routingOutcome.value = outcome;
-    calculationState.value = { kind: 'ready' };
+    const loaded = await apiClient.loadLocalities();
+    localities.value = loaded;
+    selectedLocalityId.value ??=
+      (loaded.find(({ localityId }) => localityId === '3011:bern') ?? loaded[0])
+        ?.localityId;
   } catch (error) {
-    if (selectedLocality.value?.localityId !== locality.localityId) {
-      return;
-    }
-    calculationState.value = {
-      kind: 'error',
-      message: error instanceof Error ? error.message : String(error),
-    };
+    localitiesError.value = errorMessage(error);
+  } finally {
+    loadingLocalities.value = false;
   }
 }
 
-function selectLocality(locality: ViewerLocality | undefined): void {
-  selectedLocality.value = locality;
-  mapErrorMessage.value = undefined;
+async function loadReachability(): Promise<void> {
+  const locality = selectedLocality.value;
   if (locality === undefined) {
-    routingCoordinator?.invalidate();
-    clearRoutingResult();
-    calculationState.value = { kind: 'idle' };
+    reachabilityCoordinator.invalidate();
     return;
   }
-  void calculateReachability(locality);
+
+  const generation = ++reachabilityLoadGeneration;
+  loadingReachability.value = true;
+  reachabilityError.value = undefined;
+  try {
+    const outcome = await reachabilityCoordinator.load(
+      locality.localityId,
+      selectedMode.value,
+    );
+    if (outcome === undefined || generation !== reachabilityLoadGeneration) {
+      return;
+    }
+    reachabilityResponse.value = outcome.response;
+    requestMilliseconds.value = outcome.requestMilliseconds;
+  } catch (error) {
+    if (generation === reachabilityLoadGeneration) {
+      reachabilityError.value = errorMessage(error);
+    }
+  } finally {
+    if (generation === reachabilityLoadGeneration) {
+      loadingReachability.value = false;
+    }
+  }
 }
 
-if (selectedLocality.value !== undefined) {
-  void calculateReachability(selectedLocality.value);
+function selectLocality(locality: Locality | undefined): void {
+  if (locality !== undefined) {
+    selectedLocalityId.value = locality.localityId;
+    mapErrorMessage.value = undefined;
+  }
 }
+
+watch(
+  [selectedLocalityId, selectedMode],
+  () => void loadReachability(),
+);
+
+onUnmounted(() => {
+  reachabilityLoadGeneration += 1;
+  reachabilityCoordinator.invalidate();
+});
+
+void loadLocalities();
 </script>
 
 <template>
   <main class="viewer-page">
     <header class="viewer-header">
       <div class="viewer-brand">
-        <p class="viewer-eyebrow">Swiss public transport</p>
+        <p class="viewer-eyebrow">Switzerland · car and public transport</p>
         <h1 class="viewer-title">Commute reachability</h1>
         <p class="viewer-subtitle">
-          Fastest morning journeys, aggregated into a geographic stop-level view.
+          Explore precomputed morning travel times across canonical Swiss localities.
         </p>
       </div>
 
-      <section v-if="runtimeData" class="control-deck" aria-label="Map controls">
+      <section
+        v-if="localities.length > 0"
+        class="control-deck"
+        aria-label="Map controls"
+      >
         <LocalityAutocomplete
-          :localities="runtimeData.localities"
+          :localities="localities"
           :model-value="selectedLocality"
+          :disabled="loadingLocalities"
           @update:model-value="selectLocality"
         />
+
+        <fieldset class="transport-control">
+          <legend class="control-label">Transport</legend>
+          <div class="transport-options">
+            <label class="transport-option">
+              <input v-model="selectedMode" type="radio" value="transit" />
+              <span>Public transport</span>
+            </label>
+            <label class="transport-option">
+              <input v-model="selectedMode" type="radio" value="car" />
+              <span>Car</span>
+            </label>
+          </div>
+        </fieldset>
+
         <CommuteTimeSlider
           v-model="selectedCommuteMinutes"
           :minimum="VIEWER_CONFIG.commute.minimumMinutes"
@@ -195,62 +184,68 @@ if (selectedLocality.value !== undefined) {
       </section>
     </header>
 
-    <section v-if="startupError" class="startup-error" role="alert">
+    <section v-if="loadingLocalities" class="startup-loading" role="status">
+      <p><span class="spinner" aria-hidden="true"></span>Loading localities…</p>
+    </section>
+
+    <section v-else-if="localitiesError" class="startup-error" role="alert">
       <div>
-        <h2>Viewer data is unavailable</h2>
-        <p>{{ startupError }}</p>
+        <h2>Localities are unavailable</h2>
+        <p>{{ localitiesError }}</p>
+        <button class="retry-button" type="button" @click="loadLocalities">
+          Try again
+        </button>
       </div>
     </section>
 
-    <template v-else-if="runtimeData">
+    <template v-else-if="selectedLocality">
       <div class="viewer-content">
         <CommuteMap
-          :origin="originPoint"
-          :origin-label="originLabel"
-          :hexes="reachabilityHexes"
+          :origin="selectedLocality"
           :feature-collection="featureCollection"
           :selected-minutes="selectedCommuteMinutes"
-          :calculating="calculationState.kind === 'calculating'"
+          :loading="loadingReachability"
           @map-error="mapErrorMessage = $event"
           @source-update="sourceUpdateMilliseconds = $event"
         />
 
-        <p
-          v-if="calculationState.kind === 'error'"
+        <div
+          v-if="reachabilityError"
           class="calculation-error"
           role="alert"
         >
-          {{ calculationState.message }}
-        </p>
+          {{ reachabilityError }}
+          <button class="retry-button retry-button--inline" type="button" @click="loadReachability">
+            Retry
+          </button>
+        </div>
       </div>
 
       <div class="diagnostics" aria-label="Viewer diagnostics">
         <dl class="diagnostic">
-          <dt>Routing time</dt>
-          <dd>
-            {{ routingOutcome ? `${routingOutcome.timings.raptorMilliseconds.toFixed(1)} ms` : '—' }}
-          </dd>
+          <dt>Mode</dt>
+          <dd>{{ selectedMode === 'transit' ? 'Public transport' : 'Car' }}</dd>
         </dl>
         <dl class="diagnostic">
-          <dt>Reachable stops</dt>
-          <dd>{{ routingResult ? visibleReachableStopCount.toLocaleString() : '—' }}</dd>
-        </dl>
-        <dl class="diagnostic">
-          <dt>Hexagon count</dt>
-          <dd>{{ routingResult ? visibleHexagonCount.toLocaleString() : '—' }}</dd>
-        </dl>
-        <dl class="diagnostic">
-          <dt>Selected maximum</dt>
+          <dt>Maximum</dt>
           <dd>{{ selectedCommuteMinutes }} min</dd>
         </dl>
-        <span v-if="routingOutcome" class="diagnostics-detail">
-          Stops {{ routingOutcome.timings.stopSamplingMilliseconds.toFixed(1) }} ms ·
-          hexes {{ routingOutcome.timings.hexAggregationMilliseconds.toFixed(1) }} ms ·
-          GeoJSON {{ routingOutcome.timings.geoJsonMilliseconds.toFixed(1) }} ms ·
-          source {{ sourceUpdateMilliseconds?.toFixed(1) ?? '—' }} ms
-        </span>
-        <span v-else-if="mapErrorMessage" class="diagnostics-detail">
-          Map unavailable
+        <dl class="diagnostic">
+          <dt>Reachable localities</dt>
+          <dd>{{ reachabilityResponse?.reachableLocalityCount.toLocaleString() ?? '—' }}</dd>
+        </dl>
+        <dl class="diagnostic">
+          <dt>Visible hexagons</dt>
+          <dd>{{ visibleHexagonCount.toLocaleString() }}</dd>
+        </dl>
+        <dl class="diagnostic">
+          <dt>Total hexagons</dt>
+          <dd>{{ reachabilityResponse?.hexagonCount.toLocaleString() ?? '—' }}</dd>
+        </dl>
+        <span class="diagnostics-detail">
+          API {{ requestMilliseconds?.toFixed(1) ?? '—' }} ms ·
+          map source {{ sourceUpdateMilliseconds?.toFixed(1) ?? '—' }} ms
+          <template v-if="mapErrorMessage"> · map unavailable</template>
         </span>
       </div>
     </template>
