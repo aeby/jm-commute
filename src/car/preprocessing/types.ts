@@ -15,6 +15,10 @@ export interface CarRouteEstimate {
   readonly distanceMeters: number;
 }
 
+export interface CarDurationTable {
+  readonly durationsSeconds: readonly (readonly (number | undefined)[])[];
+}
+
 export interface CarLocalityInput extends Coordinate {
   readonly localityId: LocalityId;
   readonly postalCode: string;

@@ -1,10 +1,12 @@
 import type {
+  CarDurationTable,
   CarRouteEstimate,
   Coordinate,
   SnappedRoadPoint,
 } from './types';
 
 export const DEFAULT_OSRM_BASE_URL = 'http://127.0.0.1:5000';
+export const DEFAULT_OSRM_REQUEST_TIMEOUT_MILLISECONDS = 30_000;
 
 export type OsrmFetch = (
   input: URL,
@@ -14,13 +16,40 @@ export type OsrmFetch = (
 export interface OsrmClientOptions {
   readonly baseUrl?: string;
   readonly fetch?: OsrmFetch;
+  readonly requestTimeoutMilliseconds?: number;
 }
 
-type ServiceName = 'nearest' | 'route';
+type ServiceName = 'nearest' | 'route' | 'table';
+
+const MAX_TABLE_COORDINATES = 100;
 
 interface ResponsePayload {
   readonly response: Response;
   readonly value: unknown;
+}
+
+export class OsrmTransportError extends Error {
+  readonly service: ServiceName;
+
+  constructor(service: ServiceName, detail: string, cause: unknown) {
+    super(`OSRM ${service} request failed: ${detail}`, { cause });
+    this.name = 'OsrmTransportError';
+    this.service = service;
+  }
+}
+
+export class OsrmHttpError extends Error {
+  readonly service: ServiceName;
+  readonly status: number;
+
+  constructor(service: ServiceName, response: Response, value: unknown) {
+    super(
+      `OSRM ${service} request failed with HTTP ${describeHttpStatus(response)}${describeErrorPayload(value)}.`,
+    );
+    this.name = 'OsrmHttpError';
+    this.service = service;
+    this.status = response.status;
+  }
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -105,31 +134,63 @@ function normalizeBaseUrl(baseUrl: string): URL {
 export class OsrmClient {
   private readonly baseUrl: URL;
   private readonly fetchImplementation: OsrmFetch;
+  private readonly requestTimeoutMilliseconds: number;
 
   constructor(options: OsrmClientOptions = {}) {
     this.baseUrl = normalizeBaseUrl(
       options.baseUrl ?? DEFAULT_OSRM_BASE_URL,
     );
     this.fetchImplementation = options.fetch ?? globalThis.fetch;
+    this.requestTimeoutMilliseconds =
+      options.requestTimeoutMilliseconds ??
+      DEFAULT_OSRM_REQUEST_TIMEOUT_MILLISECONDS;
+    if (
+      !Number.isFinite(this.requestTimeoutMilliseconds) ||
+      this.requestTimeoutMilliseconds <= 0
+    ) {
+      throw new RangeError(
+        'OSRM request timeout must be a positive finite number of milliseconds.',
+      );
+    }
   }
 
   private async request(
     service: ServiceName,
     url: URL,
   ): Promise<ResponsePayload> {
+    const abortController = new AbortController();
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+    }, this.requestTimeoutMilliseconds);
     let response: Response;
     try {
       response = await this.fetchImplementation(url, {
         headers: { accept: 'application/json' },
+        signal: abortController.signal,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`OSRM ${service} request failed: ${message}`, {
-        cause: error,
-      });
+      clearTimeout(timeout);
+      const detail = timedOut
+        ? `timed out after ${this.requestTimeoutMilliseconds} milliseconds`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      throw new OsrmTransportError(service, detail, error);
     }
 
-    const body = await response.text();
+    let body: string;
+    try {
+      body = await response.text();
+    } catch (error) {
+      const detail = timedOut
+        ? `timed out after ${this.requestTimeoutMilliseconds} milliseconds while reading the response`
+        : `unable to read response body: ${error instanceof Error ? error.message : String(error)}`;
+      throw new OsrmTransportError(service, detail, error);
+    } finally {
+      clearTimeout(timeout);
+    }
     let value: unknown;
     try {
       value = JSON.parse(body);
@@ -161,9 +222,7 @@ export class OsrmClient {
 
     const { response, value } = await this.request('nearest', url);
     if (!response.ok) {
-      throw new Error(
-        `OSRM nearest request failed with HTTP ${describeHttpStatus(response)}${describeErrorPayload(value)}.`,
-      );
+      throw new OsrmHttpError('nearest', response, value);
     }
     if (!isRecord(value) || value.code !== 'Ok') {
       return malformed('nearest', 'expected code "Ok"');
@@ -236,9 +295,7 @@ export class OsrmClient {
       return undefined;
     }
     if (!response.ok) {
-      throw new Error(
-        `OSRM route request failed with HTTP ${describeHttpStatus(response)}${describeErrorPayload(value)}.`,
-      );
+      throw new OsrmHttpError('route', response, value);
     }
     if (!isRecord(value) || value.code !== 'Ok') {
       return malformed('route', 'expected code "Ok" or "NoRoute"');
@@ -261,5 +318,88 @@ export class OsrmClient {
         'route',
       ),
     };
+  }
+
+  async getCarDurationTable(
+    sources: readonly Coordinate[],
+    destinations: readonly Coordinate[],
+  ): Promise<CarDurationTable> {
+    if (sources.length === 0) {
+      throw new RangeError('OSRM table requires at least one source.');
+    }
+    if (destinations.length === 0) {
+      throw new RangeError('OSRM table requires at least one destination.');
+    }
+    if (sources.length + destinations.length > MAX_TABLE_COORDINATES) {
+      throw new RangeError(
+        `OSRM table supports at most ${MAX_TABLE_COORDINATES} combined source and destination coordinates.`,
+      );
+    }
+
+    sources.forEach((coordinate, index) => {
+      assertCoordinate(coordinate, `Source ${index}`);
+    });
+    destinations.forEach((coordinate, index) => {
+      assertCoordinate(coordinate, `Destination ${index}`);
+    });
+
+    const coordinates = [...sources, ...destinations];
+    const url = new URL(
+      `table/v1/driving/${coordinates.map(coordinatePath).join(';')}.json`,
+      this.baseUrl,
+    );
+    url.searchParams.set(
+      'sources',
+      sources.map((_, index) => index).join(';'),
+    );
+    url.searchParams.set(
+      'destinations',
+      destinations
+        .map((_, index) => sources.length + index)
+        .join(';'),
+    );
+    url.searchParams.set('annotations', 'duration');
+
+    const { response, value } = await this.request('table', url);
+    if (!response.ok) {
+      throw new OsrmHttpError('table', response, value);
+    }
+    if (!isRecord(value) || value.code !== 'Ok') {
+      return malformed('table', 'expected code "Ok"');
+    }
+    if (!Array.isArray(value.durations)) {
+      return malformed('table', '"durations" must be an array');
+    }
+    if (value.durations.length !== sources.length) {
+      return malformed(
+        'table',
+        `expected ${sources.length} duration rows, received ${value.durations.length}`,
+      );
+    }
+
+    const durationsSeconds = value.durations.map((row, rowIndex) => {
+      if (!Array.isArray(row)) {
+        return malformed('table', `durations[${rowIndex}] must be an array`);
+      }
+      if (row.length !== destinations.length) {
+        return malformed(
+          'table',
+          `expected ${destinations.length} columns in durations[${rowIndex}], received ${row.length}`,
+        );
+      }
+
+      return row.map((duration, columnIndex) => {
+        if (duration === null) {
+          return undefined;
+        }
+        return parseNonnegativeNumber(
+          duration,
+          `durations[${rowIndex}][${columnIndex}]`,
+          'table',
+        );
+      });
+    });
+
+    return { durationsSeconds };
   }
 }

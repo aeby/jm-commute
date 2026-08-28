@@ -23,8 +23,53 @@ export {
   type SnapDistanceStatistics,
 } from './locality-road-anchors';
 export {
+  CAR_TRAVEL_TIME_MATRIX_CHECKPOINT_SCHEMA_VERSION,
+  createCarTravelTimeMatrixCheckpoint,
+  expectedPartialMatrixByteLength,
+  parseCarTravelTimeMatrixCheckpoint,
+  parseCarTravelTimeMatrixCheckpointJson,
+  serializeCarTravelTimeMatrixCheckpoint,
+  validateCarTravelTimeMatrixResume,
+  type CarTravelTimeMatrixCheckpoint,
+  type CarTravelTimeMatrixResumeIdentity,
+} from './travel-time-matrix-checkpoint';
+export {
+  CAR_TRAVEL_TIME_MATRIX_SCHEMA_VERSION,
+  createCarTravelTimeMatrixManifest,
+  loadCarTravelTimeMatrix,
+  parseCarTravelTimeMatrixManifest,
+  parseCarTravelTimeMatrixManifestJson,
+  serializeCarTravelTimeMatrixManifest,
+  validateCarTravelTimeMatrixAgainstAnchors,
+  type CarTravelTimeMatrixAnchorProvenance,
+  type CarTravelTimeMatrixManifest,
+  type CreateCarTravelTimeMatrixManifestOptions,
+  type LoadedCarTravelTimeMatrix,
+} from './travel-time-matrix-file';
+export {
+  calculateTravelTimeMatrixByteLength,
+  calculateTravelTimeMatrixCellCount,
+  createCarTravelTimeRowSlab,
+  decodeTravelMinutesLittleEndian,
+  durationSecondsToTravelMinutes,
+  encodeTravelMinutesLittleEndian,
+  finalizeCarTravelTimeRowSlab,
+  getMatrixTravelMinutes,
+  getTravelTimeMatrixCellIndex,
+  MAX_TRAVEL_MINUTES,
+  TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
+  UNREACHABLE_TRAVEL_MINUTES,
+  writeCarDurationBlockToRowSlab,
+  type CarDurationBlock,
+  type CarTravelTimeMatrixLookup,
+  type MutableCarTravelTimeRowSlab,
+} from './travel-time-matrix';
+export {
   DEFAULT_OSRM_BASE_URL,
+  DEFAULT_OSRM_REQUEST_TIMEOUT_MILLISECONDS,
   OsrmClient,
+  OsrmHttpError,
+  OsrmTransportError,
   type OsrmClientOptions,
   type OsrmFetch,
 } from './osrm-client';
@@ -35,6 +80,7 @@ export {
   OSRM_VERSION,
 } from './osrm-config';
 export type {
+  CarDurationTable,
   CarLocalityInput,
   CarRouteEstimate,
   Coordinate,

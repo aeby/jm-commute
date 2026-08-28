@@ -46,6 +46,8 @@ npm run data:prepare:routing-trips
 npm run data:prepare:locality-routing-index
 npm run car:osrm:prepare
 npm run car:anchors:prepare
+npm run car:matrix:prepare
+npm run car:matrix:inspect
 npm run viewer:dev
 ```
 
@@ -118,9 +120,11 @@ nearest routable road point
     ↓
 persisted locality road anchor
     ↓
-future OSRM table preprocessing
+OSRM Table preprocessing
     ↓
-future compact travel-time matrix
+directional locality × locality travel-time matrix
+    ↓
+future TypeScript car reachability lookup
 ```
 
 With the local OSRM service running, generate the strictly validated anchor
@@ -145,6 +149,33 @@ policy decisions. These anchors are preprocessing data, not a public runtime
 API. Anchors are stored in locale-independent lexical `localityId` order. Their
 input fingerprint is the SHA-256 of compact JSON containing exactly
 `localityId`, `latitude`, and `longitude` in that same order, with no timestamp.
+
+With the local OSRM service running, generate the complete directional matrix
+from those persisted anchors:
+
+```bash
+npm run car:matrix:prepare
+```
+
+Matrix generation is resumable by completed source-row blocks and uses OSRM's
+Table service only during offline preprocessing. The resulting
+`data/processed/car/travel-time-matrix/travel-times.bin` is deterministic
+row-major `UInt16` data encoded explicitly in little-endian byte order. Rows
+and columns share the exact ordered locality IDs recorded in `manifest.json`.
+Each value is a whole travel time in minutes, conservatively calculated as
+`ceil(durationSeconds / 60)`; `65535` is reserved for an unreachable
+origin/destination pair. Self-cells are always zero.
+
+Inspect the completed matrix, reachability, connectivity, and directional
+diagnostics without Docker or a running OSRM service:
+
+```bash
+npm run car:matrix:inspect
+```
+
+The matrix and manifest remain generated preprocessing/runtime data and are not
+yet exposed through the browser-safe public car API. The next car milestone
+will build the small TypeScript reachability lookup over this validated data.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly

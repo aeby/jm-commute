@@ -16,6 +16,8 @@
     "car:inspect": "tsx scripts/car/inspect-car-routing.ts",
     "car:anchors:prepare": "tsx scripts/car/prepare-locality-road-anchors.ts",
     "car:anchors:inspect": "tsx scripts/car/inspect-locality-road-anchors.ts",
+    "car:matrix:prepare": "tsx scripts/car/prepare-travel-time-matrix.ts",
+    "car:matrix:inspect": "tsx scripts/car/inspect-travel-time-matrix.ts",
     "inspect:transit-candidates": "tsx scripts/inspect-transit-candidates.ts",
     "inspect:raptor-timetable": "node --expose-gc --import tsx scripts/inspect-raptor-timetable.ts",
     "inspect:raptor-reachability": "tsx scripts/inspect-raptor-reachability.ts",
