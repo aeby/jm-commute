@@ -12,6 +12,8 @@
     "data:prepare:service-profiles": "tsx scripts/prepare-transit-place-service-profiles.ts",
     "data:prepare:routing-trips": "tsx scripts/prepare-fixed-day-routing-trips.ts",
     "data:prepare:locality-routing-index": "tsx scripts/prepare-locality-routing-index.ts",
+    "car:osrm:prepare": "tsx scripts/car/prepare-osrm.ts",
+    "car:inspect": "tsx scripts/car/inspect-car-routing.ts",
     "inspect:transit-candidates": "tsx scripts/inspect-transit-candidates.ts",
     "inspect:raptor-timetable": "node --expose-gc --import tsx scripts/inspect-raptor-timetable.ts",
     "inspect:raptor-reachability": "tsx scripts/inspect-raptor-reachability.ts",

@@ -28,12 +28,20 @@ dist-ssr
 !/data/raw/gtfs/
 /data/raw/gtfs/*
 !/data/raw/gtfs/.gitkeep
+!/data/raw/osm/
+/data/raw/osm/*
+!/data/raw/osm/.gitkeep
 
 /data/processed/*
 !/data/processed/.gitkeep
 !/data/processed/fixed-day-routing/
 /data/processed/fixed-day-routing/*
 !/data/processed/fixed-day-routing/.gitkeep
+!/data/processed/car/
+/data/processed/car/*
+!/data/processed/car/osrm/
+/data/processed/car/osrm/*
+!/data/processed/car/osrm/.gitkeep
 
 /apps/commute-viewer/public/generated/*
 !/apps/commute-viewer/public/generated/.gitkeep

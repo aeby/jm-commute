@@ -29,6 +29,7 @@ Journey reconstruction, transfer chaining, and job matching remain out of scope.
 - `src/transit/routing-data/` prepares and validates the streamed fixed-day routing dataset.
 - `src/transit/raptor/` owns compact timetable construction, transfer connectivity, and routing.
 - `src/transit/locality-routing/` is the public-transport adapter between generic localities and RAPTOR stop indexes/results.
+- `src/car/` is the browser-safe boundary for future generated car data; Docker, OSRM HTTP, and filesystem-backed code stay under `src/car/preprocessing/` and `scripts/car/`.
 - `apps/commute-viewer/` contains the Vue/Vite development viewer; it imports browser-safe routing modules from `src/` rather than duplicating them.
 
 ## Development
@@ -43,6 +44,7 @@ npm run data:prepare:places
 npm run data:prepare:service-profiles
 npm run data:prepare:routing-trips
 npm run data:prepare:locality-routing-index
+npm run car:osrm:prepare
 npm run viewer:dev
 ```
 
@@ -53,6 +55,67 @@ The downloaded source data is stored under `data/raw/` and is not committed to G
 Locality data comes from the official directory of towns and cities published by the Federal Office of Topography swisstopo.
 
 Source attribution: **©swisstopo**
+
+### Offline car-routing preprocessing
+
+OpenStreetMap provides the source road network. OSRM is used only during
+offline preprocessing with its standard `car.lua` profile and Contraction
+Hierarchies. The planned production/runtime representation is a compact,
+precomputed locality-to-locality driving-time dataset; the final TypeScript
+lookup library will require neither OSRM, Docker, the OpenStreetMap PBF, nor an
+HTTP routing service.
+
+Manually place the Geofabrik Switzerland extract at:
+
+```text
+data/raw/osm/switzerland-latest.osm.pbf
+```
+
+The preparation script does not download the extract. It keeps that source
+mount read-only, pins the official
+`ghcr.io/project-osrm/osrm-backend:26.8.0-debian` image, runs the standard car
+extraction and CH contraction pipeline, and writes the deterministic dataset
+base `data/processed/car/osrm/switzerland.osrm`:
+
+```bash
+npm run car:osrm:prepare
+```
+
+Start the development/preprocessing service on the loopback interface only:
+
+```bash
+docker run --rm \
+  --publish 127.0.0.1:5000:5000 \
+  --mount type=bind,source="$PWD/data/processed/car/osrm",target=/data,readonly \
+  ghcr.io/project-osrm/osrm-backend:26.8.0-debian \
+  osrm-routed --algorithm ch /data/switzerland.osrm
+```
+
+Inspect one locality-to-locality route while that service is running:
+
+```bash
+npm run car:inspect -- \
+  --from-postal-code 8001 \
+  --from-city Zürich \
+  --to-postal-code 3011 \
+  --to-city Bern
+```
+
+Run the reproducible snap and route diagnostic suite with:
+
+```bash
+npm run car:inspect -- --diagnostics
+```
+
+This first graph intentionally contains Switzerland only. Near-border routes
+can therefore be disconnected or suboptimal when the real road route briefly
+enters Germany, France, Italy, Austria, or Liechtenstein. No neighboring extract
+is downloaded or merged in this milestone; those diagnostics will inform a
+later data-scope decision.
+
+OpenStreetMap data is © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
+and is available under the Open Database License. The Switzerland extract is
+distributed by [Geofabrik](https://download.geofabrik.de/europe/switzerland.html).
 
 ### Public-transport data
 
