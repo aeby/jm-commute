@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import {
-  buildLocalityRoutingIndex,
-  parseLocalitiesCsv,
-} from '../src/localities';
+import { PROJECT_CONFIG } from '../src/config';
+import { parseLocalitiesCsv } from '../src/localities/node';
+import { buildLocalityRoutingIndex } from '../src/transit/locality-routing';
 import {
   buildRaptorTimetable,
   buildSourceStopIndex,
 } from '../src/transit/raptor/timetable';
-import { readRoutingTripsNdjson } from '../src/transit/raptor/timetable/node';
+import { validateFixedDayRoutingManifestScenario } from '../src/transit/routing-data';
+import { loadFixedDayRoutingDataset } from '../src/transit/routing-data/node';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
@@ -19,9 +19,9 @@ import {
 import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const ROUTING_TRIPS_PATH = resolve(
+const ROUTING_DATA_DIRECTORY = resolve(
   PROJECT_ROOT,
-  'data/processed/fixed-day-routing/trips.ndjson',
+  'data/processed/fixed-day-routing',
 );
 const OUTPUT_RELATIVE_PATH = 'data/processed/locality-routing-index.json';
 const OUTPUT_PATH = resolve(PROJECT_ROOT, OUTPUT_RELATIVE_PATH);
@@ -47,9 +47,16 @@ async function main(): Promise<void> {
   const localities = parseLocalitiesCsv(localitiesCsv);
 
   const timetableStart = performance.now();
-  const timetable = await buildRaptorTimetable(
-    readRoutingTripsNdjson(ROUTING_TRIPS_PATH),
+  const routingDataset = await loadFixedDayRoutingDataset(
+    ROUTING_DATA_DIRECTORY,
   );
+  const scenario = PROJECT_CONFIG.transit.referenceScenario;
+  validateFixedDayRoutingManifestScenario(routingDataset.manifest, {
+    serviceDate: scenario.serviceDate,
+    routingWindowStart: scenario.morningWindow.start,
+    routingWindowEnd: scenario.morningWindow.end,
+  });
+  const timetable = await buildRaptorTimetable(routingDataset.trips);
   const timetableMilliseconds = performance.now() - timetableStart;
   const denseStopLookup = buildSourceStopIndex(timetable.sourceStopIds);
 

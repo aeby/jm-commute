@@ -21,6 +21,16 @@ GTFS station records and their child platforms are normalized into logical trans
 
 Journey reconstruction, transfer chaining, job matching, and visualization remain out of scope.
 
+## Module boundaries
+
+- `src/localities/` owns transport-independent locality identity, parsing, resolution, and reachable-locality result types.
+- `src/transit/gtfs/` owns reusable GTFS date, time, calendar, CSV, and fixed-date feed foundations.
+- `src/transit/stops/`, `places/`, `service-profiles/`, and `candidates/` normalize and select logical transit access points.
+- `src/transit/routing-data/` prepares and validates the streamed fixed-day routing dataset.
+- `src/transit/raptor/` owns compact timetable construction, transfer connectivity, and routing.
+- `src/transit/locality-routing/` is the public-transport adapter between generic localities and RAPTOR stop indexes/results.
+- `src/validation-ui/` contains the framework-free offline browser validator.
+
 ## Development
 
 ```bash
@@ -74,6 +84,8 @@ Routing data is prepared for the configured representative Monday. Scheduled tri
 
 GTFS frequency windows are preserved in the fixed-day input and expanded only when the compact timetable is built.
 
+The routing manifest records a SHA-256 digest of the NDJSON trip stream. All consumers use one canonical streamed loader that validates the schema, normalized trip records, manifest counts, digest, and configured scenario before building the timetable.
+
 ### Compact RAPTOR timetable
 
 The fixed-day trips are streamed into deterministic dense stop IDs and compact, non-overtaking route patterns. Stop times use typed arrays, pickup and drop-off values use two-bit packing, and each stop has route-pattern adjacency for later RAPTOR scans.
@@ -115,7 +127,7 @@ Initial access currently uses one transfer edge only; it does not chain walking 
 
 ### Reachable localities
 
-Every Swiss ZIP-and-city pair has a deterministic, transport-independent locality ID derived from its postal code and normalized city name. The offline locality routing index maps each locality to all active RAPTOR stops contributed by the existing local-access candidate policy.
+Every Swiss ZIP-and-city pair has a deterministic, transport-independent locality ID derived from its postal code and normalized city name. The offline public-transport locality routing index maps each locality to all active RAPTOR stops contributed by the existing local-access candidate policy.
 
 One Range-RAPTOR result is reduced to the shortest duration across each locality's routing stops and rounded upward to whole travel minutes. The product-facing result contains only a locality ID and travel minutes, so a future road router can produce the same shape without exposing GTFS or RAPTOR identifiers.
 

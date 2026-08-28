@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '../../../config';
 import { resolveActiveServiceIds } from '../resolve-active-service-ids';
+import type { CalendarEntry } from '../types';
 
 const SERVICE_DATE =
   PROJECT_CONFIG.transit.referenceScenario.serviceDate.replaceAll('-', '');
 
 function createCalendarEntry(
-  overrides: Readonly<Record<string, string | number>> = {},
-) {
+  overrides: Partial<CalendarEntry> = {},
+): CalendarEntry {
   return {
     serviceId: 'weekday-service',
     monday: 1,

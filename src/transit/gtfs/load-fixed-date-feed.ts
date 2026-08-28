@@ -1,14 +1,15 @@
 import { join } from 'node:path';
 
-import { resolveActiveServiceIds } from '../service-profiles';
-import { validateGtfsDate } from '../service-profiles/gtfs-date';
-import { validateFeedDateRange } from '../service-profiles/validate-feed-date-range';
+import { validateGtfsDate } from './gtfs-date';
 import {
   processGtfsCsvRows,
   readCsvColumn,
   readNonemptyCsvId,
   readOptionalCsvColumn,
 } from './read-csv-rows';
+import { resolveActiveServiceIds } from './resolve-active-service-ids';
+import type { CalendarDateEntry, CalendarEntry } from './types';
+import { validateFeedDateRange } from './validate-feed-date-range';
 
 const CALENDAR_COLUMNS = [
   'service_id',
@@ -22,25 +23,6 @@ const CALENDAR_COLUMNS = [
   'start_date',
   'end_date',
 ] as const;
-
-interface CalendarEntry {
-  readonly serviceId: string;
-  readonly monday: number;
-  readonly tuesday: number;
-  readonly wednesday: number;
-  readonly thursday: number;
-  readonly friday: number;
-  readonly saturday: number;
-  readonly sunday: number;
-  readonly startDate: string;
-  readonly endDate: string;
-}
-
-interface CalendarDateEntry {
-  readonly serviceId: string;
-  readonly date: string;
-  readonly exceptionType: number;
-}
 
 export interface FixedDateFeedInfo {
   readonly startDate: string;

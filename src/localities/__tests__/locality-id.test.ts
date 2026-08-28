@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createLocalityId } from '../../locality-id';
+import { createLocalityId } from '../locality-id';
 
 describe('createLocalityId', () => {
   it('creates a deterministic transport-independent ZIP-and-city ID', () => {
@@ -28,7 +28,7 @@ describe('createLocalityId', () => {
     );
   });
 
-  it.each(['800', '80010', '80 01', 'ABCD', '']) (
+  it.each(['800', '80010', '80 01', 'ABCD', ''])(
     'fails clearly for malformed postal code %j',
     (postalCode) => {
       expect(() => createLocalityId(postalCode, 'Zürich')).toThrow(

@@ -38,7 +38,6 @@ const buildActiveTransferStops = (
     }
     activeStops.push({
       stopIndex,
-      sourceStopId,
       latitude: stop.latitude,
       longitude: stop.longitude,
     });

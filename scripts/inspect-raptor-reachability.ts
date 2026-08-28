@@ -4,11 +4,10 @@ import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 
 import { PROJECT_CONFIG } from '../src/config';
-import {
-  LocalityResolver,
-  parseLocalitiesCsv,
-} from '../src/localities';
+import { LocalityResolver } from '../src/localities';
+import { parseLocalitiesCsv } from '../src/localities/node';
 import { selectTransitPlaceCandidates } from '../src/transit/candidates';
+import { parseGtfsTimeToSeconds } from '../src/transit/gtfs';
 import {
   runRaptorFastestWindow,
   UNREACHED_TIME,
@@ -16,7 +15,6 @@ import {
   type FastestWindowResult,
   type FastestWindowRoutingDiagnostics,
 } from '../src/transit/raptor';
-import { parseGtfsTimeToSeconds } from '../src/transit/service-profiles';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,

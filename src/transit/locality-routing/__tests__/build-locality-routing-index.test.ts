@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '../../../config';
-import type { Locality } from '../../types';
-import type { TransitPlace } from '../../../transit/places';
+import type { Locality } from '../../../localities';
+import type { TransitPlace } from '../../places';
 import type {
   TransitPlaceServiceProfile,
   TransitPlaceServiceProfileDataset,
-} from '../../../transit/service-profiles';
+} from '../../service-profiles';
 import { buildLocalityRoutingIndex } from '../build-locality-routing-index';
 import { parseLocalityRoutingIndexJson } from '..';
 

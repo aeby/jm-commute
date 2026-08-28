@@ -1,18 +1,17 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
 import { PROJECT_CONFIG } from '../src/config';
-import type { FixedDayRoutingManifest } from '../src/transit/routing-data';
+import { validateFixedDayRoutingManifestScenario } from '../src/transit/routing-data';
+import { loadFixedDayRoutingDataset } from '../src/transit/routing-data/node';
 import {
   buildRaptorTimetable,
   type RaptorTimetable,
   type RaptorTimetableBuildStage,
   type RaptorTimetableBuildStatistics,
 } from '../src/transit/raptor/timetable';
-import { readRoutingTripsNdjson } from '../src/transit/raptor/timetable/node';
 
 const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ROUTING_DIRECTORY = join(
@@ -21,8 +20,6 @@ const ROUTING_DIRECTORY = join(
   'processed',
   'fixed-day-routing',
 );
-const MANIFEST_PATH = join(ROUTING_DIRECTORY, 'manifest.json');
-const TRIPS_PATH = join(ROUTING_DIRECTORY, 'trips.ndjson');
 
 interface MemorySnapshot {
   readonly heapUsed: number;
@@ -34,52 +31,6 @@ interface MemorySnapshot {
 interface NamedMemorySnapshot extends MemorySnapshot {
   readonly name: string;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const readManifest = async (): Promise<FixedDayRoutingManifest> => {
-  let value: unknown;
-  try {
-    value = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
-  } catch (error) {
-    throw new Error(`Unable to read routing manifest at ${MANIFEST_PATH}`, {
-      cause: error,
-    });
-  }
-  if (!isRecord(value) || value.schemaVersion !== 1) {
-    throw new Error('Routing manifest must be a schema-version 1 object');
-  }
-
-  const stringFields = [
-    'serviceDate',
-    'routingWindowStart',
-    'routingWindowEnd',
-  ] as const;
-  stringFields.forEach((field) => {
-    if (typeof value[field] !== 'string') {
-      throw new Error(`Routing manifest ${field} must be a string`);
-    }
-  });
-  const countFields = [
-    'tripCount',
-    'scheduledTripCount',
-    'frequencyTripCount',
-    'stopTimeCount',
-    'frequencyWindowCount',
-    'excludedBeforeRoutingWindowTripCount',
-  ] as const;
-  countFields.forEach((field) => {
-    const count = value[field];
-    if (!Number.isInteger(count) || (count as number) < 0) {
-      throw new Error(
-        `Routing manifest ${field} must be a nonnegative integer`,
-      );
-    }
-  });
-
-  return value as unknown as FixedDayRoutingManifest;
-};
 
 const memorySnapshot = (): MemorySnapshot => {
   const usage = process.memoryUsage();
@@ -194,60 +145,15 @@ const timetableFingerprint = (timetable: RaptorTimetable): string => {
   return hash.digest('hex');
 };
 
-const validateManifestConsistency = (
-  manifest: FixedDayRoutingManifest,
-  statistics: RaptorTimetableBuildStatistics,
-): void => {
-  const reference = PROJECT_CONFIG.transit.referenceScenario;
-  if (manifest.serviceDate !== reference.serviceDate) {
-    throw new Error(
-      `Routing manifest service date ${manifest.serviceDate} does not match ${reference.serviceDate}`,
-    );
-  }
-  if (
-    manifest.routingWindowStart !== reference.morningWindow.start ||
-    manifest.routingWindowEnd !== reference.morningWindow.end
-  ) {
-    throw new Error(
-      `Routing manifest window ${manifest.routingWindowStart}–${manifest.routingWindowEnd} does not match ${reference.morningWindow.start}–${reference.morningWindow.end}`,
-    );
-  }
-
-  const checks: readonly [string, number, number][] = [
-    ['NDJSON records', manifest.tripCount, statistics.inputRetainedTrips],
-    [
-      'scheduled records',
-      manifest.scheduledTripCount,
-      statistics.scheduledConcreteTrips,
-    ],
-    [
-      'frequency templates',
-      manifest.frequencyTripCount,
-      statistics.frequencyTemplates,
-    ],
-    [
-      'input stop-time records',
-      manifest.stopTimeCount,
-      statistics.inputStopTimeCount,
-    ],
-    [
-      'frequency windows',
-      manifest.frequencyWindowCount,
-      statistics.inputFrequencyWindowCount,
-    ],
-  ];
-
-  checks.forEach(([label, expected, observed]) => {
-    if (expected !== observed) {
-      throw new Error(
-        `Routing manifest ${label} count ${expected} does not match observed count ${observed}`,
-      );
-    }
-  });
-};
-
 async function main(): Promise<void> {
-  const manifest = await readManifest();
+  const routingDataset = await loadFixedDayRoutingDataset(ROUTING_DIRECTORY);
+  const { manifest } = routingDataset;
+  const reference = PROJECT_CONFIG.transit.referenceScenario;
+  validateFixedDayRoutingManifestScenario(manifest, {
+    serviceDate: reference.serviceDate,
+    routingWindowStart: reference.morningWindow.start,
+    routingWindowEnd: reference.morningWindow.end,
+  });
   const checkpoints: NamedMemorySnapshot[] = [];
   forceGarbageCollection();
   let peak = memorySnapshot();
@@ -263,7 +169,7 @@ async function main(): Promise<void> {
   let timetable: RaptorTimetable;
   try {
     timetable = await buildRaptorTimetable(
-      readRoutingTripsNdjson(TRIPS_PATH),
+      routingDataset.trips,
       {
         onStage: (stage) => {
           forceGarbageCollection();
@@ -286,7 +192,6 @@ async function main(): Promise<void> {
     throw new Error('RAPTOR timetable build did not report statistics');
   }
   const stats: RaptorTimetableBuildStatistics = statistics;
-  validateManifestConsistency(manifest, stats);
   const storage = typedArrayStorage(timetable);
 
   console.log(`Feed version: ${manifest.sourceFeedVersion ?? 'not supplied'}`);

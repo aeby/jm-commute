@@ -1,9 +1,11 @@
-import { createTransitPlaceCandidateSelector } from '../../transit/candidates';
-import type { TransitPlace } from '../../transit/places';
-import type { TransitPlaceServiceProfileDataset } from '../../transit/service-profiles';
-import { createLocalityId } from '../locality-id';
-import { normalizeCityName } from '../normalize-city-name';
-import type { Locality } from '../types';
+import {
+  createLocalityId,
+  normalizeCityName,
+  type Locality,
+} from '../../localities';
+import { createTransitPlaceCandidateSelector } from '../candidates';
+import type { TransitPlace } from '../places';
+import type { TransitPlaceServiceProfileDataset } from '../service-profiles';
 import type {
   LocalityRoutingEntry,
   LocalityRoutingIndex,

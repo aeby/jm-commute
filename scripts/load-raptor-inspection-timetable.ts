@@ -2,13 +2,17 @@ import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import { PROJECT_CONFIG } from '../src/config';
-import { loadFixedDateActiveServices } from '../src/transit/gtfs/load-fixed-date-feed';
+import { loadFixedDateActiveServices } from '../src/transit/gtfs/node';
+import {
+  validateFixedDayRoutingManifestScenario,
+  type FixedDayRoutingManifest,
+} from '../src/transit/routing-data';
+import { loadFixedDayRoutingDataset } from '../src/transit/routing-data/node';
 import {
   buildRaptorTimetable,
   buildSourceStopIndex,
   type RaptorTimetable,
 } from '../src/transit/raptor/timetable';
-import { readRoutingTripsNdjson } from '../src/transit/raptor/timetable/node';
 import {
   attachTransferGraph,
   buildTransferGraph,
@@ -19,14 +23,15 @@ import { readGtfsTransfers } from '../src/transit/raptor/transfers/node';
 import { loadTransitStopsInput } from './transit-inspection-inputs';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const ROUTING_TRIPS_PATH = resolve(
+const ROUTING_DIRECTORY = resolve(
   PROJECT_ROOT,
-  'data/processed/fixed-day-routing/trips.ndjson',
+  'data/processed/fixed-day-routing',
 );
 const GTFS_DIRECTORY = resolve(PROJECT_ROOT, 'data/raw/gtfs');
 const GTFS_TRANSFERS_PATH = resolve(GTFS_DIRECTORY, 'transfers.txt');
 
 export interface LoadedInspectionRaptorTimetable {
+  readonly manifest: FixedDayRoutingManifest;
   readonly timetable: RaptorTimetable;
   readonly stopIndexBySourceId: ReadonlyMap<string, number>;
   readonly transferGraph: TransferGraphBuildResult;
@@ -45,10 +50,15 @@ export interface LoadRaptorInspectionTimetableOptions {
 export async function loadRaptorInspectionTimetable(
   options: LoadRaptorInspectionTimetableOptions = {},
 ): Promise<LoadedInspectionRaptorTimetable> {
+  const routingDataset = await loadFixedDayRoutingDataset(ROUTING_DIRECTORY);
+  const reference = PROJECT_CONFIG.transit.referenceScenario;
+  validateFixedDayRoutingManifestScenario(routingDataset.manifest, {
+    serviceDate: reference.serviceDate,
+    routingWindowStart: reference.morningWindow.start,
+    routingWindowEnd: reference.morningWindow.end,
+  });
   const timetableBuildStart = performance.now();
-  const baseTimetable = await buildRaptorTimetable(
-    readRoutingTripsNdjson(ROUTING_TRIPS_PATH),
-  );
+  const baseTimetable = await buildRaptorTimetable(routingDataset.trips);
   const timetableBuildMilliseconds = performance.now() - timetableBuildStart;
   const stopIndexBySourceId = buildSourceStopIndex(
     baseTimetable.sourceStopIds,
@@ -82,6 +92,7 @@ export async function loadRaptorInspectionTimetable(
   const transferMemoryAfter = process.memoryUsage();
 
   return {
+    manifest: routingDataset.manifest,
     timetable: attachTransferGraph(baseTimetable, transferGraph),
     stopIndexBySourceId,
     transferGraph,

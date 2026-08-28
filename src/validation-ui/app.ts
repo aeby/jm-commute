@@ -1,24 +1,23 @@
 import styles from './style.css?inline';
 
 import { PROJECT_CONFIG } from '../config';
-import {
-  normalizeCityName,
-  resolveFastestReachableLocalitiesDebug,
-  type LocalityRoutingEntry,
-  type LocalityRoutingIndex,
-} from '../localities';
+import { normalizeCityName } from '../localities';
+import { resolveFastestReachableLocalitiesDebug } from '../transit/locality-routing';
 import {
   runRaptorFastestWindow,
   type FastestWindowRoutingDiagnostics,
 } from '../transit/raptor';
-import { parseGtfsTimeToSeconds } from '../transit/service-profiles';
-import { searchValidationLocalities } from './autocomplete';
+import { parseGtfsTimeToSeconds } from '../transit/gtfs';
 import {
   decodeValidationTimetable,
   reconstructValidationTimetable,
   type SwissCommuteValidationData,
-  type ValidationLocality,
 } from './validation-data';
+import { initializeLocalityAutocomplete } from './locality-autocomplete-controller';
+import {
+  createValidationLocalityRoutingIndex,
+  validateValidationData,
+} from './validation-runtime-data';
 import {
   ValidationViewModel,
   type DestinationTravelStatus,
@@ -36,165 +35,6 @@ function requireElement<TElement extends HTMLElement>(
     throw new Error(`Validation UI is missing element #${id}.`);
   }
   return element;
-}
-
-class LocalityAutocomplete {
-  private results: readonly ValidationLocality[] = [];
-  private activeIndex = -1;
-  private selected: ValidationLocality | undefined;
-
-  constructor(
-    private readonly input: HTMLInputElement,
-    private readonly list: HTMLElement,
-    private readonly localities: readonly ValidationLocality[],
-    private readonly onSelection: (
-      locality: ValidationLocality | undefined,
-    ) => void,
-  ) {
-    input.addEventListener('input', () => {
-      this.selected = undefined;
-      this.onSelection(undefined);
-      this.refresh();
-    });
-    input.addEventListener('focus', () => this.refresh());
-    input.addEventListener('blur', () => {
-      window.setTimeout(() => this.close(), 120);
-    });
-    input.addEventListener('keydown', (event) => this.handleKey(event));
-  }
-
-  private refresh(): void {
-    this.results = searchValidationLocalities(
-      this.localities,
-      this.input.value,
-      UI_CONFIG.autocompleteResultLimit,
-    );
-    this.activeIndex = this.results.length > 0 ? 0 : -1;
-    this.render();
-  }
-
-  private render(): void {
-    this.list.replaceChildren();
-    this.results.forEach((locality, index) => {
-      const option = document.createElement('button');
-      option.type = 'button';
-      option.className = `autocomplete-option${index === this.activeIndex ? ' is-active' : ''}`;
-      option.role = 'option';
-      option.setAttribute(
-        'aria-selected',
-        index === this.activeIndex ? 'true' : 'false',
-      );
-      option.textContent = `${locality.postalCode} ${locality.city}`;
-      option.addEventListener('mousedown', (event) => event.preventDefault());
-      option.addEventListener('click', () => this.choose(locality));
-      this.list.append(option);
-    });
-    const isOpen = this.results.length > 0;
-    this.list.hidden = !isOpen;
-    this.input.setAttribute('aria-expanded', String(isOpen));
-  }
-
-  private handleKey(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      this.close();
-      return;
-    }
-    if (this.results.length === 0) {
-      return;
-    }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      this.activeIndex = (this.activeIndex + 1) % this.results.length;
-      this.render();
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      this.activeIndex =
-        (this.activeIndex - 1 + this.results.length) % this.results.length;
-      this.render();
-    } else if (event.key === 'Enter') {
-      event.preventDefault();
-      const locality = this.results[this.activeIndex];
-      if (locality !== undefined) {
-        this.choose(locality);
-      }
-    }
-  }
-
-  private choose(locality: ValidationLocality): void {
-    this.selected = locality;
-    this.input.value = `${locality.postalCode} ${locality.city}`;
-    this.close();
-    this.onSelection(locality);
-  }
-
-  private close(): void {
-    this.results = [];
-    this.activeIndex = -1;
-    this.list.hidden = true;
-    this.input.setAttribute('aria-expanded', 'false');
-  }
-}
-
-function initializeLocalityAutocomplete(
-  input: HTMLInputElement,
-  list: HTMLElement,
-  localities: readonly ValidationLocality[],
-  onSelection: (locality: ValidationLocality | undefined) => void,
-): LocalityAutocomplete {
-  return new LocalityAutocomplete(input, list, localities, onSelection);
-}
-
-function validateData(
-  data: SwissCommuteValidationData | undefined,
-): SwissCommuteValidationData {
-  const scenario = PROJECT_CONFIG.transit.referenceScenario;
-  if (data === undefined) {
-    throw new Error(
-      'validation-data.js did not define the expected global dataset.',
-    );
-  }
-  if (data.schemaVersion !== 1) {
-    throw new Error(`Unsupported validation data schema ${data.schemaVersion}.`);
-  }
-  if (
-    data.serviceDate !== scenario.serviceDate ||
-    data.routingWindowStart !== scenario.morningWindow.start ||
-    data.routingWindowEnd !== scenario.morningWindow.end
-  ) {
-    throw new Error(
-      'Generated validation data does not match PROJECT_CONFIG. Rebuild it.',
-    );
-  }
-  if (data.feedVersion.length === 0) {
-    throw new Error('Generated validation data has no feed version.');
-  }
-  return data;
-}
-
-function createRoutingIndex(
-  data: SwissCommuteValidationData,
-): LocalityRoutingIndex {
-  const localityById = new Map(
-    data.localities.map((locality) => [locality.localityId, locality]),
-  );
-  const entries = data.localityRoutingEntries.map(
-    (entry): LocalityRoutingEntry => {
-      const locality = localityById.get(entry.localityId);
-      if (locality === undefined) {
-        throw new Error(
-          `Routing entry "${entry.localityId}" has no locality metadata.`,
-        );
-      }
-      return {
-        localityId: entry.localityId,
-        postalCode: locality.postalCode,
-        city: locality.city,
-        selectionMode: entry.selectionMode,
-        stopIndexes: Uint32Array.from(entry.stopIndexes),
-      };
-    },
-  );
-  return { entries };
 }
 
 function createTable(
@@ -243,14 +83,16 @@ function main(): void {
     '__SWISS_COMMUTE_VALIDATION_DATA__' as const;
   const validationWindow = window as typeof window &
     Partial<Record<typeof validationDataProperty, SwissCommuteValidationData>>;
-  const data = validateData(validationWindow[validationDataProperty]);
+  const data = validateValidationData(
+    validationWindow[validationDataProperty],
+  );
   const decodeStart = performance.now();
   const decodedTimetable = decodeValidationTimetable(data.timetable);
   const decodeMilliseconds = performance.now() - decodeStart;
   const reconstructionStart = performance.now();
   const timetable = reconstructValidationTimetable(decodedTimetable);
   const reconstructionMilliseconds = performance.now() - reconstructionStart;
-  const localityIndex = createRoutingIndex(data);
+  const localityIndex = createValidationLocalityRoutingIndex(data);
   const localityById = new Map(
     data.localities.map((locality) => [locality.localityId, locality]),
   );

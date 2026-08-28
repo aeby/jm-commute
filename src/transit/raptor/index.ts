@@ -1,5 +1,6 @@
 export {
   collectOriginDepartureSlots,
+  isPreferredFastestJourney,
   runRaptorFastestWindow,
   UNREACHED_TIME,
 } from './routing';

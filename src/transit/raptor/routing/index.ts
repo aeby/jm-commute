@@ -1,5 +1,5 @@
-export { collectInitialAccessStops } from './collect-initial-access-stops';
 export { collectOriginDepartureSlots } from './collect-origin-departure-slots';
+export { isPreferredFastestJourney } from './fastest-journey-policy';
 export { runRaptorFastestWindow } from './run-raptor-fastest-window';
 export { UNREACHED_TIME } from './state';
 
@@ -8,6 +8,4 @@ export type {
   FastestWindowQuery,
   FastestWindowResult,
   FastestWindowRoutingDiagnostics,
-  InitialAccessResult,
-  InitialAccessStop,
 } from './types';

@@ -5,16 +5,19 @@ import { parseArgs } from 'node:util';
 import { PROJECT_CONFIG } from '../src/config';
 import {
   createLocalityId,
-  createLocalityRoutingEntryMap,
   createReachableLocalityMap,
   LocalityResolver,
-  parseLocalitiesCsv,
+  type ReachableLocality,
+} from '../src/localities';
+import { parseLocalitiesCsv } from '../src/localities/node';
+import {
+  createLocalityRoutingEntryMap,
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
   type LocalityRoutingIndex,
-  type ReachableLocality,
-} from '../src/localities';
-import { loadLocalityRoutingIndex } from '../src/localities/routing/node';
+} from '../src/transit/locality-routing';
+import { loadLocalityRoutingIndex } from '../src/transit/locality-routing/node';
+import { parseGtfsTimeToSeconds } from '../src/transit/gtfs';
 import {
   runRaptorFastestWindow,
   UNREACHED_TIME,
@@ -22,7 +25,6 @@ import {
   type FastestWindowResult,
   type FastestWindowRoutingDiagnostics,
 } from '../src/transit/raptor';
-import { parseGtfsTimeToSeconds } from '../src/transit/service-profiles';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   readUtf8Input,

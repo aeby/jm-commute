@@ -22,14 +22,10 @@ import type {
   RaptorQuery,
   RaptorResult,
 } from './types';
-
-interface ValidatedQuery {
-  readonly originStopIndexes: readonly number[];
-  readonly departureTimeSeconds: number;
-  readonly maxArrivalTime: number;
-  readonly maxTransfers: number;
-  readonly minTransferTimeSeconds: number;
-}
+import {
+  validateRaptorQuery,
+  type ValidatedRaptorRunQuery,
+} from './validate-query';
 
 export interface RaptorRunBuffers {
   readonly stopCount: number;
@@ -166,113 +162,23 @@ const initializeSharedRound = (
   return current;
 };
 
-const validateNonnegativeInteger = (
-  value: number,
-  fieldName: string,
-): void => {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new RangeError(`${fieldName} must be a nonnegative integer`);
-  }
-};
+/**
+ * Internal result that aliases `RaptorRunBuffers.globalArrivalTimes`.
+ * Its arrival array remains valid only until those buffers are reused.
+ */
+export interface BorrowedRaptorRunResult {
+  readonly departureTimeSeconds: number;
+  readonly arrivalTimes: Uint32Array;
+}
 
-const validateQuery = (
+/** @internal The query must already be validated against this timetable. */
+export const runValidatedRaptorOneToAllBorrowed = (
   timetable: RaptorTimetable,
-  query: RaptorQuery,
-): ValidatedQuery => {
-  if (query === null || typeof query !== 'object') {
-    throw new TypeError('RAPTOR query must be an object');
-  }
-  if (!Array.isArray(query.originStopIndexes)) {
-    throw new TypeError('originStopIndexes must be an array');
-  }
-  if (query.originStopIndexes.length === 0) {
-    throw new RangeError('originStopIndexes must contain at least one stop');
-  }
-
-  const stopCount = timetable.sourceStopIds.length;
-  if (timetable.patternOccurrencesByStop.length !== stopCount) {
-    throw new Error(
-      'Timetable source stops and pattern adjacency have different lengths',
-    );
-  }
-  if (timetable.transfersByStop.length !== stopCount) {
-    throw new Error(
-      'Timetable source stops and transfer adjacency have different lengths',
-    );
-  }
-  if (timetable.accessTransfersByStop.length !== stopCount) {
-    throw new Error(
-      'Timetable source stops and initial-access adjacency have different lengths',
-    );
-  }
-  const originMembership = new Uint8Array(stopCount);
-  const originStopIndexes: number[] = [];
-  for (const originStopIndex of query.originStopIndexes) {
-    if (
-      !Number.isInteger(originStopIndex) ||
-      originStopIndex < 0 ||
-      originStopIndex >= stopCount
-    ) {
-      throw new RangeError(`Invalid origin stop index ${originStopIndex}`);
-    }
-    if (originMembership[originStopIndex] === 0) {
-      originMembership[originStopIndex] = 1;
-      originStopIndexes.push(originStopIndex);
-    }
-  }
-
-  validateNonnegativeInteger(
-    query.departureTimeSeconds,
-    'departureTimeSeconds',
-  );
-  if (query.departureTimeSeconds >= UNREACHED_TIME) {
-    throw new RangeError(
-      `departureTimeSeconds must be less than ${UNREACHED_TIME}`,
-    );
-  }
-  if (
-    !Number.isSafeInteger(query.maxTravelTimeSeconds) ||
-    query.maxTravelTimeSeconds <= 0
-  ) {
-    throw new RangeError('maxTravelTimeSeconds must be a positive integer');
-  }
-  const maxArrivalTime =
-    query.departureTimeSeconds + query.maxTravelTimeSeconds;
-  if (
-    !Number.isSafeInteger(maxArrivalTime) ||
-    maxArrivalTime >= UNREACHED_TIME
-  ) {
-    throw new RangeError(
-      'departureTimeSeconds plus maxTravelTimeSeconds exceeds the supported time range',
-    );
-  }
-
-  validateNonnegativeInteger(query.maxTransfers, 'maxTransfers');
-  if (query.maxTransfers >= Number.MAX_SAFE_INTEGER) {
-    throw new RangeError('maxTransfers is too large');
-  }
-  validateNonnegativeInteger(
-    query.minTransferTimeSeconds,
-    'minTransferTimeSeconds',
-  );
-
-  return {
-    originStopIndexes,
-    departureTimeSeconds: query.departureTimeSeconds,
-    maxArrivalTime,
-    maxTransfers: query.maxTransfers,
-    minTransferTimeSeconds: query.minTransferTimeSeconds,
-  };
-};
-
-export const runRaptorOneToAllWithBuffers = (
-  timetable: RaptorTimetable,
-  query: RaptorQuery,
+  validated: ValidatedRaptorRunQuery,
   buffers: RaptorRunBuffers,
   sharedContext?: RaptorSharedRangeContext,
   onDiagnostics?: RaptorDiagnosticsCallback,
-): RaptorResult => {
-  const validated = validateQuery(timetable, query);
+): BorrowedRaptorRunResult => {
   resetRunBuffers(timetable, buffers);
   const {
     globalArrivalTimes,
@@ -462,5 +368,28 @@ export const runRaptorOneToAllWithBuffers = (
   return {
     departureTimeSeconds: validated.departureTimeSeconds,
     arrivalTimes: globalArrivalTimes,
+  };
+};
+
+/**
+ * Runs a standalone query and returns an owned arrival array. Reusable range
+ * routing uses the explicitly borrowed internal variant above instead.
+ */
+export const runRaptorOneToAll = (
+  timetable: RaptorTimetable,
+  query: RaptorQuery,
+  onDiagnostics?: RaptorDiagnosticsCallback,
+): RaptorResult => {
+  const validated = validateRaptorQuery(timetable, query);
+  const borrowed = runValidatedRaptorOneToAllBorrowed(
+    timetable,
+    validated,
+    createRaptorRunBuffers(timetable),
+    undefined,
+    onDiagnostics,
+  );
+  return {
+    departureTimeSeconds: borrowed.departureTimeSeconds,
+    arrivalTimes: borrowed.arrivalTimes,
   };
 };

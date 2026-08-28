@@ -1,16 +1,12 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 
-import { PROJECT_CONFIG } from '../src/config';
-import {
-  createLocalityId,
-  parseLocalitiesCsv,
-} from '../src/localities';
-import { loadLocalityRoutingIndex } from '../src/localities/routing/node';
+import { createLocalityId } from '../src/localities';
+import { parseLocalitiesCsv } from '../src/localities/node';
 import { createTransitPlaceCandidateSelector } from '../src/transit/candidates';
+import { loadLocalityRoutingIndex } from '../src/transit/locality-routing/node';
 import {
   serializeValidationTimetable,
   validationTimetableTypedArrayBytes,
@@ -26,10 +22,6 @@ import { loadRaptorInspectionTimetable } from './load-raptor-inspection-timetabl
 import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const MANIFEST_PATH = resolve(
-  PROJECT_ROOT,
-  'data/processed/fixed-day-routing/manifest.json',
-);
 const LOCALITY_INDEX_PATH = resolve(
   PROJECT_ROOT,
   'data/processed/locality-routing-index.json',
@@ -39,13 +31,6 @@ const DEFAULT_OUTPUT_PATH = resolve(
   'dist-validation/validation-data.js',
 );
 
-interface RoutingManifestMetadata {
-  readonly sourceFeedVersion: string;
-  readonly serviceDate: string;
-  readonly routingWindowStart: string;
-  readonly routingWindowEnd: string;
-}
-
 export interface ValidationDataBuildResult {
   readonly outputPath: string;
   readonly outputBytes: number;
@@ -54,56 +39,6 @@ export interface ValidationDataBuildResult {
   readonly localityCount: number;
   readonly hubCandidateCount: number;
   readonly buildMilliseconds: number;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-async function loadManifestMetadata(): Promise<RoutingManifestMetadata> {
-  let value: unknown;
-  try {
-    value = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
-  } catch (error) {
-    throw new Error(`Unable to read routing manifest at "${MANIFEST_PATH}".`, {
-      cause: error,
-    });
-  }
-  if (!isRecord(value)) {
-    throw new Error('Routing manifest must contain a JSON object.');
-  }
-  const {
-    sourceFeedVersion,
-    serviceDate,
-    routingWindowStart,
-    routingWindowEnd,
-  } = value;
-  if (
-    typeof sourceFeedVersion !== 'string' ||
-    sourceFeedVersion.length === 0 ||
-    typeof serviceDate !== 'string' ||
-    typeof routingWindowStart !== 'string' ||
-    typeof routingWindowEnd !== 'string'
-  ) {
-    throw new Error(
-      'Routing manifest must contain feed version, service date, and routing window.',
-    );
-  }
-  const scenario = PROJECT_CONFIG.transit.referenceScenario;
-  if (
-    serviceDate !== scenario.serviceDate ||
-    routingWindowStart !== scenario.morningWindow.start ||
-    routingWindowEnd !== scenario.morningWindow.end
-  ) {
-    throw new Error(
-      'Routing manifest metadata does not match PROJECT_CONFIG.',
-    );
-  }
-  return {
-    sourceFeedVersion,
-    serviceDate,
-    routingWindowStart,
-    routingWindowEnd,
-  };
 }
 
 function javascriptSafeJson(value: unknown): string {
@@ -121,15 +56,19 @@ export async function buildValidationData(
     localitiesCsv,
     candidateInputs,
     localityIndex,
-    manifest,
     loadedTimetable,
   ] = await Promise.all([
     readUtf8Input(DEFAULT_LOCALITIES_FILE_PATH, 'locality CSV'),
     loadTransitCandidateInputs(),
     loadLocalityRoutingIndex(LOCALITY_INDEX_PATH),
-    loadManifestMetadata(),
     loadRaptorInspectionTimetable(),
   ]);
+  const { manifest } = loadedTimetable;
+  if (manifest.sourceFeedVersion === undefined) {
+    throw new Error(
+      'The validation UI requires sourceFeedVersion in the routing manifest.',
+    );
+  }
   const localities = parseLocalitiesCsv(localitiesCsv);
   const localityById = new Map(
     localities.map((locality) => [

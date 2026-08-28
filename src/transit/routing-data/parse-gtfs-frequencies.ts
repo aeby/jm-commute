@@ -5,7 +5,7 @@ import {
   readNonemptyCsvId,
   type CsvColumnIndexes,
 } from '../gtfs/read-csv-rows';
-import { parseGtfsTimeToSeconds } from '../service-profiles';
+import { parseGtfsTimeToSeconds } from '../gtfs';
 import type {
   ExactTimes,
   RoutingFrequencyWindow,

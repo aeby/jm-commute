@@ -3,15 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   UNREACHED_TIME,
   type FastestWindowResult,
-} from '../../../transit/raptor';
-import type {
-  LocalityRoutingEntry,
-} from '../types';
+} from '../../raptor';
+import type { LocalityRoutingEntry } from '../types';
 import {
-  createReachableLocalityMap,
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
-} from '../resolve-reachable-localities';
+} from '../resolve-fastest-reachable-localities';
 
 const DEPARTURE = 28_800;
 
@@ -99,18 +96,6 @@ describe('resolveFastestReachableLocalities', () => {
       { localityId: '8001:a', travelMinutes: 5 },
       { localityId: '8002:b', travelMinutes: 5 },
       { localityId: '9000:later', travelMinutes: 10 },
-    ]);
-  });
-
-  it('creates a locality-to-travel-minutes lookup map', () => {
-    const reachable = [
-      { localityId: '8001:zurich', travelMinutes: 0 },
-      { localityId: '3011:bern', travelMinutes: 58 },
-    ];
-
-    expect([...createReachableLocalityMap(reachable)]).toEqual([
-      ['8001:zurich', 0],
-      ['3011:bern', 58],
     ]);
   });
 

@@ -1,23 +1,24 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PROJECT_CONFIG } from '../src/config';
-import { loadFixedDateGtfsFeed } from '../src/transit/gtfs/load-fixed-date-feed';
+import { parseGtfsTimeToSeconds } from '../src/transit/gtfs';
 import {
+  loadFixedDateGtfsFeed,
   processGtfsCsvRows,
   readCsvColumn,
-} from '../src/transit/gtfs/read-csv-rows';
+} from '../src/transit/gtfs/node';
 import {
   parseTransitPlacesJson,
   type TransitPlace,
 } from '../src/transit/places';
 import {
   isRailRouteType,
-  parseGtfsTimeToSeconds,
   type TransitPlaceServiceProfileDataset,
 } from '../src/transit/service-profiles';
 import { createTransitPlaceProfileAccumulator } from '../src/transit/service-profiles/transit-place-profile-accumulator';
+import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const GTFS_DIRECTORY = join(PROJECT_ROOT, 'data', 'raw', 'gtfs');
@@ -105,8 +106,10 @@ async function main(): Promise<void> {
     ({ railDepartureCount }) => railDepartureCount > 0,
   ).length;
 
-  await mkdir(dirname(OUTPUT_PATH), { recursive: true });
-  await writeFile(OUTPUT_PATH, `${JSON.stringify(dataset, null, 2)}\n`, 'utf8');
+  await writeUtf8FileAtomically(
+    OUTPUT_PATH,
+    `${JSON.stringify(dataset, null, 2)}\n`,
+  );
 
   console.log(`Reference date: ${REFERENCE_SCENARIO.serviceDate}`);
   console.log(

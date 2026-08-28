@@ -1,23 +1,5 @@
 import { getGtfsWeekdayIndex, validateGtfsDate } from './gtfs-date';
-
-interface CalendarEntry {
-  readonly serviceId: string;
-  readonly monday: number;
-  readonly tuesday: number;
-  readonly wednesday: number;
-  readonly thursday: number;
-  readonly friday: number;
-  readonly saturday: number;
-  readonly sunday: number;
-  readonly startDate: string;
-  readonly endDate: string;
-}
-
-interface CalendarDateEntry {
-  readonly serviceId: string;
-  readonly date: string;
-  readonly exceptionType: number;
-}
+import type { CalendarDateEntry, CalendarEntry } from './types';
 
 const WEEKDAY_FIELDS = [
   'sunday',

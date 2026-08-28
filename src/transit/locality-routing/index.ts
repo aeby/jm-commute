@@ -4,15 +4,12 @@ export {
   parseLocalityRoutingIndexJson,
 } from './parse-locality-routing-index';
 export {
-  createReachableLocalityMap,
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
-} from './resolve-reachable-localities';
+} from './resolve-fastest-reachable-localities';
 
 export type {
   LocalityRoutingEntry,
   LocalityRoutingIndex,
-  LocalityRoutingSelectionMode,
-  ReachableLocality,
   ReachableLocalityDebug,
 } from './types';

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '../../../config';
+import { parseGtfsTimeToSeconds } from '../../gtfs';
 import type { TransitPlace } from '../../places';
 import { buildStopToPlaceMap } from '../build-stop-to-place-map';
-import { parseGtfsTimeToSeconds } from '../parse-gtfs-time';
 import { createTransitPlaceProfileAccumulator } from '../transit-place-profile-accumulator';
 
 const REFERENCE_SCENARIO = PROJECT_CONFIG.transit.referenceScenario;

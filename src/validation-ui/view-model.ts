@@ -1,9 +1,9 @@
-import {
-  type LocalityRoutingEntry,
-  type LocalityRoutingIndex,
-  type ReachableLocality,
-  type ReachableLocalityDebug,
-} from '../localities';
+import type { ReachableLocality } from '../localities';
+import type {
+  LocalityRoutingEntry,
+  LocalityRoutingIndex,
+  ReachableLocalityDebug,
+} from '../transit/locality-routing';
 import type { FastestWindowResult } from '../transit/raptor';
 import type { ValidationHubCandidate } from './validation-data';
 

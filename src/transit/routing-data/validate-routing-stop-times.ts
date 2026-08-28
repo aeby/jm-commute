@@ -1,4 +1,4 @@
-import { parseGtfsTimeToSeconds } from '../service-profiles';
+import { parseGtfsTimeToSeconds } from '../gtfs';
 import type {
   PickupDropOffType,
   RoutingStopTime,

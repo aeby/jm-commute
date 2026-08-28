@@ -13,7 +13,6 @@ const stopAtMeters = (
   y: number,
 ): ActiveTransferStop => ({
   stopIndex,
-  sourceStopId: `stop-${stopIndex}`,
   latitude: (y / EARTH_RADIUS_METERS) * (180 / Math.PI),
   longitude: (x / EARTH_RADIUS_METERS) * (180 / Math.PI),
 });

@@ -5,16 +5,9 @@ import {
   type RaptorTimetable,
 } from '../../timetable';
 import type { PickupDropOffType } from '../../../routing-data';
-import {
-  createRaptorRunBuffers,
-  runRaptorOneToAllWithBuffers,
-} from '../run-raptor-one-to-all';
+import { runRaptorOneToAll } from '../run-raptor-one-to-all';
 import { UNREACHED_TIME } from '../state';
-import type {
-  RaptorDiagnosticsCallback,
-  RaptorQuery,
-  RaptorResult,
-} from '../types';
+import type { RaptorResult } from '../types';
 
 export const arrivalAt = (
   result: RaptorResult,
@@ -41,18 +34,7 @@ export const travelTimeTo = (
     : arrivalTime - result.departureTimeSeconds;
 };
 
-export const runRaptorOneToAll = (
-  timetable: RaptorTimetable,
-  query: RaptorQuery,
-  onDiagnostics?: RaptorDiagnosticsCallback,
-): RaptorResult =>
-  runRaptorOneToAllWithBuffers(
-    timetable,
-    query,
-    createRaptorRunBuffers(timetable),
-    undefined,
-    onDiagnostics,
-  );
+export { runRaptorOneToAll };
 
 export interface TestStopTime {
   readonly arrival: number;

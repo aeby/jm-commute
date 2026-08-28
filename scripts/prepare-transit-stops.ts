@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseGtfsStopsCsv } from '../src/transit/stops';
+import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const INPUT_PATH = join(PROJECT_ROOT, 'data', 'raw', 'gtfs', 'stops.txt');
@@ -28,8 +29,10 @@ for (const stop of stops) {
 
 const stopCount = childStopCount + standaloneStopCount;
 
-await mkdir(dirname(OUTPUT_PATH), { recursive: true });
-await writeFile(OUTPUT_PATH, `${JSON.stringify(stops, null, 2)}\n`, 'utf8');
+await writeUtf8FileAtomically(
+  OUTPUT_PATH,
+  `${JSON.stringify(stops, null, 2)}\n`,
+);
 
 console.log(`Stations: ${stationCount}`);
 console.log(`Stops/platforms: ${stopCount}`);

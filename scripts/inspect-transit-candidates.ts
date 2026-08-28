@@ -1,10 +1,8 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import {
-  LocalityResolver,
-  parseLocalitiesCsv,
-} from '../src/localities';
+import { LocalityResolver } from '../src/localities';
+import { parseLocalitiesCsv } from '../src/localities/node';
 import { PROJECT_CONFIG } from '../src/config';
 import {
   selectTransitPlaceCandidates,

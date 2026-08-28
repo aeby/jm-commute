@@ -1,9 +1,8 @@
-import { createLocalityId } from '../locality-id';
-import type { LocalityId } from '../types';
+import { createLocalityId, type LocalityId } from '../../localities';
+import type { TransitCandidateSelectionMode } from '../candidates';
 import type {
   LocalityRoutingEntry,
   LocalityRoutingIndex,
-  LocalityRoutingSelectionMode,
 } from './types';
 
 const MAXIMUM_UINT32 = 0xffff_ffff;
@@ -18,7 +17,7 @@ function invalidEntry(index: number, message: string): never {
 function parseSelectionMode(
   value: unknown,
   index: number,
-): LocalityRoutingSelectionMode {
+): TransitCandidateSelectionMode {
   if (value !== 'WITHIN_ACCESS_RADIUS' && value !== 'NEAREST_FALLBACK') {
     return invalidEntry(index, 'unsupported selectionMode');
   }

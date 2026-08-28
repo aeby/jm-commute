@@ -24,7 +24,6 @@ const stopAtMeters = (
   metersNorth: number,
 ): ActiveTransferStop => ({
   stopIndex,
-  sourceStopId: `stop-${stopIndex}`,
   latitude: 47 + (metersNorth / EARTH_RADIUS_METERS) * (180 / Math.PI),
   longitude: 8,
 });
@@ -78,7 +77,6 @@ describe('generateStraightLineTransfers', () => {
     const registry = new TransferEdgeRegistry(2);
     const missing: ActiveTransferStop = {
       stopIndex: 1,
-      sourceStopId: 'missing',
     };
 
     expect(

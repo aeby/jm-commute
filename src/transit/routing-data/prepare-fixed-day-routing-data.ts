@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { createWriteStream, type WriteStream } from 'node:fs';
 import {
@@ -11,15 +11,18 @@ import {
 import { join } from 'node:path';
 import { finished } from 'node:stream/promises';
 
-import { loadFixedDateGtfsFeed } from '../gtfs/load-fixed-date-feed';
 import {
+  parseGtfsTimeToSeconds,
+  validateGtfsDate,
+} from '../gtfs';
+import {
+  loadFixedDateGtfsFeed,
   processGtfsCsvRows,
   readCsvColumn,
   readNonemptyCsvId,
   type CsvColumnIndexes,
-} from '../gtfs/read-csv-rows';
-import { parseGtfsTimeToSeconds } from '../service-profiles';
-import { validateGtfsDate } from '../service-profiles/gtfs-date';
+} from '../gtfs/node';
+import { parseTransitStopsJson } from '../stops';
 import { parseGtfsFrequencies } from './parse-gtfs-frequencies';
 import { shouldRetainRoutingTrip } from './should-retain-routing-trip';
 import type {
@@ -66,52 +69,6 @@ async function readUtf8File(path: string, description: string): Promise<string> 
       cause: error,
     });
   }
-}
-
-function parseTransitStopIds(
-  json: string,
-  sourcePath: string,
-): ReadonlySet<string> {
-  let value: unknown;
-
-  try {
-    value = JSON.parse(json);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to parse ${sourcePath} as JSON: ${message}`, {
-      cause: error,
-    });
-  }
-
-  if (!Array.isArray(value)) {
-    throw new Error(`${sourcePath} must contain a JSON array.`);
-  }
-
-  const stopIds = new Set<string>();
-
-  value.forEach((entry, index) => {
-    if (!isRecord(entry)) {
-      throw new Error(
-        `Invalid transit stop at index ${index} in ${sourcePath}: expected an object.`,
-      );
-    }
-
-    const { id } = entry;
-
-    if (typeof id !== 'string' || id.trim().length === 0) {
-      throw new Error(
-        `Invalid transit stop at index ${index} in ${sourcePath}: "id" must be a nonempty string.`,
-      );
-    }
-
-    if (stopIds.has(id)) {
-      throw new Error(`Duplicate transit-stop ID "${id}" in ${sourcePath}.`);
-    }
-
-    stopIds.add(id);
-  });
-
-  return stopIds;
 }
 
 function serviceDateToGtfsDate(serviceDate: string): string {
@@ -177,9 +134,11 @@ export async function prepareFixedDayRoutingData(
     options.transitStopsPath,
     'processed transit-stop JSON',
   );
-  const knownStopIds = parseTransitStopIds(
-    transitStopsJson,
-    options.transitStopsPath,
+  const knownStopIds = new Set(
+    parseTransitStopsJson(
+      transitStopsJson,
+      options.transitStopsPath,
+    ).map(({ id }) => id),
   );
   const frequenciesCsv = await readUtf8File(
     join(options.gtfsDirectory, 'frequencies.txt'),
@@ -207,6 +166,7 @@ export async function prepareFixedDayRoutingData(
     encoding: 'utf8',
     flags: 'wx',
   });
+  const tripsHash = createHash('sha256');
   const completedActiveTripIds = new Set<string>();
   let currentTripId: string | undefined;
   let currentStopTimes: RoutingStopTimeInput[] = [];
@@ -264,10 +224,9 @@ export async function prepareFixedDayRoutingData(
       frequencyWindows,
     };
 
-    const writeResult = writeStreamChunk(
-      tripsStream,
-      `${JSON.stringify(trip)}\n`,
-    );
+    const serializedTrip = `${JSON.stringify(trip)}\n`;
+    tripsHash.update(serializedTrip, 'utf8');
+    const writeResult = writeStreamChunk(tripsStream, serializedTrip);
 
     if (frequencyWindows.length > 0) {
       frequencyTripCount += 1;
@@ -390,6 +349,7 @@ export async function prepareFixedDayRoutingData(
 
     await closeWriteStream(tripsStream);
     streamClosed = true;
+    const tripsSha256 = tripsHash.digest('hex');
 
     const tripCount = scheduledTripCount + frequencyTripCount;
     const manifest: FixedDayRoutingManifest = {
@@ -400,6 +360,7 @@ export async function prepareFixedDayRoutingData(
       serviceDate: options.serviceDate,
       routingWindowStart: options.routingWindowStart,
       routingWindowEnd: options.routingWindowEnd,
+      tripsSha256,
       tripCount,
       scheduledTripCount,
       frequencyTripCount,

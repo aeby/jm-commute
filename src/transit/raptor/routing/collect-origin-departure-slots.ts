@@ -4,6 +4,10 @@ import {
   type RaptorTimetable,
 } from '../timetable';
 import { USE_QUERY_TRANSFER_TIME } from '../transfers';
+import {
+  validateOriginDepartureInputs,
+  type ValidatedOriginDepartureInputs,
+} from './validate-query';
 
 const addBoardableDepartureSlots = (
   timetable: RaptorTimetable,
@@ -58,61 +62,20 @@ const addBoardableDepartureSlots = (
   }
 };
 
-export const collectOriginDepartureSlots = (
+/** @internal Inputs must have been validated against this timetable. */
+export const collectValidatedOriginDepartureSlots = (
   timetable: RaptorTimetable,
-  originStopIndexes: readonly number[],
-  windowStartSeconds: number,
-  windowEndSeconds: number,
-  minTransferTimeSeconds: number,
+  inputs: ValidatedOriginDepartureInputs,
 ): Uint32Array => {
-  if (originStopIndexes.length === 0) {
-    throw new RangeError('Origin departure slots require at least one stop.');
-  }
-  if (
-    !Number.isSafeInteger(windowStartSeconds) ||
-    windowStartSeconds < 0 ||
-    !Number.isSafeInteger(windowEndSeconds) ||
-    windowEndSeconds <= windowStartSeconds ||
-    windowEndSeconds >= USE_QUERY_TRANSFER_TIME
-  ) {
-    throw new RangeError(
-      'Origin departure window must contain increasing Uint32 second values.',
-    );
-  }
-  if (
-    !Number.isSafeInteger(minTransferTimeSeconds) ||
-    minTransferTimeSeconds < 0
-  ) {
-    throw new RangeError(
-      'minTransferTimeSeconds must be a nonnegative integer.',
-    );
-  }
-
   const stopCount = timetable.sourceStopIds.length;
-  const originMembership = new Uint8Array(stopCount);
-  const origins: number[] = [];
-  for (const originStopIndex of originStopIndexes) {
-    if (
-      !Number.isInteger(originStopIndex) ||
-      originStopIndex < 0 ||
-      originStopIndex >= stopCount
-    ) {
-      throw new RangeError(`Invalid origin stop index ${originStopIndex}.`);
-    }
-    if (originMembership[originStopIndex] === 0) {
-      originMembership[originStopIndex] = 1;
-      origins.push(originStopIndex);
-    }
-  }
-
-  const slots = new Set<number>([windowStartSeconds]);
-  for (const originStopIndex of origins) {
+  const slots = new Set<number>([inputs.windowStartSeconds]);
+  for (const originStopIndex of inputs.originStopIndexes) {
     addBoardableDepartureSlots(
       timetable,
       originStopIndex,
       0,
-      windowStartSeconds,
-      windowEndSeconds,
+      inputs.windowStartSeconds,
+      inputs.windowEndSeconds,
       slots,
     );
 
@@ -139,10 +102,10 @@ export const collectOriginDepartureSlots = (
         timetable,
         accessStopIndex,
         encodedDuration === USE_QUERY_TRANSFER_TIME
-          ? minTransferTimeSeconds
+          ? inputs.minTransferTimeSeconds
           : encodedDuration,
-        windowStartSeconds,
-        windowEndSeconds,
+        inputs.windowStartSeconds,
+        inputs.windowEndSeconds,
         slots,
       );
     }
@@ -152,3 +115,21 @@ export const collectOriginDepartureSlots = (
     [...slots].toSorted((left, right) => right - left),
   );
 };
+
+export const collectOriginDepartureSlots = (
+  timetable: RaptorTimetable,
+  originStopIndexes: readonly number[],
+  windowStartSeconds: number,
+  windowEndSeconds: number,
+  minTransferTimeSeconds: number,
+): Uint32Array =>
+  collectValidatedOriginDepartureSlots(
+    timetable,
+    validateOriginDepartureInputs(
+      timetable,
+      originStopIndexes,
+      windowStartSeconds,
+      windowEndSeconds,
+      minTransferTimeSeconds,
+    ),
+  );

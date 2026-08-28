@@ -1,3 +1,5 @@
+import type { LocalityId } from '../localities';
+import type { TransitCandidateSelectionMode } from '../transit/candidates';
 import type {
   RaptorRoutePattern,
   RaptorTimetable,
@@ -9,16 +11,14 @@ const HOST_IS_LITTLE_ENDIAN =
   new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 
 export interface ValidationLocality {
-  readonly localityId: string;
+  readonly localityId: LocalityId;
   readonly postalCode: string;
   readonly city: string;
 }
 
 export interface ValidationLocalityRoutingEntry {
-  readonly localityId: string;
-  readonly selectionMode:
-    | 'WITHIN_ACCESS_RADIUS'
-    | 'NEAREST_FALLBACK';
+  readonly localityId: LocalityId;
+  readonly selectionMode: TransitCandidateSelectionMode;
   readonly stopIndexes: readonly number[];
 }
 

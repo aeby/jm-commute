@@ -2,7 +2,6 @@ import {
   USE_QUERY_TRANSFER_TIME,
   type GtfsTransferType,
   type TransferEdge,
-  type TransferEdgeDiagnostic,
   type TransferEdgeSource,
 } from './types';
 
@@ -244,7 +243,7 @@ export class TransferEdgeRegistry {
     );
   }
 
-  public toEdgeDiagnostics(): readonly TransferEdgeDiagnostic[] {
+  public toEdgeDiagnostics(): readonly TransferEdge[] {
     return [...this.#edges.values()].toSorted(
       (left, right) =>
         left.fromStopIndex - right.fromStopIndex ||

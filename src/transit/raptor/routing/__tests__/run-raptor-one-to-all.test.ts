@@ -291,7 +291,7 @@ describe('runRaptorOneToAll transfers', () => {
     ).toBe(29_400);
   });
 
-  it('platform-to-platform transfer requires future transfer-connectivity milestone', () => {
+  it('does not infer a cross-platform connection without a transfer edge', () => {
     const routeA = testPattern([0, 10], [
       [
         { arrival: 28_800, departure: 28_800 },
@@ -400,6 +400,19 @@ describe('runRaptorOneToAll one-to-all results', () => {
         first.arrivalTimes,
       );
     }
+  });
+
+  it('returns an arrival array owned independently from later runs', () => {
+    const timetable = transferNetwork();
+    const first = runRaptorOneToAll(timetable, query());
+    const snapshot = first.arrivalTimes.slice();
+    const later = runRaptorOneToAll(
+      timetable,
+      query({ departureTimeSeconds: 29_000 }),
+    );
+
+    expect(first.arrivalTimes).not.toBe(later.arrivalTimes);
+    expect(first.arrivalTimes).toEqual(snapshot);
   });
 });
 

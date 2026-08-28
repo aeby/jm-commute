@@ -29,7 +29,6 @@ export interface VirtualTransferOptions extends StraightLineTransferOptions {
 
 export interface ActiveTransferStop {
   readonly stopIndex: number;
-  readonly sourceStopId: string;
   readonly latitude?: number;
   readonly longitude?: number;
 }
@@ -56,7 +55,7 @@ export interface TransferGraphBuildResult {
   readonly transfersByStop: readonly Uint32Array[];
   readonly accessTransfersByStop: readonly Uint32Array[];
   readonly statistics: TransferGraphStatistics;
-  readonly edgeDiagnostics?: readonly TransferEdgeDiagnostic[];
+  readonly edgeDiagnostics?: readonly TransferEdge[];
 }
 
 export interface BuildTransferGraphOptions {
@@ -90,5 +89,3 @@ export interface TransferEdge {
   readonly accessEligibility: TransferAccessEligibility;
   readonly diagnosticSource: TransferEdgeDiagnosticSource;
 }
-
-export type TransferEdgeDiagnostic = TransferEdge;

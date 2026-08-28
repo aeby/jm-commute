@@ -1,6 +1,6 @@
 import { PROJECT_CONFIG } from '../../../config';
+import { parseGtfsTimeToSeconds } from '../../gtfs';
 import type { RoutingTrip } from '../../routing-data';
-import { parseGtfsTimeToSeconds } from '../../service-profiles';
 import { buildPatternAdjacency } from './build-pattern-adjacency';
 import { buildDenseStopIds } from './dense-stop-ids';
 import {

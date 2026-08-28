@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   copyFile,
   mkdir,
@@ -123,6 +124,7 @@ describe('prepareFixedDayRoutingData', () => {
         PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
       routingWindowEnd:
         PROJECT_CONFIG.transit.referenceScenario.morningWindow.end,
+      tripsSha256: createHash('sha256').update(tripsBytes).digest('hex'),
       tripCount: 6,
       scheduledTripCount: 5,
       frequencyTripCount: 1,

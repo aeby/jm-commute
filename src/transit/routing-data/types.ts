@@ -31,6 +31,8 @@ export interface FixedDayRoutingManifest {
   readonly serviceDate: string;
   readonly routingWindowStart: string;
   readonly routingWindowEnd: string;
+  /** SHA-256 of the canonical UTF-8 NDJSON content. */
+  readonly tripsSha256: string;
   readonly tripCount: number;
   readonly scheduledTripCount: number;
   readonly frequencyTripCount: number;

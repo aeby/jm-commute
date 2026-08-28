@@ -11,3 +11,11 @@ export interface Locality {
   readonly latitude: number;
   readonly longitude: number;
 }
+
+/**
+ * Transport-independent commute result keyed by the application's locality ID.
+ */
+export interface ReachableLocality {
+  readonly localityId: LocalityId;
+  readonly travelMinutes: number;
+}

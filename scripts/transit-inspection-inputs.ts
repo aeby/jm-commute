@@ -9,7 +9,10 @@ import type {
   TransitPlaceServiceProfile,
   TransitPlaceServiceProfileDataset,
 } from '../src/transit/service-profiles';
-import type { TransitStop } from '../src/transit/stops';
+import {
+  parseTransitStopsJson,
+  type TransitStop,
+} from '../src/transit/stops';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
 const TRANSIT_PLACES_RELATIVE_PATH =
@@ -166,52 +169,5 @@ export const loadTransitStopsInput = async (): Promise<
     TRANSIT_STOPS_PATH,
     'processed transit-stop JSON',
   );
-  let value: unknown;
-  try {
-    value = JSON.parse(json);
-  } catch (error) {
-    throw new Error(
-      `Unable to parse ${TRANSIT_STOPS_RELATIVE_PATH} as JSON.`,
-      { cause: error },
-    );
-  }
-  if (!Array.isArray(value)) {
-    throw new Error(
-      `${TRANSIT_STOPS_RELATIVE_PATH} must contain a JSON array.`,
-    );
-  }
-
-  return value.map((entry, index): TransitStop => {
-    if (!isRecord(entry)) {
-      throw new Error(`Invalid transit stop at index ${index}: expected an object.`);
-    }
-    const { id, name, latitude, longitude, kind, parentStationId } = entry;
-    if (typeof id !== 'string' || id.length === 0) {
-      throw new Error(`Invalid transit stop at index ${index}: invalid id.`);
-    }
-    if (typeof name !== 'string' || name.length === 0) {
-      throw new Error(`Invalid transit stop at index ${index}: invalid name.`);
-    }
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      throw new Error(
-        `Invalid transit stop at index ${index}: coordinates must be finite.`,
-      );
-    }
-    if (kind !== 'STOP_OR_PLATFORM' && kind !== 'STATION') {
-      throw new Error(`Invalid transit stop at index ${index}: unsupported kind.`);
-    }
-    if (parentStationId !== undefined && typeof parentStationId !== 'string') {
-      throw new Error(
-        `Invalid transit stop at index ${index}: parentStationId must be a string.`,
-      );
-    }
-    return {
-      id,
-      name,
-      latitude: latitude as number,
-      longitude: longitude as number,
-      kind,
-      ...(parentStationId === undefined ? {} : { parentStationId }),
-    };
-  });
+  return parseTransitStopsJson(json, TRANSIT_STOPS_RELATIVE_PATH);
 };

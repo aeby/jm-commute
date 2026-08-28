@@ -7,7 +7,7 @@ import {
 import type {
   LocalityRoutingIndex,
   ReachableLocalityDebug,
-} from '../../localities';
+} from '../../transit/locality-routing';
 import type { ValidationHubCandidate } from '../validation-data';
 import {
   createReachabilityBuckets,

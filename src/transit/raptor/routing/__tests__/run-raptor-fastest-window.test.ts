@@ -89,6 +89,39 @@ const bruteForceFastestWindow = (
 };
 
 describe('runRaptorFastestWindow', () => {
+  it('normalizes duplicate origins once without changing the result', () => {
+    const timetable = testTimetable(3, [
+      testPattern([0, 2], [
+        [
+          { arrival: 8 * HOUR, departure: 8 * HOUR },
+          { arrival: 8 * HOUR + 600, departure: 8 * HOUR + 600 },
+        ],
+      ]),
+      testPattern([1, 2], [
+        [
+          { arrival: 8 * HOUR + 60, departure: 8 * HOUR + 60 },
+          { arrival: 8 * HOUR + 540, departure: 8 * HOUR + 540 },
+        ],
+      ]),
+    ]);
+
+    const unique = runRaptorFastestWindow(timetable, query([0, 1]));
+    const duplicate = runRaptorFastestWindow(
+      timetable,
+      query([0, 1, 0, 1]),
+    );
+
+    expect(duplicate.durationSeconds).toEqual(unique.durationSeconds);
+    expect(duplicate.departureTimes).toEqual(unique.departureTimes);
+    expect(duplicate.arrivalTimes).toEqual(unique.arrivalTimes);
+  });
+
+  it('rejects an invalid origin before processing departure slots', () => {
+    expect(() =>
+      runRaptorFastestWindow(testTimetable(1, []), query([1])),
+    ).toThrow(/invalid origin stop index/i);
+  });
+
   it('optimizes duration rather than earliest absolute arrival', () => {
     const timetable = testTimetable(2, [
       testPattern(

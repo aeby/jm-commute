@@ -1,8 +1,9 @@
 import type { RaptorTimetable } from '../timetable';
-import { collectOriginDepartureSlots } from './collect-origin-departure-slots';
+import { collectValidatedOriginDepartureSlots } from './collect-origin-departure-slots';
+import { isPreferredFastestJourney } from './fastest-journey-policy';
 import {
   createRaptorRunBuffers,
-  runRaptorOneToAllWithBuffers,
+  runValidatedRaptorOneToAllBorrowed,
   type RaptorSharedRangeContext,
 } from './run-raptor-one-to-all';
 import {
@@ -15,43 +16,10 @@ import type {
   FastestWindowResult,
   RaptorRoutingDiagnostics,
 } from './types';
-
-const validateNonnegativeInteger = (
-  value: number,
-  fieldName: string,
-): void => {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new RangeError(`${fieldName} must be a nonnegative integer.`);
-  }
-};
-
-const validateQuery = (query: FastestWindowQuery): void => {
-  if (query === null || typeof query !== 'object') {
-    throw new TypeError('Fastest-window query must be an object.');
-  }
-  if (
-    !Number.isSafeInteger(query.maxTravelTimeSeconds) ||
-    query.maxTravelTimeSeconds <= 0
-  ) {
-    throw new RangeError('maxTravelTimeSeconds must be a positive integer.');
-  }
-  validateNonnegativeInteger(query.maxTransfers, 'maxTransfers');
-  if (query.maxTransfers >= Number.MAX_SAFE_INTEGER) {
-    throw new RangeError('maxTransfers is too large.');
-  }
-  validateNonnegativeInteger(
-    query.minTransferTimeSeconds,
-    'minTransferTimeSeconds',
-  );
-  if (
-    query.windowEndSeconds - 1 + query.maxTravelTimeSeconds >=
-    UNREACHED_TIME
-  ) {
-    throw new RangeError(
-      'Morning-window end plus maxTravelTimeSeconds exceeds the supported time range.',
-    );
-  }
-};
+import {
+  createValidatedRaptorRunQuery,
+  validateFastestWindowQuery,
+} from './validate-query';
 
 const createSharedRangeContext = (
   stopCount: number,
@@ -66,19 +34,6 @@ const createSharedRangeContext = (
   })),
 });
 
-const shouldReplaceBest = (
-  duration: number,
-  departure: number,
-  arrival: number,
-  bestDuration: number,
-  bestDeparture: number,
-  bestArrival: number,
-): boolean =>
-  duration < bestDuration ||
-  (duration === bestDuration &&
-    (departure > bestDeparture ||
-      (departure === bestDeparture && arrival < bestArrival)));
-
 /**
  * Processes meaningful origin departures latest-to-earliest. If a later
  * departure already reaches a stop no later with the same maximum number of
@@ -91,19 +46,16 @@ export const runRaptorFastestWindow = (
   query: FastestWindowQuery,
   onDiagnostics?: FastestWindowDiagnosticsCallback,
 ): FastestWindowResult => {
-  validateQuery(query);
-  const departureSlots = collectOriginDepartureSlots(
+  const validated = validateFastestWindowQuery(timetable, query);
+  const departureSlots = collectValidatedOriginDepartureSlots(
     timetable,
-    query.originStopIndexes,
-    query.windowStartSeconds,
-    query.windowEndSeconds,
-    query.minTransferTimeSeconds,
+    validated,
   );
   const stopCount = timetable.sourceStopIds.length;
   const durationSeconds = createUnreachedArrivalTimes(stopCount);
   const departureTimes = createUnreachedArrivalTimes(stopCount);
   const arrivalTimes = createUnreachedArrivalTimes(stopCount);
-  const maximumRounds = query.maxTransfers + 1;
+  const maximumRounds = validated.maxTransfers + 1;
   const sharedContext = createSharedRangeContext(stopCount, maximumRounds);
   const buffers = createRaptorRunBuffers(timetable);
 
@@ -115,15 +67,9 @@ export const runRaptorFastestWindow = (
 
   for (const departureTimeSeconds of departureSlots) {
     let runDiagnostics: RaptorRoutingDiagnostics | undefined;
-    const runResult = runRaptorOneToAllWithBuffers(
+    const runResult = runValidatedRaptorOneToAllBorrowed(
       timetable,
-      {
-        originStopIndexes: query.originStopIndexes,
-        departureTimeSeconds,
-        maxTravelTimeSeconds: query.maxTravelTimeSeconds,
-        maxTransfers: query.maxTransfers,
-        minTransferTimeSeconds: query.minTransferTimeSeconds,
-      },
+      createValidatedRaptorRunQuery(validated, departureTimeSeconds),
       buffers,
       sharedContext,
       (value) => {
@@ -139,7 +85,7 @@ export const runRaptorFastestWindow = (
       }
       const duration = arrival - departureTimeSeconds;
       if (
-        shouldReplaceBest(
+        isPreferredFastestJourney(
           duration,
           departureTimeSeconds,
           arrival,

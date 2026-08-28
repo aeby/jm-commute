@@ -1,6 +1,6 @@
+import { parseGtfsTimeToSeconds } from '../gtfs';
 import type { TransitPlace } from '../places';
 import { buildStopToPlaceMap } from './build-stop-to-place-map';
-import { parseGtfsTimeToSeconds } from './parse-gtfs-time';
 import type { TransitPlaceServiceProfile } from './types';
 
 interface ActiveTrip {

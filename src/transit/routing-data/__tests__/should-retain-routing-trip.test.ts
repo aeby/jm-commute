@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '../../../config';
-import { parseGtfsTimeToSeconds } from '../../service-profiles';
+import { parseGtfsTimeToSeconds } from '../../gtfs';
 import { shouldRetainRoutingTrip } from '../should-retain-routing-trip';
 import type {
   PickupDropOffType,

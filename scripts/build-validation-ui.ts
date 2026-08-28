@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { build as buildWithVite } from 'vite';
 
 import { buildValidationData } from './build-validation-data';
+import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT_DIRECTORY = resolve(PROJECT_ROOT, 'dist-validation');
@@ -55,10 +56,9 @@ async function main(): Promise<void> {
   if (!indexTemplate.includes(SCRIPT_MARKER)) {
     throw new Error(`Validation UI template is missing ${SCRIPT_MARKER}.`);
   }
-  await writeFile(
+  await writeUtf8FileAtomically(
     INDEX_OUTPUT_PATH,
     indexTemplate.replace(SCRIPT_MARKER, CLASSIC_SCRIPT_TAGS),
-    'utf8',
   );
 
   const [indexStats, appStats, dataStats] = await Promise.all([
