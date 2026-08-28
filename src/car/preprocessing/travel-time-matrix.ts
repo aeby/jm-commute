@@ -1,8 +1,11 @@
 import type { LocalityId } from '../../localities';
-
-export const UNREACHABLE_TRAVEL_MINUTES = 0xffff;
-export const MAX_TRAVEL_MINUTES = UNREACHABLE_TRAVEL_MINUTES - 1;
-export const TRAVEL_TIME_MATRIX_BYTES_PER_CELL = 2;
+import {
+  calculateTravelTimeMatrixCellCount,
+  getTravelTimeMatrixCellIndex,
+  MAX_TRAVEL_MINUTES,
+  TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
+  UNREACHABLE_TRAVEL_MINUTES,
+} from '../travel-time-matrix-format';
 
 export interface MutableCarTravelTimeRowSlab {
   readonly sourceRowCount: number;
@@ -21,49 +24,6 @@ function assertPositiveSafeInteger(value: number, description: string): void {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${description} must be a positive safe integer.`);
   }
-}
-
-function assertIndex(index: number, length: number, description: string): void {
-  if (!Number.isSafeInteger(index) || index < 0 || index >= length) {
-    throw new Error(
-      `${description} ${index} is outside the valid range 0–${length - 1}.`,
-    );
-  }
-}
-
-export function calculateTravelTimeMatrixCellCount(
-  localityCount: number,
-): number {
-  assertPositiveSafeInteger(localityCount, 'Matrix locality count');
-  const cellCount = localityCount * localityCount;
-  if (!Number.isSafeInteger(cellCount)) {
-    throw new Error('Matrix cell count exceeds JavaScript safe integers.');
-  }
-  return cellCount;
-}
-
-export function calculateTravelTimeMatrixByteLength(
-  localityCount: number,
-): number {
-  const byteLength =
-    calculateTravelTimeMatrixCellCount(localityCount) *
-    TRAVEL_TIME_MATRIX_BYTES_PER_CELL;
-  if (!Number.isSafeInteger(byteLength)) {
-    throw new Error('Matrix byte length exceeds JavaScript safe integers.');
-  }
-  return byteLength;
-}
-
-/** Returns the cell index for the deterministic row-major matrix layout. */
-export function getTravelTimeMatrixCellIndex(
-  localityCount: number,
-  originIndex: number,
-  destinationIndex: number,
-): number {
-  calculateTravelTimeMatrixCellCount(localityCount);
-  assertIndex(originIndex, localityCount, 'Origin index');
-  assertIndex(destinationIndex, localityCount, 'Destination index');
-  return originIndex * localityCount + destinationIndex;
 }
 
 /** Conservatively converts OSRM seconds to whole minutes. */

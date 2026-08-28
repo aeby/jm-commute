@@ -46,5 +46,11 @@ dist-ssr
 /data/processed/car/travel-time-matrix/*
 !/data/processed/car/travel-time-matrix/.gitkeep
 
+!/data/runtime/
+/data/runtime/*
+!/data/runtime/car/
+/data/runtime/car/*
+!/data/runtime/car/.gitkeep
+
 /apps/commute-viewer/public/generated/*
 !/apps/commute-viewer/public/generated/.gitkeep

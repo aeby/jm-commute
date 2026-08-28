@@ -4,16 +4,18 @@ import { resolve } from 'node:path';
 
 import {
   buildCarLocalityInputs,
-  calculateTravelTimeMatrixCellCount,
   getMatrixTravelMinutes,
   loadCarTravelTimeMatrix,
   parseCarLocalityRoadAnchorsJson,
-  parseCarTravelTimeMatrixManifestJson,
-  UNREACHABLE_TRAVEL_MINUTES,
   validateCarLocalityRoadAnchorsAgainstInputs,
   type CarLocalityInput,
   type LoadedCarTravelTimeMatrix,
 } from '@core/car/preprocessing';
+import {
+  calculateTravelTimeMatrixCellCount,
+  parseCarTravelTimeMatrixManifestJson,
+  UNREACHABLE_TRAVEL_MINUTES,
+} from '@core/car/travel-time-matrix-format';
 import {
   createLocalityId,
   LocalityResolver,

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { Stats } from 'node:fs';
 import {
   mkdir,
   open,
@@ -13,15 +14,12 @@ import { parseArgs } from 'node:util';
 
 import {
   buildCarLocalityInputs,
-  calculateTravelTimeMatrixByteLength,
-  calculateTravelTimeMatrixCellCount,
   createCarTravelTimeMatrixCheckpoint,
   createCarTravelTimeMatrixManifest,
   createCarTravelTimeRowSlab,
   durationSecondsToTravelMinutes,
   encodeTravelMinutesLittleEndian,
   finalizeCarTravelTimeRowSlab,
-  getTravelTimeMatrixCellIndex,
   loadCarTravelTimeMatrix,
   OSRM_ALGORITHM,
   OSRM_PROFILE,
@@ -31,11 +29,8 @@ import {
   OsrmTransportError,
   parseCarLocalityRoadAnchorsJson,
   parseCarTravelTimeMatrixCheckpointJson,
-  parseCarTravelTimeMatrixManifestJson,
   serializeCarTravelTimeMatrixCheckpoint,
   serializeCarTravelTimeMatrixManifest,
-  TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
-  UNREACHABLE_TRAVEL_MINUTES,
   validateCarLocalityRoadAnchorsAgainstInputs,
   validateCarTravelTimeMatrixResume,
   writeCarDurationBlockToRowSlab,
@@ -46,6 +41,14 @@ import {
   type CarTravelTimeMatrixResumeIdentity,
   type LoadedCarTravelTimeMatrix,
 } from '@core/car/preprocessing';
+import {
+  calculateTravelTimeMatrixByteLength,
+  calculateTravelTimeMatrixCellCount,
+  getTravelTimeMatrixCellIndex,
+  parseCarTravelTimeMatrixManifestJson,
+  TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
+  UNREACHABLE_TRAVEL_MINUTES,
+} from '@core/car/travel-time-matrix-format';
 import { parseLocalitiesCsv } from '../../src/localities/node';
 import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
 
@@ -146,18 +149,19 @@ function isMissingFileError(error: unknown): boolean {
 }
 
 async function regularFileSize(path: string): Promise<number | undefined> {
+  let fileStat: Stats;
   try {
-    const fileStat = await stat(path);
-    if (!fileStat.isFile()) {
-      throw new Error(`Expected a regular file at ${path}.`);
-    }
-    return fileStat.size;
+    fileStat = await stat(path);
   } catch (error) {
     if (isMissingFileError(error)) {
       return undefined;
     }
     throw error;
   }
+  if (!fileStat.isFile()) {
+    throw new Error(`Expected a regular file at ${path}.`);
+  }
+  return fileStat.size;
 }
 
 async function removeIfPresent(path: string): Promise<void> {

@@ -29,7 +29,7 @@ Journey reconstruction, transfer chaining, and job matching remain out of scope.
 - `src/transit/routing-data/` prepares and validates the streamed fixed-day routing dataset.
 - `src/transit/raptor/` owns compact timetable construction, transfer connectivity, and routing.
 - `src/transit/locality-routing/` is the public-transport adapter between generic localities and RAPTOR stop indexes/results.
-- `src/car/` is the browser-safe boundary for future generated car data; Docker, OSRM HTTP, and filesystem-backed code stay under `src/car/preprocessing/` and `scripts/car/`.
+- `src/car/` owns the platform-neutral, pure-TypeScript car matrix format and lookup runtime (and is therefore browser-safe); its optional Node loader is isolated in `src/car/node.ts`, while Docker, OSRM HTTP, and preprocessing filesystem code stay under `src/car/preprocessing/` and `scripts/car/`.
 - `apps/commute-viewer/` contains the Vue/Vite development viewer; it imports browser-safe routing modules from `src/` rather than duplicating them.
 
 ## Development
@@ -48,6 +48,9 @@ npm run car:osrm:prepare
 npm run car:anchors:prepare
 npm run car:matrix:prepare
 npm run car:matrix:inspect
+npm run car:runtime:data
+npm run car:runtime:verify
+npm run car:runtime:inspect
 npm run viewer:dev
 ```
 
@@ -63,8 +66,8 @@ Source attribution: **©swisstopo**
 
 OpenStreetMap provides the source road network. OSRM is used only during
 offline preprocessing with its standard `car.lua` profile and Contraction
-Hierarchies. The planned production/runtime representation is a compact,
-precomputed locality-to-locality driving-time dataset; the final TypeScript
+Hierarchies. The production/runtime representation is a compact, precomputed
+locality-to-locality driving-time dataset; the TypeScript
 lookup library will require neither OSRM, Docker, the OpenStreetMap PBF, nor an
 HTTP routing service.
 
@@ -110,10 +113,12 @@ Run the reproducible snap and route diagnostic suite with:
 npm run car:inspect -- --diagnostics
 ```
 
-The next offline preprocessing step persists one routable road anchor for every
-official locality:
+The car architecture keeps offline preparation, runtime-data packaging, and
+runtime lookup as explicit boundaries:
 
 ```text
+Offline preprocessing
+
 official locality
     ↓
 nearest routable road point
@@ -124,7 +129,21 @@ OSRM Table preprocessing
     ↓
 directional locality × locality travel-time matrix
     ↓
-future TypeScript car reachability lookup
+data/processed/car/travel-time-matrix/
+
+Runtime-data packaging
+
+validated processed manifest + binary
+    ↓
+data/runtime/car/manifest.json + travel-times.bin
+
+Runtime lookup
+
+the two packaged runtime files
+    ↓
+platform-neutral TypeScript car reachability index
+    ↓
+point travel time or reachable-locality results
 ```
 
 With the local OSRM service running, generate the strictly validated anchor
@@ -173,9 +192,72 @@ diagnostics without Docker or a running OSRM service:
 npm run car:matrix:inspect
 ```
 
-The matrix and manifest remain generated preprocessing/runtime data and are not
-yet exposed through the browser-safe public car API. The next car milestone
-will build the small TypeScript reachability lookup over this validated data.
+### Car runtime data
+
+`data/processed/car/` is the offline working area. It contains preprocessing
+inputs and intermediates such as the OSRM graph, locality road anchors, and the
+validated matrix output. None of those paths is a production/runtime contract.
+
+Package the validated matrix into the deliberately smaller runtime-data
+boundary with:
+
+```bash
+npm run car:runtime:data
+```
+
+The command writes exactly two deployable data files:
+
+```text
+data/runtime/car/
+  manifest.json
+  travel-times.bin
+```
+
+Both are generated and Git-ignored; the directory's `.gitkeep` is tracked. The
+runtime manifest and binary remain cryptographically tied by the matrix SHA-256
+and declared byte length. Verify the packaged pair independently with:
+
+```bash
+npm run car:runtime:verify
+```
+
+Building or verifying this runtime pair needs neither Docker nor a live OSRM
+service. Packaging consumes the already prepared matrix; verification reads
+only the packaged pair. Neither command regenerates road anchors or any
+public-transport data.
+
+The platform-neutral `src/car` runtime consumes the validated manifest and
+matrix bytes, builds the locality-ID index once, and supports both a
+directional point lookup and a one-to-many reachability scan. Point lookup
+returns whole minutes or `undefined` for an unreachable pair. Reachability
+returns the same transport-independent `{ localityId, travelMinutes }` shape
+used by public transport, ordered by travel time and then locality ID.
+
+OSRM is not required for runtime car reachability. Each runtime reachability
+query scans exactly one precomputed locality matrix row.
+
+The runtime keeps the generated format unchanged: row-major `UInt16`
+little-endian whole minutes, with `65535` reserved for unreachable cells. On a
+little-endian host it can read the matrix through a typed view without copying
+the 33 MB payload; the runtime diagnostics report whether a copy was required.
+The `data/runtime/car` directory is the complete generated data dependency: its
+`manifest.json` and `travel-times.bin` are the only generated files the runtime
+loads. It does not read the processed matrix path, road anchors, locality CSV,
+OSRM graph, or OpenStreetMap PBF. A Node-only loader is available under
+`src/car/node`, while the public `src/car` boundary contains no filesystem,
+Docker, OSRM, PBF, HTTP-service, or preprocessing dependency.
+
+Benchmark the real runtime implementation with deterministic initialization,
+point-lookup, and Zürich 90-minute reachability samples using:
+
+```bash
+npm run car:runtime:inspect
+```
+
+This inspection command is performance- and behavior-oriented: it prints
+reference lookups and reachable-locality counts, then reports matrix-copy,
+memory, and timing distributions. Use `car:runtime:verify` for the focused
+runtime-artifact integrity check. Neither command requires OSRM.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly

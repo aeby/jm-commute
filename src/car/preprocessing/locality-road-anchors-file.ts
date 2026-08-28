@@ -1,3 +1,8 @@
+import {
+  parseCarRoadGraphMetadata,
+  requireExactCarDataKeys,
+  type CarRoadGraphMetadata,
+} from '../travel-time-matrix-format';
 import type { CarLocalityInput } from './types';
 import {
   createLocalityInputFingerprint,
@@ -5,13 +10,6 @@ import {
 } from './locality-road-anchors';
 
 export const CAR_LOCALITY_ROAD_ANCHORS_SCHEMA_VERSION = 1;
-
-export interface CarRoadGraphMetadata {
-  readonly sourcePbfSha256: string;
-  readonly osrmVersion: string;
-  readonly profile: 'car.lua';
-  readonly algorithm: 'ch';
-}
 
 export interface CarLocalityRoadAnchorsFile {
   readonly schemaVersion: 1;
@@ -28,7 +26,6 @@ export interface CreateCarLocalityRoadAnchorsFileOptions {
 }
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
-const OSRM_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u;
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -38,25 +35,6 @@ function invalid(source: string, path: string, detail: string): never {
   throw new Error(
     `Invalid car locality road anchors in ${source} at ${path}: ${detail}.`,
   );
-}
-
-function requireExactKeys(
-  value: Readonly<Record<string, unknown>>,
-  expectedKeys: readonly string[],
-  source: string,
-  path: string,
-): void {
-  const actualKeys = Object.keys(value);
-  const actual = new Set(actualKeys);
-  const expected = new Set(expectedKeys);
-  const missing = expectedKeys.filter((key) => !actual.has(key));
-  if (missing.length > 0) {
-    invalid(source, path, `missing field(s) ${missing.join(', ')}`);
-  }
-  const unexpected = actualKeys.filter((key) => !expected.has(key));
-  if (unexpected.length > 0) {
-    invalid(source, path, `unexpected field(s) ${unexpected.join(', ')}`);
-  }
 }
 
 function parseSha256(
@@ -93,47 +71,6 @@ function parseCoordinate(
   return value;
 }
 
-function parseRoadGraph(
-  value: unknown,
-  source: string,
-): CarRoadGraphMetadata {
-  if (!isRecord(value)) {
-    return invalid(source, 'roadGraph', 'expected an object');
-  }
-  requireExactKeys(
-    value,
-    ['sourcePbfSha256', 'osrmVersion', 'profile', 'algorithm'],
-    source,
-    'roadGraph',
-  );
-  if (
-    typeof value.osrmVersion !== 'string' ||
-    !OSRM_VERSION_PATTERN.test(value.osrmVersion)
-  ) {
-    return invalid(
-      source,
-      'roadGraph.osrmVersion',
-      'expected a semantic version such as 26.8.0',
-    );
-  }
-  if (value.profile !== 'car.lua') {
-    return invalid(source, 'roadGraph.profile', 'expected "car.lua"');
-  }
-  if (value.algorithm !== 'ch') {
-    return invalid(source, 'roadGraph.algorithm', 'expected "ch"');
-  }
-  return {
-    sourcePbfSha256: parseSha256(
-      value.sourcePbfSha256,
-      source,
-      'roadGraph.sourcePbfSha256',
-    ),
-    osrmVersion: value.osrmVersion,
-    profile: value.profile,
-    algorithm: value.algorithm,
-  };
-}
-
 function parseAnchor(
   value: unknown,
   index: number,
@@ -143,11 +80,10 @@ function parseAnchor(
   if (!isRecord(value)) {
     return invalid(source, path, 'expected an object');
   }
-  requireExactKeys(
+  requireExactCarDataKeys(
     value,
     ['localityId', 'latitude', 'longitude', 'snapDistanceMeters'],
-    source,
-    path,
+    (detail) => invalid(source, path, detail),
   );
   if (
     typeof value.localityId !== 'string' ||
@@ -196,7 +132,7 @@ export function parseCarLocalityRoadAnchorsFile(
   if (!isRecord(value)) {
     return invalid(source, '$', 'expected an object');
   }
-  requireExactKeys(
+  requireExactCarDataKeys(
     value,
     [
       'schemaVersion',
@@ -205,8 +141,7 @@ export function parseCarLocalityRoadAnchorsFile(
       'roadGraph',
       'anchors',
     ],
-    source,
-    '$',
+    (detail) => invalid(source, '$', detail),
   );
   if (value.schemaVersion !== CAR_LOCALITY_ROAD_ANCHORS_SCHEMA_VERSION) {
     return invalid(source, 'schemaVersion', 'expected 1');
@@ -260,7 +195,7 @@ export function parseCarLocalityRoadAnchorsFile(
       source,
       'localityInputSha256',
     ),
-    roadGraph: parseRoadGraph(value.roadGraph, source),
+    roadGraph: parseCarRoadGraphMetadata(value.roadGraph, source),
     anchors,
   };
 }

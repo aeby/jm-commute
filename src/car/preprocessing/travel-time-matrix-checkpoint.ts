@@ -1,7 +1,8 @@
 import {
   calculateTravelTimeMatrixByteLength,
+  requireExactCarDataKeys,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
-} from './travel-time-matrix';
+} from '../travel-time-matrix-format';
 
 export const CAR_TRAVEL_TIME_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
 
@@ -33,24 +34,6 @@ function invalid(source: string, path: string, detail: string): never {
   );
 }
 
-function requireExactKeys(
-  value: Readonly<Record<string, unknown>>,
-  expectedKeys: readonly string[],
-  source: string,
-): void {
-  const actualKeys = Object.keys(value);
-  const actual = new Set(actualKeys);
-  const expected = new Set(expectedKeys);
-  const missing = expectedKeys.filter((key) => !actual.has(key));
-  if (missing.length > 0) {
-    invalid(source, '$', `missing field(s) ${missing.join(', ')}`);
-  }
-  const unexpected = actualKeys.filter((key) => !expected.has(key));
-  if (unexpected.length > 0) {
-    invalid(source, '$', `unexpected field(s) ${unexpected.join(', ')}`);
-  }
-}
-
 function positiveInteger(
   value: unknown,
   source: string,
@@ -76,7 +59,7 @@ export function parseCarTravelTimeMatrixCheckpoint(
   if (!isRecord(value)) {
     return invalid(source, '$', 'expected an object');
   }
-  requireExactKeys(
+  requireExactCarDataKeys(
     value,
     [
       'schemaVersion',
@@ -86,7 +69,7 @@ export function parseCarTravelTimeMatrixCheckpoint(
       'valueEncoding',
       'nextSourceIndex',
     ],
-    source,
+    (detail) => invalid(source, '$', detail),
   );
   if (
     value.schemaVersion !== CAR_TRAVEL_TIME_MATRIX_CHECKPOINT_SCHEMA_VERSION

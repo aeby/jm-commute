@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  getTravelTimeMatrixCellIndex,
+  MAX_TRAVEL_MINUTES,
+  UNREACHABLE_TRAVEL_MINUTES,
+} from '../../travel-time-matrix-format';
+import {
   createCarTravelTimeRowSlab,
   decodeTravelMinutesLittleEndian,
   durationSecondsToTravelMinutes,
   encodeTravelMinutesLittleEndian,
   finalizeCarTravelTimeRowSlab,
   getMatrixTravelMinutes,
-  getTravelTimeMatrixCellIndex,
-  MAX_TRAVEL_MINUTES,
-  UNREACHABLE_TRAVEL_MINUTES,
   writeCarDurationBlockToRowSlab,
 } from '../travel-time-matrix';
 
