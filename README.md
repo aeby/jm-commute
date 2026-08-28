@@ -42,6 +42,9 @@ The backend/runtime implementation is canonical. Its boundaries are:
   routing NDJSON, RAPTOR timetable/transfer construction and matrix compilation,
   plus OSRM, anchors, car publication, and diagnostics remain build-time
   concerns.
+- **HTTP visualization adapter:** `apps/commute-api` loads the package once and
+  owns locality JSON, strict request validation, coordinate joining, hex-grid
+  aggregation, GeoJSON, caching headers, and development CORS.
 - **Browser/viewer:** the legacy Base64 RAPTOR codec, generated `window` data,
   paint scheduling, stop sampling, and map schemas are viewer-owned under
   `apps/commute-viewer`. They are not canonical runtime formats.
@@ -91,6 +94,10 @@ npm run transit:runtime:verify
 npm run commute:package:data
 npm run commute:package:build
 npm run commute:package:verify
+npm run commute:api:typecheck
+npm run commute:api:verify
+npm run commute:api:benchmark
+npm run commute:api:dev
 npm run viewer:dev
 ```
 
@@ -166,6 +173,73 @@ The package exports only `@jm/commute` and `@jm/commute/node`. It contains no
 raw locality CSV, OSM, OSRM, GTFS, RAPTOR, matrix compiler, viewer code, or
 visualization policy. The two matrix indexes retain separate locality-ID maps;
 sharing that small map was not worth weakening their existing opaque boundary.
+
+## Commute visualization API
+
+`apps/commute-api` is a deliberately small Node HTTP application on top of
+`@jm/commute`. The matrices remain package-relative server assets and are never
+sent to the browser. No HTTP framework or new runtime dependency is required.
+
+Start the development server on its loopback-only default
+`http://127.0.0.1:3001` with:
+
+```bash
+npm run commute:api:dev
+```
+
+For a compiled start, use `npm run commute:api:start`. `COMMUTE_API_HOST` and
+`COMMUTE_API_PORT` override the bind address and port. Development CORS permits
+only `http://127.0.0.1:5173` and `http://localhost:5173` by default. Setting
+`COMMUTE_API_CORS_ORIGIN` replaces that list with one explicit origin; setting
+it to an empty value disables CORS headers.
+
+The server loads one `CommuteRuntime` at startup and exposes:
+
+```text
+GET /health
+GET /api/localities
+POST /api/reachability
+```
+
+`GET /api/localities` returns all 4,073 canonical records in matrix order. Its
+JSON and SHA-256 ETag are prepared once, with a one-day cache policy and normal
+`If-None-Match`/`304` handling.
+
+`POST /api/reachability` accepts exactly:
+
+```json
+{
+  "originLocalityId": "8001:zurich",
+  "mode": "car",
+  "maxTravelMinutes": 60
+}
+```
+
+The mode is `car` or `transit`; the maximum is an integer from 0 through the
+full 240-minute matrix horizon. The response joins package reachability results
+to canonical representative coordinates, aggregates them into deterministic
+Web Mercator hexagons, and returns directly renderable Polygon GeoJSON plus the
+origin, counts, and geographic bounds. The normal self result is included, so
+even a self-only query naturally produces its origin hex.
+
+The grid is adapted into API ownership from the established viewer algorithm:
+pointy-top cells with a 2,000 m opposite-corner diameter, deterministic axial
+`q,r` assignment, and a render-only scale of 0.88 for transparent gaps.
+Multiple localities in one cell use the minimum travel duration. Grid settings
+are server configuration, not request parameters or commute-package concepts.
+
+Reachability responses are currently uncompressed by the built-in server. Each
+successful response exposes lookup, coordinate-join, aggregation, GeoJSON,
+serialization, and total CPU durations through `Server-Timing`; the server logs
+the same concise metrics. Run the real-data checks and wire-size benchmark with:
+
+```bash
+npm run commute:api:verify
+npm run commute:api:benchmark
+```
+
+The existing Vue viewer is intentionally not migrated to these endpoints in
+this milestone.
 
 ### Offline car-routing preprocessing
 
