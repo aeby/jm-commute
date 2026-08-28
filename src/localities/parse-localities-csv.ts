@@ -1,8 +1,11 @@
 import { parse } from 'csv-parse/sync';
 
-import { normalizeCityName } from './normalize-city-name';
-import { normalizeSwissPostalCode } from './postal-code';
-import type { Locality } from './types';
+import {
+  createLocalityId,
+  normalizeCityName,
+  type Locality,
+} from '@jm/commute';
+import { normalizeSwissPostalCode } from '@commute-internal/localities/postal-code';
 
 const CITY_COLUMN = 'Ortschaftsname';
 const POSTAL_CODE_COLUMN = 'PLZ4';
@@ -143,6 +146,7 @@ export function parseLocalitiesCsv(csv: string): readonly Locality[] {
     }
 
     const locality: Locality = {
+      localityId: createLocalityId(postalCode, city),
       postalCode,
       city,
       latitude: parseCoordinate(

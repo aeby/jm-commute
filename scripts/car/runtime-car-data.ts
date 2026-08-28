@@ -3,12 +3,12 @@ import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { createCarTravelTimeIndex } from '@core/car';
+import { createCarTravelTimeIndex } from '@jm/commute';
 import {
   parseCarTravelTimeManifest,
   parseCarTravelTimeManifestJson,
   type CarTravelTimeManifest,
-} from '@core/car/travel-time-manifest';
+} from '@commute-internal/car/travel-time-manifest';
 import {
   parseCarTravelTimeMatrixManifestJson,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL as SOURCE_BYTES_PER_CELL,
@@ -19,7 +19,7 @@ import {
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   TRAVEL_TIME_MATRIX_SCHEMA_VERSION,
   UNAVAILABLE_TRAVEL_TIME,
-} from '@core/travel-time-matrix';
+} from '@commute-internal/travel-time-matrix';
 
 export interface RuntimeCarDataPaths {
   readonly sourceManifestPath: string;

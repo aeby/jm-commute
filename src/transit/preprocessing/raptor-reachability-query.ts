@@ -1,4 +1,4 @@
-import type { LocalityId } from '../../localities';
+import type { LocalityId } from '@jm/commute';
 import type { LocalityRoutingStopIndex } from '../locality-routing/types';
 import { resolveFastestReachableLocalities } from '../locality-routing/resolve-fastest-reachable-localities';
 import { runRaptorFastestWindow } from '../raptor/routing/run-raptor-fastest-window';

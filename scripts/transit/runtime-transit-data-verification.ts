@@ -1,12 +1,12 @@
 import {
   getReachableLocalitiesByTransit,
   getTransitTravelMinutes,
-} from '@core/transit';
+} from '@jm/commute';
 import {
   loadTransitTravelTimeIndex,
-  type LoadTransitTravelTimeIndexOptions,
-} from '@core/transit/node';
-import type { LocalityId } from '@core/localities';
+  type LoadTravelTimeIndexOptions,
+} from '@commute-internal/internal/load-travel-time-data';
+import type { LocalityId } from '@jm/commute';
 
 export interface RuntimeTransitPointCheck {
   readonly label: string;
@@ -36,7 +36,7 @@ export interface RuntimeTransitReachabilityResult
 }
 
 export interface VerifyRuntimeTransitDataOptions
-  extends LoadTransitTravelTimeIndexOptions {
+  extends LoadTravelTimeIndexOptions {
   readonly pointChecks: readonly RuntimeTransitPointCheck[];
   readonly reachabilityChecks: readonly RuntimeTransitReachabilityCheck[];
 }

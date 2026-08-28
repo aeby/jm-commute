@@ -1,4 +1,4 @@
-import type { ReachableLocality } from '../../localities';
+import type { ReachableLocality } from '@jm/commute';
 import { isPreferredFastestJourney } from '../raptor/routing/fastest-journey-policy';
 import { UNREACHED_TIME } from '../raptor/routing/state';
 import type { FastestWindowResult } from '../raptor/routing/types';

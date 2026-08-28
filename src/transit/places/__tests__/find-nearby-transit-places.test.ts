@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Locality } from '../../../localities';
+import type { Locality } from '@jm/commute';
 import { findNearbyTransitPlaces } from '../find-nearby-transit-places';
 import { haversineDistanceMeters } from '../haversine-distance-meters';
 import type { TransitPlace } from '../types';
 
 const LOCALITY: Locality = {
+  localityId: '0000:origin',
   postalCode: '0000',
   city: 'Origin',
   latitude: 0,

@@ -17,10 +17,11 @@ Users and jobs are identified approximately by postcode and/or city name. The sy
 ## Current milestone
 
 The current implementation compiles car and representative-morning transit
-journeys into deterministic dense locality-to-locality matrices. Production
-queries scan those matrices through one transport-independent runtime index.
-The existing Vue/MapLibre viewer still uses its legacy in-browser RAPTOR path;
-viewer migration is intentionally deferred.
+journeys into deterministic dense locality-to-locality matrices. The
+`@jm/commute` workspace package ships those matrices together with the 4,073
+official locality records and answers production queries without either
+routing engine. The existing Vue/MapLibre viewer still uses its legacy
+in-browser RAPTOR path; viewer migration is intentionally deferred.
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
@@ -30,16 +31,13 @@ Journey reconstruction, transfer chaining, and job matching remain out of scope.
 
 The backend/runtime implementation is canonical. Its boundaries are:
 
-- **Domain:** `src/localities/index.ts` owns transport-independent locality
-  identity, normalization, resolution, and the shared `ReachableLocality`
-  result. Raw official-locality CSV parsing is isolated in
-  `src/localities/node.ts`.
-- **Runtime core:** `src/travel-time-matrix` owns the opaque dense matrix index.
-  `src/car/index.ts` and `src/transit/index.ts` are thin mode-specific façades
-  that expose construction and high-level queries without OSRM or RAPTOR data.
-- **Node/server integration:** explicit `node.ts` entries own filesystem access,
-  paths, streaming, `Buffer`, and checksum verification. Node functionality is
-  not weakened merely to make a browser bundle possible.
+- **Canonical server package:** `packages/commute` owns locality identity and
+  catalog lookup, the opaque shared dense matrix index, thin car/transit
+  façades, and `@jm/commute/node`. Its Node loader authenticates package-relative
+  data and exposes one `CommuteRuntime` with `localities`, `car`, and `transit`.
+- **Root locality preprocessing:** `src/localities/node.ts` parses the official
+  swisstopo CSV and applies its established duplicate policy. The package never
+  reads that source file at runtime.
 - **Preprocessing:** GTFS ingestion, candidates, service profiles, normalized
   routing NDJSON, RAPTOR timetable/transfer construction and matrix compilation,
   plus OSRM, anchors, car publication, and diagnostics remain build-time
@@ -49,35 +47,32 @@ The backend/runtime implementation is canonical. Its boundaries are:
   `apps/commute-viewer`. They are not canonical runtime formats.
 
 Platform-neutral runtime code is shared where natural, but browser
-compatibility is not a constraint on Node loaders or preprocessing. The
-history- and import-backed classifications are recorded in
+compatibility is not a constraint on the canonical Node loader or
+preprocessing. The history- and import-backed classifications are recorded in
 [`docs/runtime-boundary-audit.md`](docs/runtime-boundary-audit.md).
 
-The intended next package layout is:
+The implemented package direction is:
 
 ```text
-packages/
-  commute/          # canonical server/runtime; exports . and ./node
-  commute-browser/  # thin browser loading adapter; depends on @jm/commute
-
-apps/
-  commute-viewer/   # eventually depends on @jm/commute-browser
+backend matching / future UI API
+               ↓
+          @jm/commute
+        exports . and ./node
 ```
 
-`@jm/commute-browser` may add asset loading, decoding, or workers, but it must
-not reimplement locality identity or either mode's shared matrix lookup. RAPTOR
-and OSRM remain preprocessing compilers and do not belong in either production
-runtime package. The dependency must never point from `@jm/commute` to the
-browser adapter.
+There is no browser package. A future UI can call a small server/API that joins
+reachable IDs with the packaged representative coordinates. Presentation
+choices such as autocomplete ranking, hex grids, map projection, and GeoJSON
+remain outside `@jm/commute`. RAPTOR and OSRM are offline compilers and do not
+belong in production runtime data.
 
 ## Development
 
 ```bash
 npm install
-npm test
+npm run test:core
 npm run typecheck:runtime
 npm run typecheck:core
-npm run typecheck
 npm run lint
 npm run data:prepare:stops
 npm run data:prepare:places
@@ -93,6 +88,9 @@ npm run car:runtime:verify
 npm run transit:matrix:prepare
 npm run transit:matrix:inspect
 npm run transit:runtime:verify
+npm run commute:package:data
+npm run commute:package:build
+npm run commute:package:verify
 npm run viewer:dev
 ```
 
@@ -103,6 +101,71 @@ The downloaded source data is stored under `data/raw/` and is not committed to G
 Locality data comes from the official directory of towns and cities published by the Federal Office of Topography swisstopo.
 
 Source attribution: **©swisstopo**
+
+## `@jm/commute` server package
+
+`packages/commute` is the single production owner. Its generated data is:
+
+```text
+packages/commute/data/
+  localities.json
+  car/
+    manifest.json
+    travel-times.bin
+  transit/
+    manifest.json
+    travel-times.bin
+```
+
+`localities.json` contains one immutable record per canonical matrix position:
+`localityId`, postal code, official city spelling, latitude, and longitude.
+Its ordered-ID SHA-256 is recomputed during loading, and its 4,073 IDs must
+match both matrix manifests element by element. The catalog is deterministically
+generated from `data/raw/AMTOVZ_CSV_WGS84.csv` as part of:
+
+```bash
+npm run commute:package:data
+```
+
+That command authenticates the root runtime matrices, rebuilds and
+read-back-validates `data/runtime/localities.json`, stages all five package
+assets, and proves byte identity after promotion. No routing engine is invoked.
+Generated package data and `dist/` remain Git-ignored; the build fails clearly
+when the assets have not been published.
+
+Build or independently verify the installed npm tarball with:
+
+```bash
+npm run commute:package:build
+npm run commute:package:pack
+npm run commute:package:verify
+```
+
+The verifier installs the actual `.tgz` into a clean temporary npm project—no
+workspace symlink—then checks locality resolution, car and transit lookups,
+package-relative asset loading, and blocked internal subpaths.
+
+```ts
+import { loadCommuteRuntime } from '@jm/commute/node';
+
+const commute = await loadCommuteRuntime();
+const zurich = commute.localities.resolve({
+  postalCode: '8001',
+  city: 'Zürich',
+});
+
+if (zurich !== undefined) {
+  const reachable = commute.transit.getReachableLocalities(
+    zurich.localityId,
+    60,
+  );
+}
+```
+
+The package exports only `@jm/commute` and `@jm/commute/node`. It contains no
+raw locality CSV, OSM, OSRM, GTFS, RAPTOR, matrix compiler, viewer code, or
+visualization policy. The two matrix indexes retain separate locality-ID maps;
+sharing that small map was not worth weakening their existing opaque boundary.
 
 ### Offline car-routing preprocessing
 
@@ -178,14 +241,16 @@ data/processed/transit inputs → RAPTOR compiler
                                       ↓
                           data/runtime/transit/
 
-RUNTIME
+PACKAGE DATA / RUNTIME
 
-data/runtime/car/          data/runtime/transit/
-          └──────────────────┬──────────────────┘
-                         ↓
-                shared TravelTimeIndex
-                         ↓
-                 ReachableLocality[]
+localities.json   car matrix   transit matrix
+       └──────────────┬──────────────┘
+                      ↓
+             @jm/commute/node
+                      ↓
+       LocalityCatalog + TravelTimeIndex
+                      ↓
+                CommuteRuntime
 ```
 
 With the local OSRM service running, generate the strictly validated anchor
@@ -282,10 +347,11 @@ service. Packaging consumes the already prepared matrix; verification reads
 only the packaged pair. Neither command regenerates road anchors or any
 public-transport data.
 
-The transport-independent `src/travel-time-matrix` runtime consumes the shared
-descriptor and dense `UInt8` bytes, builds the locality-ID index once, and
-supports directional point lookup and a one-row reachability scan. The
-`src/car` API is a thin mode-specific façade over that implementation. Point
+The transport-independent `packages/commute/src/travel-time-matrix` runtime
+consumes the shared descriptor and dense `UInt8` bytes, builds the locality-ID
+index once, and supports directional point lookup and a one-row reachability
+scan. The package car API is a thin mode-specific façade over that
+implementation. Point
 lookup returns whole minutes or `undefined` for an unavailable pair.
 Reachability returns the shared `{ localityId, travelMinutes }` shape, ordered
 by travel time and then locality ID.
@@ -304,12 +370,11 @@ Because each cell is one byte, the common runtime path uses a zero-copy
 `Uint8Array` view over approximately 15.82 MiB rather than retaining a second
 decoded matrix. The locality-ID index is built once.
 
-The `data/runtime/car` directory is the complete generated data dependency: its
-`manifest.json` and `travel-times.bin` are the only generated files the runtime
-loads. It does not read the processed matrix path, road anchors, locality CSV,
-OSRM graph, or OpenStreetMap PBF. A Node-only loader is available under
-`src/car/node`, while the public `src/car` boundary contains no filesystem,
-Docker, OSRM, PBF, HTTP-service, or preprocessing dependency.
+The `data/runtime/car` directory is the publication source for the two car
+assets copied into `packages/commute/data/car`. The installed Node loader reads
+only its own package-relative catalog and mode assets. It does not read the
+processed matrix path, road anchors, locality CSV, OSRM graph, or OpenStreetMap
+PBF.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly
@@ -409,11 +474,11 @@ final pair independently using only runtime assets with:
 npm run transit:runtime:verify
 ```
 
-Those two files are the complete generated dependency of production transit
-lookup. `src/transit/node.ts` loads and authenticates them; the public transit
-façade delegates to the same shared `TravelTimeIndex` used by car. Neither
-RAPTOR, a timetable, transfers, GTFS, nor the locality-routing index is loaded
-at production runtime.
+Those two files are the publication source for production transit lookup.
+`@jm/commute/node` authenticates their package copies; the transit façade
+delegates to the same shared `TravelTimeIndex` used by car. Neither RAPTOR, a
+timetable, transfers, GTFS, nor the locality-routing index is loaded at
+production runtime.
 
 The transit manifest wraps the shared matrix descriptor with the service date,
 morning departure window, GTFS feed version, prepared-trip digest, an exact
@@ -492,9 +557,14 @@ The intended job boundary is a transport-independent value such as `job.locality
 
 ### Commute viewer
 
-A Vue/Vite map viewer is available under `apps/commute-viewer`.
+A legacy Vue/Vite validation viewer remains under `apps/commute-viewer`. It is
+not part of `@jm/commute` and was deliberately not migrated in this package
+milestone. Its temporary direct import of the former root locality runtime is
+now broken; no compatibility re-export was added. A later UI service can use
+the server package and decide how to aggregate the 4,073 representative points
+for visualization.
 
-Prepare its local runtime data and start the development server with:
+Its historical development commands remain documented for the later migration:
 
 ```bash
 npm run viewer:dev

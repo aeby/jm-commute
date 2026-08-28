@@ -7,7 +7,7 @@ import {
   createLocalityId,
   LocalityResolver,
   type ReachableLocality,
-} from '@core/localities';
+} from '@jm/commute';
 import { createReachableLocalityMap } from '@core/localities/create-reachable-locality-map';
 import { parseLocalitiesCsv } from '@core/localities/node';
 import {

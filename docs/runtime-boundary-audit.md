@@ -4,33 +4,53 @@ This report records the ownership decisions and resulting runtime boundary.
 Decisions are based on import consumers and Git history, not directory names
 alone.
 
+Milestone 6C completed the extraction described by this audit. Canonical
+runtime ownership is now `packages/commute/src`; root `src/` retains only raw
+locality ingestion and car/transit compiler code. References below to former
+root runtime paths document the ownership decision that led to the move rather
+than compatibility entry points—none were left behind.
+
 The canonical direction is server-first:
 
 ```text
-domain <- runtime core <- Node/server integration
+locality catalog + matrix runtime <- Node/server integration
                  ^
                  |
           offline preprocessing
-
-future @jm/commute-browser -> future @jm/commute
 ```
 
 Platform-neutral algorithms and typed arrays stay shared where that is natural.
 Browser compatibility is not a constraint on Node loaders or preprocessing.
+No browser package is currently planned; a future browser UI can call a small
+server that uses `@jm/commute`.
+
+## Extracted package boundary
+
+`@jm/commute` exposes only `.` and `./node`. It ships the authenticated official
+locality catalog plus separate raw UInt8 car and transit matrices. The Node
+entry resolves those assets relative to `import.meta.url`, authenticates them,
+requires catalog/car/transit locality ordering to match, and returns one
+`CommuteRuntime`. No GTFS, RAPTOR, OSRM, OSM, matrix generation, viewer schema,
+or raw swisstopo CSV is present in the package.
+
+Root preprocessing consumes package contracts through the public workspace
+entry or a root-only `@commute-internal/*` source alias. That alias is absent
+from npm exports and clean installed consumers receive
+`ERR_PACKAGE_PATH_NOT_EXPORTED` for package internals.
 
 ## KEEP_IN_RUNTIME_CORE
 
 | Current module | Why it exists | Recommended ownership |
 | --- | --- | --- |
-| `src/localities/types.ts`, locality identity, normalization, and resolver | Defines transport-independent `LocalityId`, `LocalityQuery`, and `ReachableLocality` semantics | Public domain |
+| `packages/commute/src/localities/` | Defines transport-independent locality identity, normalization, catalog lookup, and `ReachableLocality` semantics | Public package domain |
 | `src/transit/raptor/routing/` | Implements Range-RAPTOR and transfer relaxation without platform APIs | Internal transit matrix compiler |
 | RAPTOR timetable layouts and route-pattern access | Compact typed-array state consumed while compiling the matrix | Transit preprocessing; never consumer-facing mutable data |
 | Transfer adjacency semantics and `USE_QUERY_TRANSFER_TIME` | Required while compiling transit rows | Transit preprocessing |
 | Transit locality result reduction | Maps stop-space results to transport-independent locality results | Internal compiler bridge reused by matrix generation |
 | Pure GTFS date/time and pickup/drop-off primitives | Shared semantic primitives without file I/O | Runtime-neutral transit support |
-| `src/travel-time-matrix/` | Opaque directional matrix lookup, strict descriptor, and one-row reachability scan | Transport-independent shared runtime |
-| `src/car/travel-time-index.ts` | Thin car manifest/provenance façade over the shared matrix | Public car runtime implementation |
-| `src/transit/travel-time-index.ts` | Thin transit manifest/provenance façade over the shared matrix | Public transit runtime implementation |
+| `packages/commute/src/travel-time-matrix/` | Opaque directional matrix lookup, strict descriptor, and one-row reachability scan | Transport-independent shared package runtime |
+| `packages/commute/src/car/travel-time-index.ts` | Thin car manifest/provenance façade over the shared matrix | Public car runtime implementation |
+| `packages/commute/src/transit/travel-time-index.ts` | Thin transit manifest/provenance façade over the shared matrix | Public transit runtime implementation |
 
 The transit compiler may retain mutable typed arrays internally. They are
 hidden through entry-point ownership and are not part of production data.
@@ -39,19 +59,18 @@ hidden through entry-point ownership and are not part of production data.
 
 | Current module | Why it exists | Recommended ownership |
 | --- | --- | --- |
-| `src/car/node.ts` | Filesystem loading and SHA-256 authentication of runtime assets | Canonical car Node entry point |
-| `src/transit/node.ts` | Filesystem loading and SHA-256 authentication of the transit manifest/matrix pair | Canonical transit Node entry point |
+| `packages/commute/src/node.ts` and `internal/load-travel-time-data.ts` | Package-relative catalog/matrix loading and SHA-256 authentication | Canonical aggregate Node entry point; only `./node` is exported |
 | `src/localities/node.ts` | Raw official-locality CSV ingestion | Node/preprocessing entry point, not domain runtime |
 | `src/transit/gtfs/node.ts` | Filesystem/streaming GTFS CSV ingestion | Node-only preprocessing |
 | `src/transit/locality-routing/node.ts` | Generated locality-index file loading | Node-only loading; not a consumer root export |
 | `src/transit/routing-data/node.ts` | Processed manifest and NDJSON loading | Node-only preprocessing |
 | `src/transit/raptor/transfers/node.ts` | Streaming raw `transfers.txt` | Node-only preprocessing |
 
-These splits were introduced while making the former validation UI bundle, but
-they express a sound general boundary and are retained. `src/transit/node.ts`
-loads only the published transit manifest and dense matrix. It does not promote
-`scripts/transit/load-raptor-compiler.ts`, which rebuilds compiler state from
-processed NDJSON and raw GTFS, into the production loader.
+The root Node splits were introduced while making the former validation UI
+bundle, but they express a sound preprocessing boundary and are retained. The
+package Node loader reads only its catalog and two published dense matrices. It
+does not promote `scripts/transit/load-raptor-compiler.ts`, which rebuilds
+compiler state from processed NDJSON and raw GTFS, into production.
 
 ## MOVE_TO_PREPROCESSING
 
@@ -76,11 +95,11 @@ are gone; production transit lookup does not import locality-routing or RAPTOR.
 
 | Current module | Why it exists | Recommended ownership |
 | --- | --- | --- |
-| `apps/commute-viewer/src/data/browser-timetable.ts` | Legacy Base64, `btoa`/`atob`, flattening, and reconstruction for generated viewer data | Viewer ownership; later remove or replace through `@jm/commute-browser` |
+| `apps/commute-viewer/src/data/browser-timetable.ts` | Legacy Base64, `btoa`/`atob`, flattening, and reconstruction for generated viewer data | Viewer ownership; remove when the viewer moves behind a server API |
 | `apps/commute-viewer/src/data/runtime-data.ts` | Viewer schema, `window` global loading, Base64 validation, autocomplete data, and stop coordinates | Viewer application |
 | `apps/commute-viewer/src/viewer-routing.ts` | Paint yielding, request supersession, timings, stop sampling, hexes, and GeoJSON | Viewer application |
 | `scripts/build-commute-viewer-data.ts` | Emits a generated JavaScript `window` global | Viewer-specific preprocessing; not a runtime contract |
-| `apps/commute-viewer/vite.config.ts` alias to all of `src` | Lets the legacy viewer consume internal modules directly | Replace later with `@jm/commute-browser` |
+| `apps/commute-viewer/vite.config.ts` alias to all of `src` | Lets the legacy viewer consume internal modules directly | Remove during the later viewer/server-API migration |
 
 Git history confirms that `browser-timetable.ts` was moved with high similarity
 from the former validation UI data module in viewer commit `a44e3fc`. Its only
@@ -93,9 +112,10 @@ There is no generic browser fetch loader or worker implementation today.
   `src/transit/raptor/index.ts`.
 - Remove raw RAPTOR query/result/timetable structures from the future public
   transit entry. Internal scripts and tests may use explicit internal paths.
-- Remove car manifest parsers and runtime diagnostics from `src/car/index.ts`;
-  internal scripts may import their owning modules directly.
-- Remove `createReachableLocalityMap` from `src/localities/index.ts`.
+- Keep manifest parsers and diagnostics out of the package root export;
+  repository scripts may use the root-only internal source alias.
+- Keep `createReachableLocalityMap` in root diagnostics rather than the package
+  locality API.
 - Do not turn the generated `window.__SWISS_COMMUTE_VIEWER_DATA__` pipeline into
   the future browser package contract.
 - Remove browser-first wording and the root core dependency on Vite client
@@ -107,7 +127,7 @@ compatibility aliases will be added.
 
 ## Public export classification
 
-### Domain (`src/localities/index.ts`)
+### Domain (`packages/commute/src/localities/index.ts`)
 
 - `PUBLIC_CONSUMER_API`: `LocalityId`, `Locality`, `LocalityQuery`,
   `ReachableLocality`, `createLocalityId`, `normalizeCityName`,
@@ -131,32 +151,32 @@ The canonical published transit representation is the same dense UInt8 matrix
 format used by car. The Node entry authenticates only its manifest and binary;
 RAPTOR structures do not cross the production boundary.
 
-### Car (`src/car/index.ts`)
+### Car (`packages/commute/src/car/index.ts`)
 
 - `PUBLIC_CONSUMER_API`: opaque `CarTravelTimeIndex`,
   `createCarTravelTimeIndex`, `getCarTravelMinutes`, and
   `getReachableLocalitiesByCar`.
 - `INTERNAL_RUNTIME`: strict car provenance parsing; row-major lookup and the
-  `UInt8` matrix contract are owned by `src/travel-time-matrix`.
-- `PUBLIC_NODE_API`: `loadCarTravelTimeIndex` with an explicit runtime-data
-  directory in `src/car/node.ts`.
+  `UInt8` matrix contract are owned by the package's shared matrix module.
+- `PUBLIC_NODE_API`: the aggregate `loadCommuteRuntime` from `@jm/commute/node`;
+  mode-specific path loaders remain package-internal.
 - `PREPROCESSING_ONLY`: all OSRM, anchor, checkpoint, matrix-generation, and
   publication code.
 
-## Next package shape
+## Implemented package shape
 
 ```text
 packages/
   commute/          # canonical server/runtime package; exports . and ./node
-  commute-browser/  # thin loader/adapter depending on @jm/commute
 
 apps/
-  commute-viewer/   # eventually depends on @jm/commute-browser
+  commute-viewer/   # legacy validation app; not migrated in Milestone 6C
 ```
 
-`@jm/commute` must never depend on `@jm/commute-browser`. The browser package
-must not reimplement locality identity or the shared car/transit matrix lookup.
-OSRM and RAPTOR remain offline compilers outside both production packages.
+No browser package was created. OSRM and RAPTOR remain offline compilers outside
+the production package. Any later visualization or autocomplete layer should
+use the catalog and reachability results through a server API rather than
+placing presentation policy in `@jm/commute`.
 
 ## Implemented disposition
 
@@ -166,7 +186,7 @@ OSRM and RAPTOR remain offline compilers outside both production packages.
 - The broad RAPTOR, routing, timetable, and transfer barrels were removed.
   Runtime code, preprocessing scripts, tests, and the legacy viewer now use
   explicit owner-module imports; no compatibility barrels were retained.
-- `src/transit/index.ts` exposes only the opaque matrix-backed
+- The package transit module exposes only the opaque matrix-backed
   `TransitTravelTimeIndex`, injected-data constructor, point lookup, and
   high-level locality query.
 - The RAPTOR compiler binds its timetable and minimal locality-ID/stop-index
@@ -182,10 +202,11 @@ OSRM and RAPTOR remain offline compilers outside both production packages.
 - Pickup/drop-off semantics and transfer-time encoding now point inward toward
   runtime-neutral owners instead of outward toward routing-data or transfer
   graph construction.
-- `src/car/index.ts` and `src/localities/index.ts` were reduced to consumer
-  contracts. Format parsers, diagnostics, CSV ingestion, and diagnostic map
-  construction remain directly importable only from their owning internal or
-  Node modules.
-- `tsconfig.runtime.json` checks the public locality, transit, and car graph
-  without Node or Vite ambient types. The root core project no longer depends
-  on `vite/client`; fixture file I/O in tests is explicit Node code.
+- Canonical locality, car, transit, and shared matrix runtime ownership moved
+  to `packages/commute/src`; the deleted root files were not replaced by
+  compatibility re-exports. Format parsers needed by repository tooling are
+  reached only through the root-only `@commute-internal/*` alias, while raw CSV
+  ingestion and diagnostic map construction remain in root `src/`.
+- `packages/commute/tsconfig.json` builds the real Node ESM package and
+  declarations. `tsconfig.core.json` checks the root compiler against that
+  package without requiring the intentionally unmigrated viewer.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '../../../config';
-import type { Locality } from '../../../localities';
+import type { Locality } from '@jm/commute';
 import type { TransitPlace } from '../../places';
 import type {
   TransitPlaceServiceProfile,
@@ -11,6 +11,7 @@ import { selectTransitPlaceCandidates } from '../select-transit-place-candidates
 
 const MEAN_EARTH_RADIUS_METERS = 6_371_008.8;
 const LOCALITY: Locality = {
+  localityId: '0000:origin',
   postalCode: '0000',
   city: 'Origin',
   latitude: 0,

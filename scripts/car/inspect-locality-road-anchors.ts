@@ -11,7 +11,7 @@ import {
   type CarLocalityRoadAnchor,
   type Coordinate,
 } from '@core/car/preprocessing';
-import { createLocalityId, LocalityResolver } from '@core/localities';
+import { createLocalityId, LocalityResolver } from '@jm/commute';
 import { parseLocalitiesCsv } from '@core/localities/node';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');

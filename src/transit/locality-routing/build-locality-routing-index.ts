@@ -1,8 +1,7 @@
 import {
-  createLocalityId,
   normalizeCityName,
   type Locality,
-} from '../../localities';
+} from '@jm/commute';
 import { createTransitPlaceCandidateSelector } from '../candidates';
 import type { TransitPlace } from '../places';
 import type { TransitPlaceServiceProfileDataset } from '../service-profiles';
@@ -52,7 +51,7 @@ function uniqueCanonicalLocalities(
   for (const locality of localities.toSorted(compareCanonicalLocalities)) {
     const postalCode = locality.postalCode.trim();
     const city = locality.city.trim();
-    const localityId = createLocalityId(postalCode, city);
+    const { localityId } = locality;
 
     if (!localitiesById.has(localityId)) {
       localitiesById.set(localityId, { ...locality, postalCode, city });
@@ -122,7 +121,7 @@ export function buildLocalityRoutingIndex(
       }
 
       return {
-        localityId: createLocalityId(locality.postalCode, locality.city),
+        localityId: locality.localityId,
         postalCode: locality.postalCode,
         city: locality.city,
         selectionMode: selection.mode,

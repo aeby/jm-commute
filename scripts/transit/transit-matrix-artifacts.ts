@@ -2,20 +2,20 @@ import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-import { createTransitTravelTimeIndex } from '@core/transit';
+import { createTransitTravelTimeIndex } from '@jm/commute';
 import {
   parseTransitTravelTimeManifest,
   parseTransitTravelTimeManifestJson,
   type TransitTravelTimeSource,
   type TransitTravelTimeManifest,
-} from '@core/transit/travel-time-manifest';
-import type { LocalityId } from '@core/localities';
+} from '@commute-internal/transit/travel-time-manifest';
+import type { LocalityId } from '@jm/commute';
 import {
   calculateTravelTimeMatrixByteLength,
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   TRAVEL_TIME_MATRIX_SCHEMA_VERSION,
   UNAVAILABLE_TRAVEL_TIME,
-} from '@core/travel-time-matrix';
+} from '@commute-internal/travel-time-matrix';
 
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 const UTF8_ENCODER = new TextEncoder();

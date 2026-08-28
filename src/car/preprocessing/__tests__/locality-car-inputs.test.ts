@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { createLocalityId, type Locality } from '@core/localities';
+import { createLocalityId, type Locality } from '@jm/commute';
 import { buildCarLocalityInputs } from '../locality-car-inputs';
 
 const ZURICH: Locality = {
+  localityId: '8001:zurich',
   postalCode: '8001',
   city: 'Zürich',
   latitude: 47.3723,
@@ -28,18 +29,21 @@ describe('buildCarLocalityInputs', () => {
     const localities: readonly Locality[] = [
       ZURICH,
       {
+        localityId: '1008:prilly',
         postalCode: '1008',
         city: 'Prilly',
         latitude: 46.536,
         longitude: 6.605,
       },
       {
+        localityId: '3011:bern',
         postalCode: '3011',
         city: 'Bern',
         latitude: 46.948,
         longitude: 7.447,
       },
       {
+        localityId: '1008:jouxtens-mezery',
         postalCode: '1008',
         city: 'Jouxtens-Mézery',
         latitude: 46.55,

@@ -1,4 +1,4 @@
-import { createLocalityId, type Locality } from '../../localities';
+import type { Locality } from '@jm/commute';
 import type { CarLocalityInput } from './types';
 
 function compareByLocalityId(
@@ -21,8 +21,8 @@ export function buildCarLocalityInputs(
   localities: readonly Locality[],
 ): readonly CarLocalityInput[] {
   return localities
-    .map(({ postalCode, city, latitude, longitude }) => ({
-      localityId: createLocalityId(postalCode, city),
+    .map(({ localityId, postalCode, city, latitude, longitude }) => ({
+      localityId,
       postalCode,
       city,
       latitude,

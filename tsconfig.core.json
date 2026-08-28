@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "apps",
+    "scripts/build-commute-viewer-data.ts",
+    "scripts/inspect-commute-viewer.ts",
+    "scripts/__tests__/build-commute-viewer-data.test.ts"
+  ]
+}

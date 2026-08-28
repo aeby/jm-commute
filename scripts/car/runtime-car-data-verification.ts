@@ -1,12 +1,12 @@
 import {
   getCarTravelMinutes,
   getReachableLocalitiesByCar,
-} from '@core/car';
+} from '@jm/commute';
 import {
   loadCarTravelTimeIndex,
-  type LoadCarTravelTimeIndexOptions,
-} from '@core/car/node';
-import type { LocalityId } from '@core/localities';
+  type LoadTravelTimeIndexOptions,
+} from '@commute-internal/internal/load-travel-time-data';
+import type { LocalityId } from '@jm/commute';
 
 export interface RuntimeCarPointCheck {
   readonly label: string;
@@ -32,7 +32,7 @@ export interface RuntimeCarReachabilityCheckResult
 }
 
 export interface VerifyRuntimeCarDataOptions
-  extends LoadCarTravelTimeIndexOptions {
+  extends LoadTravelTimeIndexOptions {
   readonly pointChecks: readonly RuntimeCarPointCheck[];
   readonly reachabilityChecks: readonly RuntimeCarReachabilityCheck[];
 }

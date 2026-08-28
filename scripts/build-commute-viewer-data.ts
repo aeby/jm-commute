@@ -15,7 +15,7 @@ import {
   type ViewerLocality,
   type ViewerLocalityRoutingEntry,
 } from '@jm/commute-viewer/src/data/runtime-data';
-import { createLocalityId } from '@core/localities';
+import { createLocalityId } from '@jm/commute';
 import { parseLocalitiesCsv } from '@core/localities/node';
 import {
   buildLocalityRoutingIndex,

@@ -4,7 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 
 import { PROJECT_CONFIG } from '@core/config';
-import { LocalityResolver } from '@core/localities';
+import { LocalityResolver } from '@jm/commute';
 import { parseLocalitiesCsv } from '@core/localities/node';
 import { selectTransitPlaceCandidates } from '@core/transit/candidates';
 import { parseGtfsTimeToSeconds } from '@core/transit/gtfs';

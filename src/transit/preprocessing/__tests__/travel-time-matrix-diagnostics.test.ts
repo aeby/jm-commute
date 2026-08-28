@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TravelTimeMatrixDescriptor } from '../../../travel-time-matrix';
+import type { TravelTimeMatrixDescriptor } from '@commute-internal/travel-time-matrix';
 import {
   getTransitOriginReachabilityCountAtIndex,
   inspectTransitTravelTimeMatrix,

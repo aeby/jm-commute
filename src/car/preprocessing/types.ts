@@ -1,4 +1,4 @@
-import type { LocalityId } from '../../localities';
+import type { LocalityId } from '@jm/commute';
 
 export interface Coordinate {
   readonly latitude: number;

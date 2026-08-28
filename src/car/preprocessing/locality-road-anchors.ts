@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { LocalityId } from '../../localities';
+import type { LocalityId } from '@jm/commute';
 import type {
   CarLocalityInput,
   Coordinate,

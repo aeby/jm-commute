@@ -1,4 +1,4 @@
-import type { LocalityId, ReachableLocality } from './types';
+import type { LocalityId, ReachableLocality } from '@jm/commute';
 
 export function createReachableLocalityMap(
   reachable: readonly ReachableLocality[],

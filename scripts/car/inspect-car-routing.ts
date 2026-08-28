@@ -14,7 +14,7 @@ import {
   LocalityResolver,
   type Locality,
   type LocalityQuery,
-} from '@core/localities';
+} from '@jm/commute';
 import { parseLocalitiesCsv } from '@core/localities/node';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');

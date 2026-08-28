@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import {
   createTransitTravelTimeIndex,
   getTransitTravelMinutes,
-} from '@core/transit';
+} from '@jm/commute';
 import { parseLocalityRoutingIndexJson } from '@core/transit/locality-routing/parse-locality-routing-index';
 import {
   getTransitOriginReachabilityCountAtIndex,

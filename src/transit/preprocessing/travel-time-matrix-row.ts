@@ -1,8 +1,8 @@
-import type { LocalityId, ReachableLocality } from '../../localities';
+import type { LocalityId, ReachableLocality } from '@jm/commute';
 import {
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   UNAVAILABLE_TRAVEL_TIME,
-} from '../../travel-time-matrix';
+} from '@commute-internal/travel-time-matrix';
 
 export type TransitReachabilityQuery = (
   originLocalityId: LocalityId,

@@ -1,4 +1,4 @@
-import type { Locality } from '../../localities';
+import type { Locality } from '@jm/commute';
 import { PROJECT_CONFIG } from '../../config';
 import {
   findNearbyTransitPlaces,

@@ -7,9 +7,17 @@
     "noEmit": true,
     "skipLibCheck": true,
     "paths": {
-      "@core/*": ["./src/*"]
+      "@core/*": ["./src/*"],
+      "@jm/commute": ["./packages/commute/src/index.ts"],
+      "@jm/commute/node": ["./packages/commute/src/node.ts"],
+      "@commute-internal/*": ["./packages/commute/src/*"]
     },
     "types": ["node"]
   },
-  "include": ["src", "scripts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "scripts",
+    "packages/commute/src/**/__tests__/**/*.ts",
+    "vitest.config.ts"
+  ]
 }

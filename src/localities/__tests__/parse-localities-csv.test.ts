@@ -19,6 +19,7 @@ describe('parseLocalitiesCsv', () => {
 
     expect(localities).toHaveLength(4);
     expect(zurich).toEqual({
+      localityId: '8001:zurich',
       postalCode: '8001',
       city: 'Zürich',
       latitude: 47.3723085057712,
@@ -35,6 +36,7 @@ describe('parseLocalitiesCsv', () => {
 
     expect(neuchatel).toEqual([
       {
+        localityId: '2000:neuchatel',
         postalCode: '2000',
         city: 'Neuchâtel',
         latitude: 46.99435482417727,
@@ -58,6 +60,7 @@ describe('parseLocalitiesCsv', () => {
 
     expect(parseLocalitiesCsv(csv)).toEqual([
       {
+        localityId: '3000:bern',
         postalCode: '3000',
         city: 'Bern',
         latitude: 46.94,

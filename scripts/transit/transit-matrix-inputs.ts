@@ -9,8 +9,8 @@ import {
   createRaptorReachabilityQuery,
   type TransitReachabilityQuery,
 } from '@core/transit/preprocessing';
-import type { LocalityId } from '@core/localities';
-import type { TransitTravelTimeSource } from '@core/transit/travel-time-manifest';
+import type { LocalityId } from '@jm/commute';
+import type { TransitTravelTimeSource } from '@commute-internal/transit/travel-time-manifest';
 
 import { loadRaptorCompiler } from './load-raptor-compiler';
 import { LOCALITY_ROUTING_INDEX_PATH } from './paths';

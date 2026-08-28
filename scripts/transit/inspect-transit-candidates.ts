@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { PROJECT_CONFIG } from '@core/config';
-import { LocalityResolver } from '@core/localities';
+import { LocalityResolver } from '@jm/commute';
 import { parseLocalitiesCsv } from '@core/localities/node';
 import {
   selectTransitPlaceCandidates,

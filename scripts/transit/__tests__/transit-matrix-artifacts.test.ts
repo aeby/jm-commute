@@ -4,8 +4,8 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { TravelTimeMatrixDescriptor } from '@core/travel-time-matrix';
-import type { TransitTravelTimeSource } from '@core/transit/travel-time-manifest';
+import type { TravelTimeMatrixDescriptor } from '@commute-internal/travel-time-matrix';
+import type { TransitTravelTimeSource } from '@commute-internal/transit/travel-time-manifest';
 
 import {
   authenticateTransitMatrixData,

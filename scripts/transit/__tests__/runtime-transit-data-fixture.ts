@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { TransitTravelTimeManifest } from '@core/transit/travel-time-manifest';
+import type { TransitTravelTimeManifest } from '@commute-internal/transit/travel-time-manifest';
 
 export const RUNTIME_TRANSIT_MATRIX_BYTES = Uint8Array.from([0, 20, 25, 0]);
 export const RUNTIME_TRANSIT_MATRIX_SHA256 = createHash('sha256')

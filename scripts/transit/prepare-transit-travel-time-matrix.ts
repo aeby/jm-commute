@@ -24,7 +24,7 @@ import {
 import {
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   UNAVAILABLE_TRAVEL_TIME,
-} from '@core/travel-time-matrix';
+} from '@commute-internal/travel-time-matrix';
 
 import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
 import {

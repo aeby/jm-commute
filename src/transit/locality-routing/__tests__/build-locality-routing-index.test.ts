@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '../../../config';
-import type { Locality } from '../../../localities';
+import type { Locality } from '@jm/commute';
 import type { TransitPlace } from '../../places';
 import type {
   TransitPlaceServiceProfile,
@@ -11,6 +11,7 @@ import { buildLocalityRoutingIndex } from '../build-locality-routing-index';
 import { parseLocalityRoutingIndexJson } from '..';
 
 const ORIGIN: Locality = {
+  localityId: '8001:zurich',
   postalCode: '8001',
   city: 'Zürich',
   latitude: 47,
@@ -89,6 +90,7 @@ describe('buildLocalityRoutingIndex', () => {
 
   it('is independent of input ordering', () => {
     const bern: Locality = {
+      localityId: '3011:bern',
       postalCode: '3011',
       city: 'Bern',
       latitude: 46.948,

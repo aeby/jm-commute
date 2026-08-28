@@ -1,4 +1,4 @@
-import type { LocalityId } from '../../localities';
+import type { LocalityId } from '@jm/commute';
 import type { TransitCandidateSelectionMode } from '../candidates';
 
 /** Locality-to-stop fields needed while compiling reachability rows. */

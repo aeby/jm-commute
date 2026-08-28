@@ -1,4 +1,4 @@
-import { createLocalityId, type LocalityId } from '../../localities';
+import { createLocalityId, type LocalityId } from '@jm/commute';
 import type { TransitCandidateSelectionMode } from '../candidates';
 import type {
   LocalityRoutingEntry,

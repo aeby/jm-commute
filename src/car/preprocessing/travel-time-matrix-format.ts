@@ -1,12 +1,12 @@
-import type { LocalityId } from '../../localities';
+import type { LocalityId } from '@jm/commute';
 import {
   parseCarRoadGraphMetadata as parseSharedCarRoadGraphMetadata,
   type CarRoadGraphMetadata,
-} from '../road-graph-metadata';
+} from '@commute-internal/car/road-graph-metadata';
 import {
   calculateTravelTimeMatrixCellCount,
   getTravelTimeMatrixCellIndex,
-} from '../../travel-time-matrix/travel-time-matrix-format';
+} from '@commute-internal/travel-time-matrix/travel-time-matrix-format';
 
 export {
   calculateTravelTimeMatrixCellCount,
@@ -18,7 +18,7 @@ export const UNREACHABLE_TRAVEL_MINUTES = 0xffff;
 export const MAX_TRAVEL_MINUTES = UNREACHABLE_TRAVEL_MINUTES - 1;
 export const TRAVEL_TIME_MATRIX_BYTES_PER_CELL = 2;
 
-export type { CarRoadGraphMetadata } from '../road-graph-metadata';
+export type { CarRoadGraphMetadata } from '@commute-internal/car/road-graph-metadata';
 
 export interface CarTravelTimeMatrixManifest {
   readonly schemaVersion: 1;

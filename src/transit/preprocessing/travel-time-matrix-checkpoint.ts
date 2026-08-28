@@ -1,7 +1,7 @@
 import {
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
-} from '../../travel-time-matrix';
+} from '@commute-internal/travel-time-matrix';
 
 export const TRANSIT_TRAVEL_TIME_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
 

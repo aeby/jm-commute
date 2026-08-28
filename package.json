@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "packages/*",
     "apps/*"
   ],
   "scripts": {
@@ -23,6 +24,11 @@
     "transit:matrix:prepare": "node --import tsx scripts/transit/prepare-transit-travel-time-matrix.ts",
     "transit:matrix:inspect": "node --import tsx scripts/transit/inspect-transit-travel-time-matrix.ts",
     "transit:runtime:verify": "node --import tsx scripts/transit/verify-runtime-transit-data.ts",
+    "commute:package:data": "node --import tsx scripts/commute/publish-package-data.ts",
+    "commute:package:build": "node --import tsx scripts/commute/build-commute-package.ts",
+    "commute:package:pack": "node --import tsx scripts/commute/pack-commute-package.ts",
+    "commute:package:verify": "node --import tsx scripts/commute/verify-packed-commute-package.ts",
+    "commute:package:compression": "node --import tsx scripts/commute/benchmark-package-data-compression.ts",
     "inspect:transit-candidates": "node --import tsx scripts/transit/inspect-transit-candidates.ts",
     "inspect:raptor-timetable": "node --expose-gc --import tsx scripts/transit/inspect-raptor-timetable.ts",
     "inspect:raptor-reachability": "node --import tsx scripts/transit/inspect-raptor-reachability.ts",
@@ -31,10 +37,11 @@
     "viewer:data": "node --import tsx scripts/build-commute-viewer-data.ts",
     "viewer:dev": "npm run viewer:data && npm run dev --workspace @jm/commute-viewer",
     "viewer:build": "npm run viewer:data && npm run build --workspace @jm/commute-viewer",
-    "lint": "oxlint -D correctness -D suspicious --vitest-plugin --vue-plugin --deny-warnings src scripts apps/commute-viewer/src apps/commute-viewer/vite.config.ts vitest.config.ts",
+    "lint": "oxlint -D correctness -D suspicious --vitest-plugin --vue-plugin --deny-warnings src scripts packages/commute/src apps/commute-viewer/src apps/commute-viewer/vite.config.ts vitest.config.ts",
     "test": "vitest run",
-    "typecheck:runtime": "tsc --noEmit -p tsconfig.runtime.json",
-    "typecheck:core": "npm run typecheck:runtime && tsc --noEmit",
+    "test:core": "vitest run --exclude 'apps/commute-viewer/**' --exclude 'scripts/__tests__/build-commute-viewer-data.test.ts'",
+    "typecheck:runtime": "tsc --noEmit -p packages/commute/tsconfig.json",
+    "typecheck:core": "npm run typecheck:runtime && tsc --noEmit -p tsconfig.core.json",
     "typecheck:viewer": "tsc --noEmit -p apps/commute-viewer/tsconfig.json",
     "typecheck": "npm run typecheck:core && npm run typecheck:viewer"
   },

@@ -1,9 +1,9 @@
-import type { LocalityId } from '../../localities';
+import type { LocalityId } from '@jm/commute';
 import {
   createTravelTimeIndex,
   UNAVAILABLE_TRAVEL_TIME,
   type TravelTimeMatrixDescriptor,
-} from '../../travel-time-matrix';
+} from '@commute-internal/travel-time-matrix';
 
 export const TRANSIT_REACHABILITY_DIAGNOSTIC_THRESHOLDS = [
   30, 60, 90, 120, 180, 240,
