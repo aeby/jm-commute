@@ -1,4 +1,8 @@
 :root {
+  --viewer-primary: #6c45ba;
+  --viewer-primary-dark: #563494;
+  --viewer-primary-soft: #f0ebfa;
+  --viewer-primary-rgb: 108 69 186;
   color: #18302d;
   background: #eef3f0;
   font-family:
@@ -23,7 +27,7 @@ body,
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 10% -20%, rgb(130 190 178 / 28%), transparent 32rem),
+    radial-gradient(circle at 10% -20%, rgb(var(--viewer-primary-rgb) / 22%), transparent 32rem),
     #eef3f0;
 }
 
@@ -53,7 +57,7 @@ input {
 
 .viewer-eyebrow {
   margin: 0 0 6px;
-  color: #44726c;
+  color: var(--viewer-primary);
   font-size: 0.72rem;
   font-weight: 760;
   letter-spacing: 0.12em;
@@ -108,7 +112,7 @@ input {
 }
 
 .control-heading output {
-  color: #0d746a;
+  color: var(--viewer-primary);
   font-size: 0.8rem;
   font-weight: 760;
 }
@@ -161,8 +165,8 @@ input {
 }
 
 .autocomplete-input:focus {
-  border-color: #2d9589;
-  box-shadow: 0 0 0 3px rgb(45 149 137 / 15%);
+  border-color: var(--viewer-primary);
+  box-shadow: 0 0 0 3px rgb(var(--viewer-primary-rgb) / 15%);
 }
 
 .autocomplete-input:disabled {
@@ -204,11 +208,11 @@ input {
 .transport-option:has(input:checked) {
   background: #fff;
   box-shadow: 0 1px 4px rgb(16 59 52 / 14%);
-  color: #0d746a;
+  color: var(--viewer-primary);
 }
 
 .transport-option:has(input:focus-visible) {
-  outline: 3px solid rgb(45 149 137 / 18%);
+  outline: 3px solid rgb(var(--viewer-primary-rgb) / 18%);
 }
 
 .autocomplete-results {
@@ -243,7 +247,7 @@ input {
 
 .autocomplete-option:hover,
 .autocomplete-option.is-active {
-  background: #e7f3f0;
+  background: var(--viewer-primary-soft);
 }
 
 .autocomplete-postal-code {
@@ -282,7 +286,7 @@ input {
   appearance: none;
   background: linear-gradient(
     to right,
-    #117f74 0 var(--slider-progress),
+    var(--viewer-primary) 0 var(--slider-progress),
     #d6e2df var(--slider-progress) 100%
   );
   cursor: pointer;
@@ -294,8 +298,8 @@ input {
   border: 3px solid #fff;
   border-radius: 50%;
   appearance: none;
-  background: #0f8176;
-  box-shadow: 0 1px 5px rgb(8 64 58 / 35%);
+  background: var(--viewer-primary);
+  box-shadow: 0 1px 5px rgb(var(--viewer-primary-rgb) / 35%);
 }
 
 .slider-row input[type="range"]::-moz-range-thumb {
@@ -303,12 +307,12 @@ input {
   height: 13px;
   border: 3px solid #fff;
   border-radius: 50%;
-  background: #0f8176;
-  box-shadow: 0 1px 5px rgb(8 64 58 / 35%);
+  background: var(--viewer-primary);
+  box-shadow: 0 1px 5px rgb(var(--viewer-primary-rgb) / 35%);
 }
 
 .slider-row input[type="range"]:focus-visible {
-  box-shadow: 0 0 0 4px rgb(45 149 137 / 17%);
+  box-shadow: 0 0 0 4px rgb(var(--viewer-primary-rgb) / 17%);
 }
 
 .viewer-content {
@@ -363,8 +367,8 @@ input {
 .spinner {
   width: 13px;
   height: 13px;
-  border: 2px solid #a7d1ca;
-  border-top-color: #117f74;
+  border: 2px solid #d2c4ef;
+  border-top-color: var(--viewer-primary);
   border-radius: 50%;
   animation: spin 650ms linear infinite;
 }
@@ -401,7 +405,7 @@ input {
   display: block;
   height: 7px;
   border-radius: 99px;
-  background: linear-gradient(90deg, #07554f, #08786f 14%, #15998e 28%, #38ada4 43%, #65c1b9 57%, #a4d9d4 77%, #d8ece9);
+  background: linear-gradient(90deg, #6c45ba, #eb4571);
 }
 
 .legend-labels {
@@ -426,8 +430,8 @@ input {
   height: 18px;
   border: 4px solid #fff;
   border-radius: 50%;
-  background: #e8513c;
-  box-shadow: 0 0 0 2px #9f3024;
+  background: var(--viewer-primary);
+  box-shadow: 0 0 0 2px var(--viewer-primary-dark);
 }
 
 .origin-marker__label {
