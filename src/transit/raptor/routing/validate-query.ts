@@ -1,4 +1,4 @@
-import type { RaptorTimetable } from '../timetable';
+import type { RaptorTimetable } from '../timetable/types';
 import { UNREACHED_TIME } from './state';
 import type { FastestWindowQuery, RaptorQuery } from './types';
 

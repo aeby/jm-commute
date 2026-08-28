@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -6,29 +5,26 @@ import { performance } from 'node:perf_hooks';
 import {
   createCarTravelTimeIndex,
   getCarTravelMinutes,
-  getCarTravelTimeIndexDiagnostics,
   getReachableLocalitiesByCar,
-  parseCarTravelTimeMatrixManifest,
   type CarTravelTimeIndex,
-  type CarTravelTimeMatrixManifest,
 } from '@core/car';
 import { resolveCarRuntimeDataPaths } from '@core/car/node';
+import { getCarTravelTimeIndexDiagnostics } from '@core/car/travel-time-index';
+import { UNAVAILABLE_TRAVEL_TIME } from '@core/travel-time-matrix';
+
+import {
+  authenticateRuntimeCarData,
+  authenticateSourceCarData,
+} from './runtime-car-data';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');
-const { manifestPath: MANIFEST_PATH, matrixPath: MATRIX_PATH } =
-  resolveCarRuntimeDataPaths(PROJECT_ROOT);
-
-const INITIALIZATION_WARMUP_COUNT = 3;
-const INITIALIZATION_SAMPLE_COUNT = 20;
-const POINT_LOOKUP_WARMUP_COUNT = 10_000;
-const POINT_LOOKUP_BATCH_SIZE = 1_000;
-const POINT_LOOKUP_SAMPLE_COUNT = 100;
-const REACHABILITY_WARMUP_COUNT = 10;
-const REACHABILITY_BATCH_SIZE = 10;
-const REACHABILITY_SAMPLE_COUNT = 50;
-const REACHABILITY_BENCHMARK_ORIGIN_ID = '8001:zurich';
-const REACHABILITY_BENCHMARK_MAXIMUM_MINUTES = 90;
-const REACHABILITY_LIMITS = [30, 60, 90, 120] as const;
+const RUNTIME_PATHS = resolveCarRuntimeDataPaths(PROJECT_ROOT);
+const SOURCE_DIRECTORY = resolve(
+  PROJECT_ROOT,
+  'data/processed/car/travel-time-matrix',
+);
+const SOURCE_MANIFEST_PATH = resolve(SOURCE_DIRECTORY, 'manifest.json');
+const SOURCE_MATRIX_PATH = resolve(SOURCE_DIRECTORY, 'travel-times.bin');
 
 const REFERENCE_ORIGINS = [
   { localityId: '8001:zurich', label: '8001 Zürich' },
@@ -36,7 +32,7 @@ const REFERENCE_ORIGINS = [
   { localityId: '8750:glarus', label: '8750 Glarus' },
   { localityId: '3920:zermatt', label: '3920 Zermatt' },
 ] as const;
-
+const REACHABILITY_LIMITS = [30, 60, 90, 120, 180, 240] as const;
 const REFERENCE_PAIRS = [
   ['8001 Zürich', '8001:zurich', '3011 Bern', '3011:bern'],
   ['3011 Bern', '3011:bern', '8001 Zürich', '8001:zurich'],
@@ -46,13 +42,6 @@ const REFERENCE_PAIRS = [
   ['3930 Visp', '3930:visp', '3920 Zermatt', '3920:zermatt'],
 ] as const;
 
-interface MemorySnapshot {
-  readonly rss: number;
-  readonly heapUsed: number;
-  readonly external: number;
-  readonly arrayBuffers: number;
-}
-
 interface TimingStatistics {
   readonly minimum: number;
   readonly median: number;
@@ -61,362 +50,274 @@ interface TimingStatistics {
   readonly maximum: number;
 }
 
+interface MatrixExample {
+  readonly fromLocalityId: string;
+  readonly toLocalityId: string;
+  readonly sourceMinutes: number;
+  readonly runtimeMinutes: number | undefined;
+}
+
 function formatInteger(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
 function formatBytes(bytes: number): string {
-  const absolute = Math.abs(bytes);
-  const prefix = bytes < 0 ? '-' : '';
-  if (absolute < 1_024) {
-    return `${prefix}${formatInteger(absolute)} B`;
-  }
-  if (absolute < 1_024 * 1_024) {
-    return `${prefix}${(absolute / 1_024).toFixed(2)} KiB`;
-  }
-  return `${prefix}${(absolute / (1_024 * 1_024)).toFixed(2)} MiB`;
+  return `${formatInteger(bytes)} bytes (${(bytes / (1024 * 1024)).toFixed(2)} MiB)`;
 }
 
-function formatMilliseconds(milliseconds: number): string {
-  return `${milliseconds.toFixed(3)} ms`;
-}
-
-function formatMicroseconds(milliseconds: number): string {
-  return `${(milliseconds * 1_000).toFixed(3)} µs`;
-}
-
-function forceGarbageCollection(): void {
-  const garbageCollect = (globalThis as { gc?: () => void }).gc;
-  garbageCollect?.();
-}
-
-function memorySnapshot(): MemorySnapshot {
-  const memory = process.memoryUsage();
-  return {
-    rss: memory.rss,
-    heapUsed: memory.heapUsed,
-    external: memory.external,
-    arrayBuffers: memory.arrayBuffers,
-  };
-}
-
-function printMemoryDelta(before: MemorySnapshot, after: MemorySnapshot): void {
-  console.log(`  RSS delta: ${formatBytes(after.rss - before.rss)}`);
-  console.log(
-    `  Heap-used delta: ${formatBytes(after.heapUsed - before.heapUsed)}`,
-  );
-  console.log(
-    `  External-memory delta: ${formatBytes(after.external - before.external)}`,
-  );
-  console.log(
-    `  ArrayBuffer delta: ${formatBytes(after.arrayBuffers - before.arrayBuffers)}`,
-  );
-}
-
-function summarizeTimings(samples: readonly number[]): TimingStatistics {
-  if (samples.length === 0) {
-    throw new Error('At least one timing sample is required.');
-  }
+function summarize(samples: readonly number[]): TimingStatistics {
   const sorted = samples.toSorted((left, right) => left - right);
-  const nearestRank = (fraction: number): number =>
+  const atRank = (fraction: number): number =>
     sorted[Math.max(Math.ceil(sorted.length * fraction) - 1, 0)] as number;
-  const middleIndex = Math.floor(sorted.length / 2);
+  const midpoint = Math.floor(sorted.length / 2);
   const median =
     sorted.length % 2 === 0
-      ? ((sorted[middleIndex - 1] as number) +
-          (sorted[middleIndex] as number)) /
-        2
-      : (sorted[middleIndex] as number);
+      ? ((sorted[midpoint - 1] as number) + (sorted[midpoint] as number)) / 2
+      : (sorted[midpoint] as number);
   return {
     minimum: sorted[0] as number,
     median,
-    mean: samples.reduce((sum, sample) => sum + sample, 0) / samples.length,
-    p95: nearestRank(0.95),
+    mean: samples.reduce((sum, value) => sum + value, 0) / samples.length,
+    p95: atRank(0.95),
     maximum: sorted.at(-1) as number,
   };
 }
 
-function printTimingStatistics(
-  statistics: TimingStatistics,
-  format: (milliseconds: number) => string,
-): void {
-  console.log(`  minimum: ${format(statistics.minimum)}`);
-  console.log(`  median: ${format(statistics.median)}`);
-  console.log(`  mean: ${format(statistics.mean)}`);
-  console.log(`  p95: ${format(statistics.p95)}`);
-  console.log(`  maximum: ${format(statistics.maximum)}`);
-}
-
-function assertMatrixSha256(
-  manifest: CarTravelTimeMatrixManifest,
-  matrixBytes: Uint8Array,
-): void {
-  if (matrixBytes.byteLength !== manifest.matrixByteLength) {
-    throw new Error(
-      `Matrix has ${matrixBytes.byteLength} bytes; manifest expects ${manifest.matrixByteLength}.`,
-    );
-  }
-  const actualSha256 = createHash('sha256').update(matrixBytes).digest('hex');
-  if (actualSha256 !== manifest.matrixSha256) {
-    throw new Error(
-      `Matrix SHA-256 ${actualSha256} does not match manifest ${manifest.matrixSha256}.`,
-    );
-  }
-}
-
-function createBenchmarkPairIndexes(
-  localityCount: number,
-  iterationCount: number,
-): Uint32Array {
-  const indexes = new Uint32Array(iterationCount * 2);
-  let state = 0x9e37_79b9;
-  for (let iteration = 0; iteration < iterationCount; iteration += 1) {
-    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
-    indexes[iteration * 2] = state % localityCount;
-    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
-    indexes[iteration * 2 + 1] = state % localityCount;
-  }
-  return indexes;
+function printTimings(label: string, samples: readonly number[]): void {
+  const values = summarize(samples);
+  console.log(label);
+  console.log(`  min: ${values.minimum.toFixed(4)} ms`);
+  console.log(`  median: ${values.median.toFixed(4)} ms`);
+  console.log(`  mean: ${values.mean.toFixed(4)} ms`);
+  console.log(`  p95: ${values.p95.toFixed(4)} ms`);
+  console.log(`  max: ${values.maximum.toFixed(4)} ms`);
 }
 
 function benchmarkInitialization(
-  manifest: CarTravelTimeMatrixManifest,
+  manifest: unknown,
   matrixBytes: Uint8Array,
 ): readonly number[] {
-  for (
-    let warmup = 0;
-    warmup < INITIALIZATION_WARMUP_COUNT;
-    warmup += 1
-  ) {
-    createCarTravelTimeIndex(manifest, matrixBytes);
-  }
-
-  const samplesMilliseconds: number[] = [];
-  for (let sample = 0; sample < INITIALIZATION_SAMPLE_COUNT; sample += 1) {
-    forceGarbageCollection();
+  const samples: number[] = [];
+  for (let iteration = 0; iteration < 10; iteration += 1) {
     const startedAt = performance.now();
     createCarTravelTimeIndex(manifest, matrixBytes);
-    samplesMilliseconds.push(performance.now() - startedAt);
+    samples.push(performance.now() - startedAt);
   }
-  forceGarbageCollection();
-  return samplesMilliseconds;
+  return samples;
 }
 
-function benchmarkPointLookups(
+function benchmarkPointLookup(index: CarTravelTimeIndex): readonly number[] {
+  const samples: number[] = [];
+  for (let sample = 0; sample < 100; sample += 1) {
+    const startedAt = performance.now();
+    for (let iteration = 0; iteration < 1_000; iteration += 1) {
+      getCarTravelMinutes(index, '8001:zurich', '3011:bern');
+    }
+    samples.push((performance.now() - startedAt) / 1_000);
+  }
+  return samples;
+}
+
+function benchmarkReachability(
   index: CarTravelTimeIndex,
-  localityIds: readonly string[],
-): { readonly samplesMilliseconds: readonly number[]; readonly checksum: number } {
-  const measuredLookupCount =
-    POINT_LOOKUP_BATCH_SIZE * POINT_LOOKUP_SAMPLE_COUNT;
-  const pairIndexes = createBenchmarkPairIndexes(
-    localityIds.length,
-    POINT_LOOKUP_WARMUP_COUNT + measuredLookupCount,
+  maxTravelMinutes: 90 | 240,
+): readonly number[] {
+  const samples: number[] = [];
+  for (let sample = 0; sample < 50; sample += 1) {
+    const startedAt = performance.now();
+    for (let iteration = 0; iteration < 10; iteration += 1) {
+      getReachableLocalitiesByCar(index, '8001:zurich', maxTravelMinutes);
+    }
+    samples.push((performance.now() - startedAt) / 10);
+  }
+  return samples;
+}
+
+function sourceValueAt(bytes: Uint8Array, cellIndex: number): number {
+  const byteIndex = cellIndex * 2;
+  return (
+    (bytes[byteIndex] as number) |
+    ((bytes[byteIndex + 1] as number) << 8)
   );
-  let checksum = 0;
-  for (let iteration = 0; iteration < POINT_LOOKUP_WARMUP_COUNT; iteration += 1) {
-    const pairOffset = iteration * 2;
-    getCarTravelMinutes(
-      index,
-      localityIds[pairIndexes[pairOffset] as number] as string,
-      localityIds[pairIndexes[pairOffset + 1] as number] as string,
-    );
-  }
-
-  const samplesMilliseconds: number[] = [];
-  let nextIteration = POINT_LOOKUP_WARMUP_COUNT;
-  for (let sample = 0; sample < POINT_LOOKUP_SAMPLE_COUNT; sample += 1) {
-    const startedAt = performance.now();
-    for (let batchOffset = 0; batchOffset < POINT_LOOKUP_BATCH_SIZE; batchOffset += 1) {
-      const pairOffset = nextIteration * 2;
-      const travelMinutes = getCarTravelMinutes(
-        index,
-        localityIds[pairIndexes[pairOffset] as number] as string,
-        localityIds[pairIndexes[pairOffset + 1] as number] as string,
-      );
-      checksum = (checksum + (travelMinutes ?? 65_535)) >>> 0;
-      nextIteration += 1;
-    }
-    samplesMilliseconds.push(
-      (performance.now() - startedAt) / POINT_LOOKUP_BATCH_SIZE,
-    );
-  }
-  return { samplesMilliseconds, checksum };
 }
 
-function benchmarkZurichReachability(
-  index: CarTravelTimeIndex,
-): {
-  readonly samplesMilliseconds: readonly number[];
-  readonly resultCount: number;
-  readonly checksum: number;
-} {
-  for (let warmup = 0; warmup < REACHABILITY_WARMUP_COUNT; warmup += 1) {
-    getReachableLocalitiesByCar(
-      index,
-      REACHABILITY_BENCHMARK_ORIGIN_ID,
-      REACHABILITY_BENCHMARK_MAXIMUM_MINUTES,
-    );
-  }
-
-  const samplesMilliseconds: number[] = [];
-  let checksum = 0;
-  let resultCount = 0;
-  for (let sample = 0; sample < REACHABILITY_SAMPLE_COUNT; sample += 1) {
-    const startedAt = performance.now();
-    for (let batchOffset = 0; batchOffset < REACHABILITY_BATCH_SIZE; batchOffset += 1) {
-      const reachable = getReachableLocalitiesByCar(
-        index,
-        REACHABILITY_BENCHMARK_ORIGIN_ID,
-        REACHABILITY_BENCHMARK_MAXIMUM_MINUTES,
-      );
-      resultCount = reachable.length;
-      checksum =
-        (checksum +
-          reachable.length +
-          (reachable.at(-1)?.travelMinutes ?? 0)) >>>
-        0;
+function findCapExamples(
+  localityIds: readonly string[],
+  sourceMatrixBytes: Uint8Array,
+  runtimeMatrixBytes: Uint8Array,
+): { readonly retained: MatrixExample; readonly capped: MatrixExample } {
+  let retained: MatrixExample | undefined;
+  let capped: MatrixExample | undefined;
+  const localityCount = localityIds.length;
+  for (
+    let cellIndex = 0;
+    cellIndex < runtimeMatrixBytes.length &&
+    (retained === undefined || capped === undefined);
+    cellIndex += 1
+  ) {
+    const sourceMinutes = sourceValueAt(sourceMatrixBytes, cellIndex);
+    const runtimeValue = runtimeMatrixBytes[cellIndex] as number;
+    const originIndex = Math.floor(cellIndex / localityCount);
+    const destinationIndex = cellIndex % localityCount;
+    if (
+      retained === undefined &&
+      sourceMinutes >= 121 &&
+      sourceMinutes <= 240 &&
+      runtimeValue === sourceMinutes
+    ) {
+      retained = {
+        fromLocalityId: localityIds[originIndex] as string,
+        toLocalityId: localityIds[destinationIndex] as string,
+        sourceMinutes,
+        runtimeMinutes: runtimeValue,
+      };
     }
-    samplesMilliseconds.push(
-      (performance.now() - startedAt) / REACHABILITY_BATCH_SIZE,
-    );
+    if (
+      capped === undefined &&
+      sourceMinutes > 240 &&
+      sourceMinutes !== 65_535 &&
+      runtimeValue === UNAVAILABLE_TRAVEL_TIME
+    ) {
+      capped = {
+        fromLocalityId: localityIds[originIndex] as string,
+        toLocalityId: localityIds[destinationIndex] as string,
+        sourceMinutes,
+        runtimeMinutes: undefined,
+      };
+    }
   }
-  return { samplesMilliseconds, resultCount, checksum };
-}
-
-function printReferenceDiagnostics(index: CarTravelTimeIndex): void {
-  console.log('Directional point lookups:');
-  for (const [fromLabel, fromId, toLabel, toId] of REFERENCE_PAIRS) {
-    const travelMinutes = getCarTravelMinutes(index, fromId, toId);
-    console.log(
-      `  ${fromLabel} → ${toLabel}: ${travelMinutes === undefined ? 'unreachable' : `${travelMinutes} min`}`,
-    );
+  if (retained === undefined || capped === undefined) {
+    throw new Error('Unable to find both retained and capped real car pairs.');
   }
-
-  console.log('');
-  console.log('Reference reachable-locality counts (including the origin):');
-  for (const origin of REFERENCE_ORIGINS) {
-    const counts = REACHABILITY_LIMITS.map(
-      (maximumMinutes) =>
-        `${maximumMinutes} min: ${formatInteger(getReachableLocalitiesByCar(index, origin.localityId, maximumMinutes).length)}`,
-    );
-    console.log(`  ${origin.label}: ${counts.join(', ')}`);
-  }
+  return { retained, capped };
 }
 
 async function main(): Promise<void> {
   const commandStartedAt = performance.now();
-  const fileReadStartedAt = performance.now();
-  const [manifestJson, matrixBytes] = await Promise.all([
-    readFile(MANIFEST_PATH, 'utf8'),
-    readFile(MATRIX_PATH),
+  const [
+    runtimeManifestBytes,
+    runtimeMatrixBytes,
+    sourceManifestBytes,
+    sourceMatrixBytes,
+  ] = await Promise.all([
+    readFile(RUNTIME_PATHS.manifestPath),
+    readFile(RUNTIME_PATHS.matrixPath),
+    readFile(SOURCE_MANIFEST_PATH),
+    readFile(SOURCE_MATRIX_PATH),
   ]);
-  const fileReadMilliseconds = performance.now() - fileReadStartedAt;
-
-  const manifestParseStartedAt = performance.now();
-  let manifestValue: unknown;
-  try {
-    manifestValue = JSON.parse(manifestJson);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to parse ${MANIFEST_PATH}: ${message}`, {
-      cause: error,
-    });
+  const runtime = authenticateRuntimeCarData(
+    runtimeManifestBytes,
+    runtimeMatrixBytes,
+    'runtime diagnostic data',
+  );
+  const source = authenticateSourceCarData(
+    sourceManifestBytes,
+    sourceMatrixBytes,
+    'source diagnostic data',
+  );
+  if (runtime.manifest.source.sourceMatrixSha256 !== source.matrixSha256) {
+    throw new Error('Runtime provenance does not match the authenticated source matrix.');
   }
-  const manifest = parseCarTravelTimeMatrixManifest(
-    manifestValue,
-    MANIFEST_PATH,
-  );
-  const manifestParseMilliseconds = performance.now() - manifestParseStartedAt;
+  if (
+    runtime.manifest.matrix.localityIds.some(
+      (localityId, index) => localityId !== source.manifest.localityIds[index],
+    )
+  ) {
+    throw new Error('Runtime locality ordering differs from the source matrix.');
+  }
 
-  const authenticationStartedAt = performance.now();
-  assertMatrixSha256(manifest, matrixBytes);
-  const authenticationMilliseconds = performance.now() - authenticationStartedAt;
-
-  forceGarbageCollection();
-  forceGarbageCollection();
-  const memoryBeforeInitialization = memorySnapshot();
-  const index = createCarTravelTimeIndex(manifest, matrixBytes);
-  forceGarbageCollection();
-  forceGarbageCollection();
-  const memoryAfterInitialization = memorySnapshot();
-  const initializationSamples = benchmarkInitialization(manifest, matrixBytes);
+  // Authentication constructs and releases a temporary index. Collect it
+  // before measuring so the reported delta describes the one live index below.
+  globalThis.gc?.();
+  const memoryBefore = process.memoryUsage();
+  const initializationStartedAt = performance.now();
+  const index = createCarTravelTimeIndex(runtime.manifest, runtimeMatrixBytes);
+  const oneInitializationMilliseconds = performance.now() - initializationStartedAt;
+  globalThis.gc?.();
+  const memoryAfter = process.memoryUsage();
   const diagnostics = getCarTravelTimeIndexDiagnostics(index);
-  const localityIdCharacterCount = manifest.localityIds.reduce(
-    (sum, localityId) => sum + localityId.length,
-    0,
-  );
 
-  console.log(`Manifest: ${MANIFEST_PATH}`);
-  console.log(`Matrix: ${MATRIX_PATH}`);
-  console.log(`Localities: ${formatInteger(manifest.localityCount)}`);
-  console.log(`File read: ${formatMilliseconds(fileReadMilliseconds)}`);
-  console.log(`Manifest parse: ${formatMilliseconds(manifestParseMilliseconds)}`);
-  console.log(
-    `Binary SHA-256 authentication: ${formatMilliseconds(authenticationMilliseconds)} (matched ${manifest.matrixSha256})`,
-  );
+  console.log('Authenticated car matrix data:');
+  console.log(`  Source UInt16: ${formatBytes(source.matrixByteLength)}`);
+  console.log(`  Runtime UInt8: ${formatBytes(runtime.matrixByteLength)}`);
+  console.log(`  Runtime SHA-256: ${runtime.matrixSha256}`);
+  console.log(`  Manifest SHA-256: ${runtime.manifestSha256}`);
+  console.log(`  Localities: ${formatInteger(runtime.manifest.matrix.localityCount)}`);
   console.log('');
   console.log('Runtime storage:');
+  console.log(`  Matrix view: ${formatBytes(diagnostics.matrixValuesByteLength)}`);
+  console.log(`  Matrix copied: ${diagnostics.matrixBytesCopied}`);
   console.log(
-    `  Binary input: ${formatInteger(matrixBytes.byteLength)} bytes (${formatBytes(matrixBytes.byteLength)})`,
+    `  Locality-index entries: ` +
+      formatInteger(diagnostics.localityIndexEntryCount),
   );
   console.log(
-    `  Runtime matrix view: ${formatInteger(diagnostics.matrixValuesByteLength)} bytes (${formatBytes(diagnostics.matrixValuesByteLength)})`,
+    `  Heap delta after one index: ` +
+      `${formatInteger(memoryAfter.heapUsed - memoryBefore.heapUsed)} bytes`,
   );
   console.log(
-    `  Locality-ID characters: ${formatInteger(localityIdCharacterCount)}`,
-  );
-  console.log(
-    `  Approximate UTF-16 locality-ID payload: ${formatInteger(localityIdCharacterCount * 2)} bytes (${formatBytes(localityIdCharacterCount * 2)}; excludes string/object overhead)`,
-  );
-  console.log(
-    `  Locality-ID map entries: ${formatInteger(diagnostics.localityIndexEntryCount)}`,
-  );
-  console.log(`  Native little-endian host: ${diagnostics.nativeLittleEndian}`);
-  console.log(`  Matrix bytes copied by runtime: ${diagnostics.matrixBytesCopied}`);
-  console.log('  One-live-index memory delta (source files already loaded):');
-  printMemoryDelta(memoryBeforeInitialization, memoryAfterInitialization);
-  console.log('');
-
-  console.log(
-    `Runtime initialization benchmark (${INITIALIZATION_SAMPLE_COUNT} samples after ${INITIALIZATION_WARMUP_COUNT} warmups):`,
-  );
-  printTimingStatistics(
-    summarizeTimings(initializationSamples),
-    formatMilliseconds,
+    `  ArrayBuffer delta after one index: ` +
+      `${formatInteger(memoryAfter.arrayBuffers - memoryBefore.arrayBuffers)} bytes`,
   );
   console.log('');
 
-  printReferenceDiagnostics(index);
+  console.log('Directional point lookups:');
+  for (const [fromLabel, fromId, toLabel, toId] of REFERENCE_PAIRS) {
+    const travelMinutes = getCarTravelMinutes(index, fromId, toId);
+    console.log(`  ${fromLabel} → ${toLabel}: ${travelMinutes ?? 'unavailable'} min`);
+  }
+  console.log('');
+  console.log('Reachable localities (including origin):');
+  for (const origin of REFERENCE_ORIGINS) {
+    const counts = REACHABILITY_LIMITS.map((limit) => {
+      const count = getReachableLocalitiesByCar(
+        index,
+        origin.localityId,
+        limit,
+      ).length;
+      return `${limit}: ${formatInteger(count)}`;
+    });
+    console.log(`  ${origin.label}: ${counts.join(', ')}`);
+  }
   console.log('');
 
-  const pointLookup = benchmarkPointLookups(
-    index,
-    manifest.localityIds,
+  const examples = findCapExamples(
+    runtime.manifest.matrix.localityIds,
+    sourceMatrixBytes,
+    runtimeMatrixBytes,
+  );
+  console.log('Four-hour cap examples selected from authenticated real data:');
+  console.log(
+    `  Retained: ${examples.retained.fromLocalityId} → ` +
+      `${examples.retained.toLocalityId}; source ` +
+      `${examples.retained.sourceMinutes} min, runtime ` +
+      `${examples.retained.runtimeMinutes} min`,
   );
   console.log(
-    `Single point-lookup benchmark (${POINT_LOOKUP_SAMPLE_COUNT} samples of ${formatInteger(POINT_LOOKUP_BATCH_SIZE)} calls; per-call timings):`,
+    `  Capped: ${examples.capped.fromLocalityId} → ` +
+      `${examples.capped.toLocalityId}; source ` +
+      `${examples.capped.sourceMinutes} min, runtime unavailable`,
   );
-  printTimingStatistics(
-    summarizeTimings(pointLookup.samplesMilliseconds),
-    formatMicroseconds,
-  );
-  console.log(`  deterministic checksum: ${pointLookup.checksum}`);
   console.log('');
 
-  const reachability = benchmarkZurichReachability(index);
-  console.log(
-    `Zürich max-90-minute reachability benchmark (${REACHABILITY_SAMPLE_COUNT} samples of ${REACHABILITY_BATCH_SIZE} scans; per-scan timings):`,
+  console.log(`One initialization: ${oneInitializationMilliseconds.toFixed(4)} ms`);
+  printTimings(
+    'Initialization benchmark (10 samples):',
+    benchmarkInitialization(runtime.manifest, runtimeMatrixBytes),
   );
-  printTimingStatistics(
-    summarizeTimings(reachability.samplesMilliseconds),
-    formatMicroseconds,
+  printTimings(
+    'Point lookup benchmark (100 × 1,000 calls, per call):',
+    benchmarkPointLookup(index),
   );
-  console.log(`  returned localities per scan: ${formatInteger(reachability.resultCount)}`);
-  console.log(`  deterministic checksum: ${reachability.checksum}`);
-  console.log('');
-  console.log(
-    `Total diagnostic command: ${formatMilliseconds(performance.now() - commandStartedAt)}`,
+  printTimings(
+    'Zürich 90-minute scan benchmark (50 × 10 scans, per scan):',
+    benchmarkReachability(index, 90),
   );
+  printTimings(
+    'Zürich 240-minute scan benchmark (50 × 10 scans, per scan):',
+    benchmarkReachability(index, 240),
+  );
+  console.log(`Total diagnostic time: ${(performance.now() - commandStartedAt).toFixed(3)} ms`);
 }
 
 try {

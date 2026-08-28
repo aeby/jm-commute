@@ -1,26 +1,26 @@
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { PROJECT_CONFIG } from '../src/config';
-import { loadFixedDateActiveServices } from '../src/transit/gtfs/node';
+import { PROJECT_CONFIG } from '@core/config';
+import { loadFixedDateActiveServices } from '@core/transit/gtfs/node';
 import {
   validateFixedDayRoutingManifestScenario,
   type FixedDayRoutingManifest,
-} from '../src/transit/routing-data';
-import { loadFixedDayRoutingDataset } from '../src/transit/routing-data/node';
-import {
-  buildRaptorTimetable,
-  buildSourceStopIndex,
-  type RaptorTimetable,
-} from '../src/transit/raptor/timetable';
+} from '@core/transit/routing-data';
+import { loadFixedDayRoutingDataset } from '@core/transit/routing-data/node';
+import { buildRaptorTimetable } from '@core/transit/raptor/timetable/build-raptor-timetable';
+import { buildSourceStopIndex } from '@core/transit/raptor/timetable/dense-stop-ids';
+import type { RaptorTimetable } from '@core/transit/raptor/timetable/types';
 import {
   attachTransferGraph,
   buildTransferGraph,
-  type TransferGraphBuildResult,
-  type VirtualTransferOptions,
-} from '../src/transit/raptor/transfers';
-import { readGtfsTransfers } from '../src/transit/raptor/transfers/node';
-import type { TransitStop } from '../src/transit/stops';
+} from '@core/transit/raptor/transfers/build-transfer-graph';
+import { readGtfsTransfers } from '@core/transit/raptor/transfers/node';
+import type {
+  TransferGraphBuildResult,
+  VirtualTransferOptions,
+} from '@core/transit/raptor/transfers/types';
+import type { TransitStop } from '@core/transit/stops';
 import { loadTransitStopsInput } from './transit-inspection-inputs';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');

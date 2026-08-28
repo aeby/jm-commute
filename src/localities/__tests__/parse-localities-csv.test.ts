@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 
-import fixtureCsv from './fixtures/localities.csv?raw';
+import { describe, expect, it } from 'vitest';
 import { parseLocalitiesCsv } from '../parse-localities-csv';
+
+const fixtureCsv = readFileSync(
+  new URL('./fixtures/localities.csv', import.meta.url),
+  'utf8',
+);
 
 const REQUIRED_HEADERS = ['Ortschaftsname', 'PLZ4', 'E', 'N'] as const;
 

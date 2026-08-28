@@ -4,7 +4,7 @@ import {
   getTravelTimeMatrixCellIndex,
   MAX_TRAVEL_MINUTES,
   UNREACHABLE_TRAVEL_MINUTES,
-} from '../../travel-time-matrix-format';
+} from '../travel-time-matrix-format';
 import {
   createCarTravelTimeRowSlab,
   decodeTravelMinutesLittleEndian,

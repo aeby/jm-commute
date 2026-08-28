@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RaptorTimetable } from '../../timetable';
-import { USE_QUERY_TRANSFER_TIME } from '../../transfers';
+import type { RaptorTimetable } from '../../timetable/types';
+import { USE_QUERY_TRANSFER_TIME } from '../../transfer-encoding';
 import { collectOriginDepartureSlots } from '../collect-origin-departure-slots';
 import { testPattern, testTimetable } from './test-timetable';
 

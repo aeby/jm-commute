@@ -1,4 +1,4 @@
-import { USE_QUERY_TRANSFER_TIME } from '../transfers';
+import { USE_QUERY_TRANSFER_TIME } from '../transfer-encoding';
 import {
   improveSharedBoardingReadyTime,
   UNREACHED_TIME,

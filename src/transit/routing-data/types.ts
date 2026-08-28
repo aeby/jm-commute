@@ -1,4 +1,5 @@
-export type PickupDropOffType = 0 | 1 | 2 | 3;
+import type { PickupDropOffType } from '../gtfs/types';
+
 export type ExactTimes = 0 | 1;
 
 export interface RoutingFrequencyWindow {

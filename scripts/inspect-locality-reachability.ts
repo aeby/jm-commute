@@ -2,29 +2,29 @@ import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 
-import { PROJECT_CONFIG } from '../src/config';
+import { PROJECT_CONFIG } from '@core/config';
 import {
   createLocalityId,
-  createReachableLocalityMap,
   LocalityResolver,
   type ReachableLocality,
-} from '../src/localities';
-import { parseLocalitiesCsv } from '../src/localities/node';
+} from '@core/localities';
+import { createReachableLocalityMap } from '@core/localities/create-reachable-locality-map';
+import { parseLocalitiesCsv } from '@core/localities/node';
 import {
   createLocalityRoutingEntryMap,
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
   type LocalityRoutingIndex,
-} from '../src/transit/locality-routing';
-import { loadLocalityRoutingIndex } from '../src/transit/locality-routing/node';
-import { parseGtfsTimeToSeconds } from '../src/transit/gtfs';
-import {
-  runRaptorFastestWindow,
-  UNREACHED_TIME,
-  type FastestWindowQuery,
-  type FastestWindowResult,
-  type FastestWindowRoutingDiagnostics,
-} from '../src/transit/raptor';
+} from '@core/transit/locality-routing';
+import { loadLocalityRoutingIndex } from '@core/transit/locality-routing/node';
+import { parseGtfsTimeToSeconds } from '@core/transit/gtfs';
+import { runRaptorFastestWindow } from '@core/transit/raptor/routing/run-raptor-fastest-window';
+import { UNREACHED_TIME } from '@core/transit/raptor/routing/state';
+import type {
+  FastestWindowQuery,
+  FastestWindowResult,
+  FastestWindowRoutingDiagnostics,
+} from '@core/transit/raptor/routing/types';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   readUtf8Input,

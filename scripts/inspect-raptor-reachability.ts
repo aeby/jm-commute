@@ -3,18 +3,18 @@ import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 
-import { PROJECT_CONFIG } from '../src/config';
-import { LocalityResolver } from '../src/localities';
-import { parseLocalitiesCsv } from '../src/localities/node';
-import { selectTransitPlaceCandidates } from '../src/transit/candidates';
-import { parseGtfsTimeToSeconds } from '../src/transit/gtfs';
-import {
-  runRaptorFastestWindow,
-  UNREACHED_TIME,
-  type FastestWindowQuery,
-  type FastestWindowResult,
-  type FastestWindowRoutingDiagnostics,
-} from '../src/transit/raptor';
+import { PROJECT_CONFIG } from '@core/config';
+import { LocalityResolver } from '@core/localities';
+import { parseLocalitiesCsv } from '@core/localities/node';
+import { selectTransitPlaceCandidates } from '@core/transit/candidates';
+import { parseGtfsTimeToSeconds } from '@core/transit/gtfs';
+import { runRaptorFastestWindow } from '@core/transit/raptor/routing/run-raptor-fastest-window';
+import { UNREACHED_TIME } from '@core/transit/raptor/routing/state';
+import type {
+  FastestWindowQuery,
+  FastestWindowResult,
+  FastestWindowRoutingDiagnostics,
+} from '@core/transit/raptor/routing/types';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,

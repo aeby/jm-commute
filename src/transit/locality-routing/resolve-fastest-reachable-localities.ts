@@ -1,14 +1,16 @@
 import type { ReachableLocality } from '../../localities';
-import {
-  isPreferredFastestJourney,
-  UNREACHED_TIME,
-  type FastestWindowResult,
-} from '../raptor';
+import { isPreferredFastestJourney } from '../raptor/routing/fastest-journey-policy';
+import { UNREACHED_TIME } from '../raptor/routing/state';
+import type { FastestWindowResult } from '../raptor/routing/types';
 import type {
-  LocalityRoutingEntry,
-  LocalityRoutingIndex,
-  ReachableLocalityDebug,
-} from './types';
+  RuntimeLocalityRoutingEntry,
+  RuntimeLocalityRoutingIndex,
+} from './runtime-types';
+
+export interface ReachableLocalityDebug extends ReachableLocality {
+  readonly departureTimeSeconds: number;
+  readonly arrivalTimeSeconds: number;
+}
 
 const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -42,7 +44,7 @@ interface FastestLocalityJourney {
 
 function findFastestLocalityJourney(
   routingResult: FastestWindowResult,
-  entry: LocalityRoutingEntry,
+  entry: RuntimeLocalityRoutingEntry,
 ): FastestLocalityJourney | undefined {
   let best: FastestLocalityJourney | undefined;
 
@@ -97,9 +99,9 @@ function findFastestLocalityJourney(
 
 function resolveLocalities<TResult extends ReachableLocality>(
   routingResult: FastestWindowResult,
-  localityIndex: LocalityRoutingIndex,
+  localityIndex: RuntimeLocalityRoutingIndex,
   createResult: (
-    entry: LocalityRoutingEntry,
+    entry: RuntimeLocalityRoutingEntry,
     journey: FastestLocalityJourney,
   ) => TResult,
 ): readonly TResult[] {
@@ -118,7 +120,7 @@ function resolveLocalities<TResult extends ReachableLocality>(
 
 export function resolveFastestReachableLocalities(
   routingResult: FastestWindowResult,
-  localityIndex: LocalityRoutingIndex,
+  localityIndex: RuntimeLocalityRoutingIndex,
 ): readonly ReachableLocality[] {
   return resolveLocalities(routingResult, localityIndex, (entry, journey) => ({
     localityId: entry.localityId,
@@ -128,7 +130,7 @@ export function resolveFastestReachableLocalities(
 
 export function resolveFastestReachableLocalitiesDebug(
   routingResult: FastestWindowResult,
-  localityIndex: LocalityRoutingIndex,
+  localityIndex: RuntimeLocalityRoutingIndex,
 ): readonly ReachableLocalityDebug[] {
   return resolveLocalities(routingResult, localityIndex, (entry, journey) => ({
     localityId: entry.localityId,

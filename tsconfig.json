@@ -9,7 +9,7 @@
     "paths": {
       "@core/*": ["./src/*"]
     },
-    "types": ["vite/client", "node"]
+    "types": ["node"]
   },
   "include": ["src", "scripts", "vitest.config.ts"]
 }

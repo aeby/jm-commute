@@ -1,5 +1,5 @@
+import { USE_QUERY_TRANSFER_TIME } from '../transfer-encoding';
 import {
-  USE_QUERY_TRANSFER_TIME,
   type GtfsTransferType,
   type TransferEdge,
   type TransferEdgeSource,

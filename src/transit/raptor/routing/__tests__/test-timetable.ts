@@ -1,10 +1,10 @@
-import {
-  buildPatternAdjacency,
-  encodePickupDropOffTypes,
-  type RaptorRoutePattern,
-  type RaptorTimetable,
-} from '../../timetable';
-import type { PickupDropOffType } from '../../../routing-data';
+import { buildPatternAdjacency } from '../../timetable/build-pattern-adjacency';
+import { encodePickupDropOffTypes } from '../../timetable/pickup-dropoff-codec';
+import type {
+  RaptorRoutePattern,
+  RaptorTimetable,
+} from '../../timetable/types';
+import type { PickupDropOffType } from '../../../gtfs';
 import { runRaptorOneToAll } from '../run-raptor-one-to-all';
 import { UNREACHED_TIME } from '../state';
 import type { RaptorResult } from '../types';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { USE_QUERY_TRANSFER_TIME } from '../../transfers';
-import type { RaptorTimetable } from '../../timetable';
+import { USE_QUERY_TRANSFER_TIME } from '../../transfer-encoding';
+import type { RaptorTimetable } from '../../timetable/types';
 import { collectInitialAccessStops } from '../collect-initial-access-stops';
 import type { RaptorQuery, RaptorRoutingDiagnostics } from '../types';
 import {

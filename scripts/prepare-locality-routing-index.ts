@@ -2,15 +2,13 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { PROJECT_CONFIG } from '../src/config';
-import { parseLocalitiesCsv } from '../src/localities/node';
-import { buildLocalityRoutingIndex } from '../src/transit/locality-routing';
-import {
-  buildRaptorTimetable,
-  buildSourceStopIndex,
-} from '../src/transit/raptor/timetable';
-import { validateFixedDayRoutingManifestScenario } from '../src/transit/routing-data';
-import { loadFixedDayRoutingDataset } from '../src/transit/routing-data/node';
+import { PROJECT_CONFIG } from '@core/config';
+import { parseLocalitiesCsv } from '@core/localities/node';
+import { buildLocalityRoutingIndex } from '@core/transit/locality-routing';
+import { buildRaptorTimetable } from '@core/transit/raptor/timetable/build-raptor-timetable';
+import { buildSourceStopIndex } from '@core/transit/raptor/timetable/dense-stop-ids';
+import { validateFixedDayRoutingManifestScenario } from '@core/transit/routing-data';
+import { loadFixedDayRoutingDataset } from '@core/transit/routing-data/node';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,

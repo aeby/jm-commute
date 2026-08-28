@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RaptorTimetable } from '../../timetable';
+import type { RaptorTimetable } from '../../timetable/types';
 import { collectOriginDepartureSlots } from '../collect-origin-departure-slots';
 import { runRaptorFastestWindow } from '../run-raptor-fastest-window';
 import { UNREACHED_TIME } from '../state';

@@ -1,4 +1,4 @@
-import type { RaptorTimetable } from '../timetable';
+import type { RaptorTimetable } from '../timetable/types';
 import { collectValidatedOriginDepartureSlots } from './collect-origin-departure-slots';
 import { isPreferredFastestJourney } from './fastest-journey-policy';
 import {

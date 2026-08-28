@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  ExactTimes,
-  PickupDropOffType,
-  RoutingTrip,
-} from '../../../routing-data';
+import type { PickupDropOffType } from '../../../gtfs';
+import type { ExactTimes, RoutingTrip } from '../../../routing-data';
 import { buildRaptorTimetable } from '../build-raptor-timetable';
 import {
   getDepartureTime,

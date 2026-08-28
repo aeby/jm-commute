@@ -4,8 +4,8 @@ import {
   getDepartureTime,
   getDropOffType,
   getPickupType,
-  type RaptorRoutePattern,
-} from '../timetable';
+} from '../timetable/route-pattern-access';
+import type { RaptorRoutePattern } from '../timetable/types';
 import { resolveSameStopTransferTime } from './relax-transfers';
 import {
   improveSharedBoardingReadyTime,

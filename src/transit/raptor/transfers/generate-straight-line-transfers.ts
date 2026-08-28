@@ -1,8 +1,8 @@
 import { haversineDistanceMeters } from '../../places';
+import { USE_QUERY_TRANSFER_TIME } from '../transfer-encoding';
 import { TransferEdgeRegistry } from './merge-transfer-edges';
 import { forEachSpatialTransferCandidate } from './spatial-transfer-grid';
 import {
-  USE_QUERY_TRANSFER_TIME,
   type ActiveTransferStop,
   type StraightLineTransferOptions,
 } from './types';

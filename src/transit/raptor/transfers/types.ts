@@ -1,7 +1,5 @@
 import type { TransitStop } from '../../stops';
 
-export const USE_QUERY_TRANSFER_TIME = 0xffff_ffff;
-
 export type GtfsTransferType = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface ParsedGtfsTransfer {

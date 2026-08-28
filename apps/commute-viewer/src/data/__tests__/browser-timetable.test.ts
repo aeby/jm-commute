@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { runRaptorFastestWindow } from '..';
-import {
-  buildPatternAdjacency,
-  encodePickupDropOffTypes,
-  type RaptorRoutePattern,
-  type RaptorTimetable,
-} from '../timetable';
+import { runRaptorFastestWindow } from '@core/transit/raptor/routing/run-raptor-fastest-window';
+import { buildPatternAdjacency } from '@core/transit/raptor/timetable/build-pattern-adjacency';
+import { encodePickupDropOffTypes } from '@core/transit/raptor/timetable/pickup-dropoff-codec';
+import type {
+  RaptorRoutePattern,
+  RaptorTimetable,
+} from '@core/transit/raptor/timetable/types';
 import {
   decodeFloat32ArrayBase64,
   decodeRaptorTimetable,

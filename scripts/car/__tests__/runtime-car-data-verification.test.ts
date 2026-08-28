@@ -8,32 +8,38 @@ import { resolveCarRuntimeDataPaths } from '@core/car/node';
 
 import { verifyRuntimeCarData } from '../runtime-car-data-verification';
 
-const MATRIX_BYTES = Uint8Array.from([0, 0, 93, 0, 95, 0, 0, 0]);
+const MATRIX_BYTES = Uint8Array.from([0, 93, 95, 0]);
 const MATRIX_SHA256 =
-  'c2eceddcfe024b7d28005019dfd2c45dcc71b59b1a5394ec9844c7c708bdfd7e';
+  '442f85dc01a0eb52fb36e9e29461d2ae48bd16d342bafa68e6f54b913f8f8715';
 const SHA_A = 'a'.repeat(64);
 const SHA_B = 'b'.repeat(64);
 
 function manifestJson(): string {
   return JSON.stringify({
-    schemaVersion: 1,
-    localityCount: 2,
-    localityIds: ['3011:bern', '8001:zurich'],
-    layout: 'ROW_MAJOR',
-    valueEncoding: 'UINT16_LE',
-    unit: 'MINUTES',
-    unreachableValue: 65_535,
-    rounding: 'CEIL_SECONDS_TO_MINUTES',
-    anchorsSha256: SHA_A,
-    localityInputSha256: SHA_B,
-    roadGraph: {
-      sourcePbfSha256: SHA_A,
-      osrmVersion: '26.8.0',
-      profile: 'car.lua',
-      algorithm: 'ch',
+    mode: 'CAR',
+    matrix: {
+      schemaVersion: 1,
+      localityCount: 2,
+      localityIds: ['3011:bern', '8001:zurich'],
+      maxTravelMinutes: 240,
+      layout: 'ROW_MAJOR',
+      valueEncoding: 'UINT8',
+      unit: 'MINUTES',
+      unavailableValue: 255,
+      matrixByteLength: MATRIX_BYTES.byteLength,
+      matrixSha256: MATRIX_SHA256,
     },
-    matrixByteLength: MATRIX_BYTES.byteLength,
-    matrixSha256: MATRIX_SHA256,
+    source: {
+      sourceMatrixSha256: SHA_A,
+      anchorsSha256: SHA_A,
+      localityInputSha256: SHA_B,
+      roadGraph: {
+        sourcePbfSha256: SHA_A,
+        osrmVersion: '26.8.0',
+        profile: 'car.lua',
+        algorithm: 'ch',
+      },
+    },
   });
 }
 
@@ -117,6 +123,13 @@ describe('verifyRuntimeCarData', () => {
           expectedReachableLocalityCount: 1,
         },
       ],
+      diagnosticReachabilityQueries: [
+        {
+          label: 'Bern within the full dataset horizon',
+          originLocalityId: '3011:bern',
+          maxTravelMinutes: 240,
+        },
+      ],
     });
 
     expect(verification.manifestPath).toBe(paths.manifestPath);
@@ -130,6 +143,14 @@ describe('verifyRuntimeCarData', () => {
         ({ reachableLocalityCount }) => reachableLocalityCount,
       ),
     ).toEqual([2, 1]);
+    expect(verification.diagnosticReachabilityQueries).toEqual([
+      {
+        label: 'Bern within the full dataset horizon',
+        originLocalityId: '3011:bern',
+        maxTravelMinutes: 240,
+        reachableLocalityCount: 2,
+      },
+    ]);
   });
 
   it('does not fall back to valid-looking preprocessing paths', async () => {
@@ -164,7 +185,7 @@ describe('verifyRuntimeCarData', () => {
     const projectRoot = await createProjectRoot();
     await writeRuntimeFixture(projectRoot);
     const paths = resolveCarRuntimeDataPaths(projectRoot);
-    await writeFile(paths.matrixPath, MATRIX_BYTES.subarray(0, 6));
+    await writeFile(paths.matrixPath, MATRIX_BYTES.subarray(0, 3));
 
     await expect(
       verifyRuntimeCarData({
@@ -186,7 +207,7 @@ describe('verifyRuntimeCarData', () => {
           },
         ],
       }),
-    ).rejects.toThrow('has 6 bytes; manifest expects 8');
+    ).rejects.toThrow('has 3 bytes; manifest expects 4');
   });
 
   it('requires both verification query kinds', async () => {

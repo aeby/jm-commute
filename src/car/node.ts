@@ -6,7 +6,7 @@ import {
   createCarTravelTimeIndex,
   type CarTravelTimeIndex,
 } from './travel-time-index';
-import { parseCarTravelTimeMatrixManifestJson } from './travel-time-matrix-format';
+import { parseCarTravelTimeManifestJson } from './travel-time-manifest';
 
 export interface LoadCarTravelTimeIndexOptions {
   readonly manifestPath: string;
@@ -54,28 +54,28 @@ async function readMatrix(path: string): Promise<Buffer> {
 
 /**
  * Loads and authenticates generated car-routing artifacts in Node.js before
- * constructing the browser-safe runtime index.
+ * constructing the platform-neutral runtime index.
  */
 export async function loadCarTravelTimeIndex(
   options: LoadCarTravelTimeIndexOptions,
 ): Promise<CarTravelTimeIndex> {
   const manifestJson = await readManifest(options.manifestPath);
-  const manifest = parseCarTravelTimeMatrixManifestJson(
+  const manifest = parseCarTravelTimeManifestJson(
     manifestJson,
     `car travel-time manifest "${options.manifestPath}"`,
   );
   const matrixBytes = await readMatrix(options.matrixPath);
 
-  if (matrixBytes.byteLength !== manifest.matrixByteLength) {
+  if (matrixBytes.byteLength !== manifest.matrix.matrixByteLength) {
     throw new Error(
-      `Car travel-time matrix at "${options.matrixPath}" has ${matrixBytes.byteLength} bytes; manifest expects ${manifest.matrixByteLength}.`,
+      `Car travel-time matrix at "${options.matrixPath}" has ${matrixBytes.byteLength} bytes; manifest expects ${manifest.matrix.matrixByteLength}.`,
     );
   }
 
   const actualSha256 = createHash('sha256').update(matrixBytes).digest('hex');
-  if (actualSha256 !== manifest.matrixSha256) {
+  if (actualSha256 !== manifest.matrix.matrixSha256) {
     throw new Error(
-      `Car travel-time matrix at "${options.matrixPath}" has SHA-256 ${actualSha256}; manifest expects ${manifest.matrixSha256}.`,
+      `Car travel-time matrix at "${options.matrixPath}" has SHA-256 ${actualSha256}; manifest expects ${manifest.matrix.matrixSha256}.`,
     );
   }
 

@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 
-import fixtureCsv from './fixtures/stops.txt?raw';
-import { parseGtfsStopsCsv } from '../parse-gtfs-stops-csv';
+import { describe, expect, it } from 'vitest';
+import { parseGtfsStopsCsv } from '..';
+
+const fixtureCsv = readFileSync(
+  new URL('./fixtures/stops.txt', import.meta.url),
+  'utf8',
+);
 
 const REQUIRED_HEADERS = [
   'stop_id',

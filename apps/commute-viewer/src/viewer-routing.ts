@@ -1,11 +1,11 @@
 import { PROJECT_CONFIG } from '@core/config';
 import { parseGtfsTimeToSeconds } from '@core/transit/gtfs';
-import {
-  runRaptorFastestWindow,
-  type FastestWindowQuery,
-  type FastestWindowResult,
-} from '@core/transit/raptor';
-import type { RaptorTimetable } from '@core/transit/raptor/timetable';
+import { runRaptorFastestWindow } from '@core/transit/raptor/routing/run-raptor-fastest-window';
+import type {
+  FastestWindowQuery,
+  FastestWindowResult,
+} from '@core/transit/raptor/routing/types';
+import type { RaptorTimetable } from '@core/transit/raptor/timetable/types';
 import type { LocalityRoutingEntry } from '@core/transit/locality-routing';
 
 import { VIEWER_CONFIG } from './config';
@@ -40,7 +40,7 @@ type ViewerRoutingRuntime = Pick<
 >;
 
 /**
- * Bind the browser-safe Range-RAPTOR implementation to the generated runtime
+ * Bind the canonical Range-RAPTOR implementation to the generated viewer
  * timetable. Every origin uses the viewer's complete supported duration so
  * later slider interaction can remain a presentation-only operation.
  */

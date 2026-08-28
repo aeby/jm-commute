@@ -2,7 +2,7 @@ import {
   calculateTravelTimeMatrixByteLength,
   requireExactCarDataKeys,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
-} from '../travel-time-matrix-format';
+} from './travel-time-matrix-format';
 
 export const CAR_TRAVEL_TIME_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
 

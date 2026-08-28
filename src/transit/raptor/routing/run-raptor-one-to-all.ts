@@ -1,4 +1,4 @@
-import type { RaptorTimetable } from '../timetable';
+import type { RaptorTimetable } from '../timetable/types';
 import {
   collectInitialAccessStops,
   createInitialAccessScratch,

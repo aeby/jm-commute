@@ -15,7 +15,7 @@ import {
   calculateTravelTimeMatrixCellCount,
   parseCarTravelTimeMatrixManifestJson,
   UNREACHABLE_TRAVEL_MINUTES,
-} from '@core/car/travel-time-matrix-format';
+} from '@core/car/preprocessing/travel-time-matrix-format';
 import {
   createLocalityId,
   LocalityResolver,

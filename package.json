@@ -18,8 +18,8 @@
     "car:anchors:inspect": "tsx scripts/car/inspect-locality-road-anchors.ts",
     "car:matrix:prepare": "tsx scripts/car/prepare-travel-time-matrix.ts",
     "car:matrix:inspect": "tsx scripts/car/inspect-travel-time-matrix.ts",
-    "car:runtime:data": "tsx scripts/car/build-runtime-car-data.ts",
-    "car:runtime:verify": "tsx scripts/car/verify-runtime-car-data.ts",
+    "car:runtime:data": "node --import tsx scripts/car/build-runtime-car-data.ts",
+    "car:runtime:verify": "node --import tsx scripts/car/verify-runtime-car-data.ts",
     "car:runtime:inspect": "node --expose-gc --import tsx scripts/car/inspect-car-runtime.ts",
     "inspect:transit-candidates": "tsx scripts/inspect-transit-candidates.ts",
     "inspect:raptor-timetable": "node --expose-gc --import tsx scripts/inspect-raptor-timetable.ts",
@@ -31,7 +31,10 @@
     "viewer:build": "npm run viewer:data && npm run build --workspace @jm/commute-viewer",
     "lint": "oxlint -D correctness -D suspicious --vitest-plugin --vue-plugin --deny-warnings src scripts apps/commute-viewer/src apps/commute-viewer/vite.config.ts vitest.config.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/commute-viewer/tsconfig.json"
+    "typecheck:runtime": "tsc --noEmit -p tsconfig.runtime.json",
+    "typecheck:core": "npm run typecheck:runtime && tsc --noEmit",
+    "typecheck:viewer": "tsc --noEmit -p apps/commute-viewer/tsconfig.json",
+    "typecheck": "npm run typecheck:core && npm run typecheck:viewer"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",

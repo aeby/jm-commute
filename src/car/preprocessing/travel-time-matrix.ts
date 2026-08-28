@@ -5,7 +5,7 @@ import {
   MAX_TRAVEL_MINUTES,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
   UNREACHABLE_TRAVEL_MINUTES,
-} from '../travel-time-matrix-format';
+} from './travel-time-matrix-format';
 
 export interface MutableCarTravelTimeRowSlab {
   readonly sourceRowCount: number;

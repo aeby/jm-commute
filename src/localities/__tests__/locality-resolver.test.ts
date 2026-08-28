@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 
-import fixtureCsv from './fixtures/localities.csv?raw';
-import { LocalityResolver } from '../locality-resolver';
-import { parseLocalitiesCsv } from '../parse-localities-csv';
+import { describe, expect, it } from 'vitest';
+import { LocalityResolver } from '..';
+import { parseLocalitiesCsv } from '../node';
+
+const fixtureCsv = readFileSync(
+  new URL('./fixtures/localities.csv', import.meta.url),
+  'utf8',
+);
 
 const resolver = new LocalityResolver(parseLocalitiesCsv(fixtureCsv));
 

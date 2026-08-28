@@ -7,7 +7,7 @@ import {
   UNREACHABLE_TRAVEL_MINUTES,
   type CarRoadGraphMetadata,
   type CarTravelTimeMatrixManifest,
-} from '../travel-time-matrix-format';
+} from './travel-time-matrix-format';
 import type { CarLocalityRoadAnchorsFile } from './locality-road-anchors-file';
 import {
   decodeTravelMinutesLittleEndian,

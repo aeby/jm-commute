@@ -4,24 +4,24 @@ import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 
 import {
+  encodeFloat32ArrayBase64,
+  raptorTimetableTypedArrayBytes,
+  serializeRaptorTimetable,
+} from '@jm/commute-viewer/src/data/browser-timetable';
+import {
   COMMUTE_VIEWER_DATA_GLOBAL_KEY,
   COMMUTE_VIEWER_DATA_SCHEMA_VERSION,
   type CommuteViewerData,
   type ViewerLocality,
   type ViewerLocalityRoutingEntry,
-} from '../apps/commute-viewer/src/data/runtime-data';
-import { createLocalityId } from '../src/localities';
-import { parseLocalitiesCsv } from '../src/localities/node';
+} from '@jm/commute-viewer/src/data/runtime-data';
+import { createLocalityId } from '@core/localities';
+import { parseLocalitiesCsv } from '@core/localities/node';
 import {
   buildLocalityRoutingIndex,
   type LocalityRoutingIndex,
-} from '../src/transit/locality-routing';
-import { loadLocalityRoutingIndex } from '../src/transit/locality-routing/node';
-import {
-  encodeFloat32ArrayBase64,
-  raptorTimetableTypedArrayBytes,
-  serializeRaptorTimetable,
-} from '../src/transit/raptor';
+} from '@core/transit/locality-routing';
+import { loadLocalityRoutingIndex } from '@core/transit/locality-routing/node';
 import {
   DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,

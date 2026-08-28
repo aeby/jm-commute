@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_CONFIG } from '@core/config';
+import type { RaptorTimetable } from '@core/transit/raptor/timetable/types';
 import {
   encodeFloat32ArrayBase64,
   serializeRaptorTimetable,
-} from '@core/transit/raptor';
-import type { RaptorTimetable } from '@core/transit/raptor/timetable';
+} from '../browser-timetable';
 import {
   COMMUTE_VIEWER_DATA_GLOBAL_KEY,
   loadCommuteViewerRuntimeData,

@@ -3,15 +3,15 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
-import { PROJECT_CONFIG } from '../src/config';
-import { validateFixedDayRoutingManifestScenario } from '../src/transit/routing-data';
-import { loadFixedDayRoutingDataset } from '../src/transit/routing-data/node';
-import {
-  buildRaptorTimetable,
-  type RaptorTimetable,
-  type RaptorTimetableBuildStage,
-  type RaptorTimetableBuildStatistics,
-} from '../src/transit/raptor/timetable';
+import { PROJECT_CONFIG } from '@core/config';
+import { validateFixedDayRoutingManifestScenario } from '@core/transit/routing-data';
+import { loadFixedDayRoutingDataset } from '@core/transit/routing-data/node';
+import { buildRaptorTimetable } from '@core/transit/raptor/timetable/build-raptor-timetable';
+import type {
+  RaptorTimetable,
+  RaptorTimetableBuildStage,
+  RaptorTimetableBuildStatistics,
+} from '@core/transit/raptor/timetable/types';
 
 const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ROUTING_DIRECTORY = join(

@@ -1,8 +1,8 @@
-import { parseGtfsTimeToSeconds } from '../gtfs';
-import type {
-  PickupDropOffType,
-  RoutingStopTime,
-} from './types';
+import {
+  parseGtfsTimeToSeconds,
+  type PickupDropOffType,
+} from '../gtfs';
+import type { RoutingStopTime } from './types';
 
 export interface RoutingStopTimeInput {
   readonly stopId: string;

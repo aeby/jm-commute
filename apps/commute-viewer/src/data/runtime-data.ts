@@ -9,15 +9,14 @@ import type {
   LocalityRoutingEntry,
   LocalityRoutingIndex,
 } from '@core/transit/locality-routing';
+import { buildPatternAdjacency } from '@core/transit/raptor/timetable/build-pattern-adjacency';
+import type { RaptorTimetable } from '@core/transit/raptor/timetable/types';
+
 import {
   decodeFloat32ArrayBase64,
   deserializeRaptorTimetable,
   type SerializedRaptorTimetable,
-} from '@core/transit/raptor';
-import {
-  buildPatternAdjacency,
-  type RaptorTimetable,
-} from '@core/transit/raptor/timetable';
+} from './browser-timetable';
 
 export const COMMUTE_VIEWER_DATA_SCHEMA_VERSION = 2 as const;
 export const COMMUTE_VIEWER_DATA_GLOBAL_KEY =

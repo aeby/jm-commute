@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TransitStop } from '../../../stops';
+import { USE_QUERY_TRANSFER_TIME } from '../../transfer-encoding';
 import { buildTransferGraph } from '../build-transfer-graph';
 import {
-  USE_QUERY_TRANSFER_TIME,
   type BuildTransferGraphOptions,
   type ParsedGtfsTransfer,
 } from '../types';

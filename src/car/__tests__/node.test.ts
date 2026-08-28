@@ -10,32 +10,38 @@ import {
   resolveCarRuntimeDataPaths,
 } from '../node';
 
-const MATRIX_BYTES = Uint8Array.from([0, 0, 93, 0, 95, 0, 0, 0]);
+const MATRIX_BYTES = Uint8Array.from([0, 93, 95, 0]);
 const MATRIX_SHA256 =
-  'c2eceddcfe024b7d28005019dfd2c45dcc71b59b1a5394ec9844c7c708bdfd7e';
+  '442f85dc01a0eb52fb36e9e29461d2ae48bd16d342bafa68e6f54b913f8f8715';
 const SHA_A = 'a'.repeat(64);
 const SHA_B = 'b'.repeat(64);
 
 function manifestJson(matrixSha256 = MATRIX_SHA256): string {
   return JSON.stringify({
-    schemaVersion: 1,
-    localityCount: 2,
-    localityIds: ['3011:bern', '8001:zurich'],
-    layout: 'ROW_MAJOR',
-    valueEncoding: 'UINT16_LE',
-    unit: 'MINUTES',
-    unreachableValue: 65_535,
-    rounding: 'CEIL_SECONDS_TO_MINUTES',
-    anchorsSha256: SHA_A,
-    localityInputSha256: SHA_B,
-    roadGraph: {
-      sourcePbfSha256: SHA_A,
-      osrmVersion: '26.8.0',
-      profile: 'car.lua',
-      algorithm: 'ch',
+    mode: 'CAR',
+    matrix: {
+      schemaVersion: 1,
+      localityCount: 2,
+      localityIds: ['3011:bern', '8001:zurich'],
+      maxTravelMinutes: 240,
+      layout: 'ROW_MAJOR',
+      valueEncoding: 'UINT8',
+      unit: 'MINUTES',
+      unavailableValue: 255,
+      matrixByteLength: MATRIX_BYTES.byteLength,
+      matrixSha256,
     },
-    matrixByteLength: MATRIX_BYTES.byteLength,
-    matrixSha256,
+    source: {
+      sourceMatrixSha256: SHA_A,
+      anchorsSha256: SHA_A,
+      localityInputSha256: SHA_B,
+      roadGraph: {
+        sourcePbfSha256: SHA_A,
+        osrmVersion: '26.8.0',
+        profile: 'car.lua',
+        algorithm: 'ch',
+      },
+    },
   });
 }
 
@@ -75,19 +81,19 @@ describe('loadCarTravelTimeIndex', () => {
 
   it('rejects matrix bytes whose SHA-256 does not match the manifest', async () => {
     const changedBytes = Uint8Array.from(MATRIX_BYTES);
-    changedBytes[2] = 94;
+    changedBytes[1] = 94;
     const paths = await createFixture(changedBytes);
 
     await expect(loadCarTravelTimeIndex(paths)).rejects.toThrow(
-      'manifest expects c2eceddcfe024b7d28005019dfd2c45dcc71b59b1a5394ec9844c7c708bdfd7e',
+      `manifest expects ${MATRIX_SHA256}`,
     );
   });
 
   it('rejects a matrix with the wrong byte length before construction', async () => {
-    const paths = await createFixture(MATRIX_BYTES.subarray(0, 6));
+    const paths = await createFixture(MATRIX_BYTES.subarray(0, 3));
 
     await expect(loadCarTravelTimeIndex(paths)).rejects.toThrow(
-      'has 6 bytes; manifest expects 8',
+      'has 3 bytes; manifest expects 4',
     );
   });
 

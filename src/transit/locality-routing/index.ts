@@ -7,9 +7,13 @@ export {
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
 } from './resolve-fastest-reachable-localities';
+export type { ReachableLocalityDebug } from './resolve-fastest-reachable-localities';
 
 export type {
   LocalityRoutingEntry,
   LocalityRoutingIndex,
-  ReachableLocalityDebug,
 } from './types';
+export type {
+  RuntimeLocalityRoutingEntry,
+  RuntimeLocalityRoutingIndex,
+} from './runtime-types';

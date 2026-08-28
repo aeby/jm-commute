@@ -31,10 +31,22 @@ export interface RuntimeCarReachabilityCheckResult
   readonly reachableLocalityCount: number;
 }
 
+export interface RuntimeCarReachabilityDiagnostic {
+  readonly label: string;
+  readonly originLocalityId: LocalityId;
+  readonly maxTravelMinutes: number;
+}
+
+export interface RuntimeCarReachabilityDiagnosticResult
+  extends RuntimeCarReachabilityDiagnostic {
+  readonly reachableLocalityCount: number;
+}
+
 export interface VerifyRuntimeCarDataOptions
   extends LoadCarTravelTimeIndexOptions {
   readonly pointChecks: readonly RuntimeCarPointCheck[];
   readonly reachabilityChecks: readonly RuntimeCarReachabilityCheck[];
+  readonly diagnosticReachabilityQueries?: readonly RuntimeCarReachabilityDiagnostic[];
 }
 
 export interface RuntimeCarDataVerification {
@@ -42,6 +54,7 @@ export interface RuntimeCarDataVerification {
   readonly matrixPath: string;
   readonly pointChecks: readonly RuntimeCarPointCheckResult[];
   readonly reachabilityChecks: readonly RuntimeCarReachabilityCheckResult[];
+  readonly diagnosticReachabilityQueries: readonly RuntimeCarReachabilityDiagnosticResult[];
 }
 
 function formatTravelMinutes(value: number | undefined): string {
@@ -87,6 +100,16 @@ export async function verifyRuntimeCarData(
       check.maxTravelMinutes,
     ).length,
   }));
+  const diagnosticReachabilityQueries = (
+    options.diagnosticReachabilityQueries ?? []
+  ).map((diagnostic) => ({
+    ...diagnostic,
+    reachableLocalityCount: getReachableLocalitiesByCar(
+      index,
+      diagnostic.originLocalityId,
+      diagnostic.maxTravelMinutes,
+    ).length,
+  }));
   const mismatches = [
     ...pointChecks.flatMap((check) =>
       check.travelMinutes === check.expectedTravelMinutes
@@ -114,5 +137,6 @@ export async function verifyRuntimeCarData(
     matrixPath: options.matrixPath,
     pointChecks,
     reachabilityChecks,
+    diagnosticReachabilityQueries,
   };
 }

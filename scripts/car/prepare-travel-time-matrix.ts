@@ -48,7 +48,7 @@ import {
   parseCarTravelTimeMatrixManifestJson,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
   UNREACHABLE_TRAVEL_MINUTES,
-} from '@core/car/travel-time-matrix-format';
+} from '@core/car/preprocessing/travel-time-matrix-format';
 import { parseLocalitiesCsv } from '../../src/localities/node';
 import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
 

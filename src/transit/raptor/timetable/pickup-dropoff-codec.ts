@@ -1,4 +1,4 @@
-import type { PickupDropOffType } from '../../routing-data';
+import type { PickupDropOffType } from '../../gtfs/types';
 import type { PackedPickupDropOffEntry } from './types';
 
 const BITS_PER_VALUE = 2;

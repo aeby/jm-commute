@@ -1,7 +1,7 @@
 import type {
   RaptorRoutePattern,
   RaptorTimetable,
-} from './timetable';
+} from '@core/transit/raptor/timetable/types';
 
 const BASE64_CHUNK_SIZE = 0x8000;
 

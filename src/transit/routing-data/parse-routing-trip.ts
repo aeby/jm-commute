@@ -1,6 +1,6 @@
+import type { PickupDropOffType } from '../gtfs/types';
 import type {
   ExactTimes,
-  PickupDropOffType,
   RoutingFrequencyWindow,
   RoutingStopTime,
   RoutingTrip,

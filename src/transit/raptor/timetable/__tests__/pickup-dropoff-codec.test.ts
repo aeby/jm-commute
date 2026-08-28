@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PickupDropOffType } from '../../../routing-data';
+import type { PickupDropOffType } from '../../../gtfs';
 import {
   encodePickupDropOffTypes,
   getPackedDropOffType,

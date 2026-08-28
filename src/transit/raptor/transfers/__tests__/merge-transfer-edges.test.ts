@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { USE_QUERY_TRANSFER_TIME } from '../../transfer-encoding';
 import { TransferEdgeRegistry } from '../merge-transfer-edges';
-import { USE_QUERY_TRANSFER_TIME } from '../types';
 
 describe('TransferEdgeRegistry', () => {
   it('keeps directed edges distinct and emits sorted typed adjacency', () => {

@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { PROJECT_CONFIG } from '../../../config';
-import { parseGtfsTimeToSeconds } from '../../gtfs';
-import { shouldRetainRoutingTrip } from '../should-retain-routing-trip';
-import type {
-  PickupDropOffType,
-  RoutingFrequencyWindow,
-  RoutingStopTime,
-} from '../types';
+import { PROJECT_CONFIG } from '@core/config';
+import {
+  parseGtfsTimeToSeconds,
+  type PickupDropOffType,
+} from '../../gtfs';
+import {
+  shouldRetainRoutingTrip,
+  type RoutingFrequencyWindow,
+  type RoutingStopTime,
+} from '..';
 
 const ROUTING_WINDOW_START_SECONDS = parseGtfsTimeToSeconds(
   PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,

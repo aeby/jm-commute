@@ -1,4 +1,5 @@
-import type { RaptorTimetable } from '../timetable';
+import type { RaptorTimetable } from '../timetable/types';
+import { USE_QUERY_TRANSFER_TIME } from '../transfer-encoding';
 import { buildSiblingTransfers } from './build-sibling-transfers';
 import {
   generateStraightLineTransfers,
@@ -6,7 +7,6 @@ import {
 } from './generate-straight-line-transfers';
 import { TransferEdgeRegistry } from './merge-transfer-edges';
 import {
-  USE_QUERY_TRANSFER_TIME,
   type ActiveTransferStop,
   type BuildTransferGraphOptions,
   type ParsedGtfsTransfer,

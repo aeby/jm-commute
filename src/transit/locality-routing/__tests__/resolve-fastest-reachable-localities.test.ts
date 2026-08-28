@@ -1,34 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  UNREACHED_TIME,
-  type FastestWindowResult,
-} from '../../raptor';
-import type { LocalityRoutingEntry } from '../types';
+import { UNREACHED_TIME } from '../../raptor/routing/state';
+import type { FastestWindowResult } from '../../raptor/routing/types';
 import {
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
-} from '../resolve-fastest-reachable-localities';
+  type RuntimeLocalityRoutingEntry,
+} from '..';
 
 const DEPARTURE = 28_800;
 
 function entry(
   localityId: string,
   stopIndexes: readonly number[],
-): LocalityRoutingEntry {
-  const separator = localityId.indexOf(':');
+): RuntimeLocalityRoutingEntry {
   return {
     localityId,
-    postalCode: localityId.slice(0, separator),
-    city: localityId.slice(separator + 1),
-    selectionMode: 'WITHIN_ACCESS_RADIUS',
     stopIndexes: Uint32Array.from(stopIndexes),
   };
 }
 
 function resolveFastest(
   durations: readonly number[],
-  entries: readonly LocalityRoutingEntry[],
+  entries: readonly RuntimeLocalityRoutingEntry[],
   departures: readonly number[] = durations.map(() => DEPARTURE),
 ): ReturnType<typeof resolveFastestReachableLocalities> {
   const result: FastestWindowResult = {

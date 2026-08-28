@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { PROJECT_CONFIG } from '@core/config';
-import {
-  UNREACHED_TIME,
-  type FastestWindowResult,
-} from '@core/transit/raptor';
-import type { RaptorTimetable } from '@core/transit/raptor/timetable';
+import { UNREACHED_TIME } from '@core/transit/raptor/routing/state';
+import type { FastestWindowResult } from '@core/transit/raptor/routing/types';
+import type { RaptorTimetable } from '@core/transit/raptor/timetable/types';
 
 import { VIEWER_CONFIG } from '../config';
 import type {

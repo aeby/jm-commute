@@ -2,7 +2,7 @@ import {
   parseCarRoadGraphMetadata,
   requireExactCarDataKeys,
   type CarRoadGraphMetadata,
-} from '../travel-time-matrix-format';
+} from './travel-time-matrix-format';
 import type { CarLocalityInput } from './types';
 import {
   createLocalityInputFingerprint,

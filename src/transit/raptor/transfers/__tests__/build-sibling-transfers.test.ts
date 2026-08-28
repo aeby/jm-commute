@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TransitStop } from '../../../stops';
+import { USE_QUERY_TRANSFER_TIME } from '../../transfer-encoding';
 import { buildSiblingTransfers } from '../build-sibling-transfers';
 import { TransferEdgeRegistry } from '../merge-transfer-edges';
-import { USE_QUERY_TRANSFER_TIME } from '../types';
 
 const station = (id: string): TransitStop => ({
   id,

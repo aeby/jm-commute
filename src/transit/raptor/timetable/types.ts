@@ -1,4 +1,4 @@
-import type { PickupDropOffType } from '../../routing-data';
+import type { PickupDropOffType } from '../../gtfs/types';
 
 export type StopIndex = number;
 

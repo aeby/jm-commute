@@ -1,19 +1,17 @@
-import type { LocalityId, ReachableLocality } from '../../localities';
 import type { TransitCandidateSelectionMode } from '../candidates';
+import type {
+  RuntimeLocalityRoutingEntry,
+  RuntimeLocalityRoutingIndex,
+} from './runtime-types';
 
-export interface LocalityRoutingEntry {
-  readonly localityId: LocalityId;
+/** Full generated entry, including preprocessing and diagnostic metadata. */
+export interface LocalityRoutingEntry extends RuntimeLocalityRoutingEntry {
   readonly postalCode: string;
   readonly city: string;
   readonly selectionMode: TransitCandidateSelectionMode;
-  readonly stopIndexes: Uint32Array;
 }
 
-export interface LocalityRoutingIndex {
+/** Full generated index consumed by preparation and diagnostic tooling. */
+export interface LocalityRoutingIndex extends RuntimeLocalityRoutingIndex {
   readonly entries: readonly LocalityRoutingEntry[];
-}
-
-export interface ReachableLocalityDebug extends ReachableLocality {
-  readonly departureTimeSeconds: number;
-  readonly arrivalTimeSeconds: number;
 }

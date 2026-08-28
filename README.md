@@ -23,20 +23,54 @@ Journey reconstruction, transfer chaining, and job matching remain out of scope.
 
 ## Module boundaries
 
-- `src/localities/` owns transport-independent locality identity, parsing, resolution, and reachable-locality result types.
-- `src/transit/gtfs/` owns reusable GTFS date, time, calendar, CSV, and fixed-date feed foundations.
-- `src/transit/stops/`, `places/`, `service-profiles/`, and `candidates/` normalize and select logical transit access points.
-- `src/transit/routing-data/` prepares and validates the streamed fixed-day routing dataset.
-- `src/transit/raptor/` owns compact timetable construction, transfer connectivity, and routing.
-- `src/transit/locality-routing/` is the public-transport adapter between generic localities and RAPTOR stop indexes/results.
-- `src/car/` owns the platform-neutral, pure-TypeScript car matrix format and lookup runtime (and is therefore browser-safe); its optional Node loader is isolated in `src/car/node.ts`, while Docker, OSRM HTTP, and preprocessing filesystem code stay under `src/car/preprocessing/` and `scripts/car/`.
-- `apps/commute-viewer/` contains the Vue/Vite development viewer; it imports browser-safe routing modules from `src/` rather than duplicating them.
+The backend/runtime implementation is canonical. Its boundaries are:
+
+- **Domain:** `src/localities/index.ts` owns transport-independent locality
+  identity, normalization, resolution, and the shared `ReachableLocality`
+  result. Raw official-locality CSV parsing is isolated in
+  `src/localities/node.ts`.
+- **Runtime core:** `src/transit/index.ts` exposes an opaque transit runtime
+  query rather than RAPTOR arrays; `src/car/index.ts` exposes only opaque matrix
+  construction and high-level car queries. Algorithms and compact typed arrays
+  remain internal and platform-neutral where natural.
+- **Node/server integration:** explicit `node.ts` entries own filesystem access,
+  paths, streaming, `Buffer`, and checksum verification. Node functionality is
+  not weakened merely to make a browser bundle possible.
+- **Preprocessing:** GTFS ingestion, candidates, service profiles, normalized
+  routing NDJSON, timetable/transfer construction, OSRM, anchors, matrix
+  generation, publication, and diagnostics remain build-time concerns.
+- **Browser/viewer:** the legacy Base64 RAPTOR codec, generated `window` data,
+  paint scheduling, stop sampling, and map schemas are viewer-owned under
+  `apps/commute-viewer`. They are not canonical runtime formats.
+
+Platform-neutral runtime code is shared where natural, but browser
+compatibility is not a constraint on Node loaders or preprocessing. The
+history- and import-backed classifications are recorded in
+[`docs/runtime-boundary-audit.md`](docs/runtime-boundary-audit.md).
+
+The intended next package layout is:
+
+```text
+packages/
+  commute/          # canonical server/runtime; exports . and ./node
+  commute-browser/  # thin browser loading adapter; depends on @jm/commute
+
+apps/
+  commute-viewer/   # eventually depends on @jm/commute-browser
+```
+
+`@jm/commute-browser` may add asset loading, decoding, or workers, but it must
+not reimplement locality identity, RAPTOR, transit reduction, or car matrix
+lookup. The dependency must never point from `@jm/commute` to the browser
+adapter.
 
 ## Development
 
 ```bash
 npm install
 npm test
+npm run typecheck:runtime
+npm run typecheck:core
 npm run typecheck
 npm run lint
 npm run data:prepare:stops
@@ -117,33 +151,28 @@ The car architecture keeps offline preparation, runtime-data packaging, and
 runtime lookup as explicit boundaries:
 
 ```text
-Offline preprocessing
+PREPROCESSING
 
-official locality
-    ↓
-nearest routable road point
-    ↓
-persisted locality road anchor
-    ↓
-OSRM Table preprocessing
-    ↓
-directional locality × locality travel-time matrix
-    ↓
-data/processed/car/travel-time-matrix/
+Car
+OSM → OSRM → full UInt16 locality matrix
+                         ↓
+                UInt8 publication
+                  0–240 / 255
 
-Runtime-data packaging
+Transit
+GTFS → RAPTOR
+          ↓
+   future UInt8 matrix
+      0–240 / 255
 
-validated processed manifest + binary
-    ↓
-data/runtime/car/manifest.json + travel-times.bin
+RUNTIME
 
-Runtime lookup
-
-the two packaged runtime files
-    ↓
-platform-neutral TypeScript car reachability index
-    ↓
-point travel time or reachable-locality results
+car-times.bin       future transit-times.bin
+          └──────────────┬──────────────┘
+                         ↓
+                shared TravelTimeIndex
+                         ↓
+                 ReachableLocality[]
 ```
 
 With the local OSRM service running, generate the strictly validated anchor
@@ -198,7 +227,7 @@ npm run car:matrix:inspect
 inputs and intermediates such as the OSRM graph, locality road anchors, and the
 validated matrix output. None of those paths is a production/runtime contract.
 
-Package the validated matrix into the deliberately smaller runtime-data
+Package the validated full matrix into the deliberately smaller runtime-data
 boundary with:
 
 ```bash
@@ -214,8 +243,22 @@ data/runtime/car/
 ```
 
 Both are generated and Git-ignored; the directory's `.gitkeep` is tracked. The
-runtime manifest and binary remain cryptographically tied by the matrix SHA-256
-and declared byte length. Verify the packaged pair independently with:
+publisher authenticates the full `UInt16` preprocessing matrix, converts each
+cell deterministically, and leaves that source unchanged:
+
+```text
+source 0–240   → same UInt8 minute value
+source > 240   → 255
+source 65535   → 255
+```
+
+The runtime manifest wraps the transport-independent matrix descriptor with
+car-specific source-matrix, anchor, locality-input, and road-graph provenance.
+The manifest and binary remain cryptographically tied by the runtime matrix
+SHA-256 and declared byte length. Publication authenticates both staged files,
+promotes the matrix first, and promotes the manifest last as the commit marker;
+an interrupted fixed-name promotion therefore fails closed during the next
+authenticated load. Verify the packaged pair independently with:
 
 ```bash
 npm run car:runtime:verify
@@ -226,20 +269,29 @@ service. Packaging consumes the already prepared matrix; verification reads
 only the packaged pair. Neither command regenerates road anchors or any
 public-transport data.
 
-The platform-neutral `src/car` runtime consumes the validated manifest and
-matrix bytes, builds the locality-ID index once, and supports both a
-directional point lookup and a one-to-many reachability scan. Point lookup
-returns whole minutes or `undefined` for an unreachable pair. Reachability
-returns the same transport-independent `{ localityId, travelMinutes }` shape
-used by public transport, ordered by travel time and then locality ID.
+The transport-independent `src/travel-time-matrix` runtime consumes the shared
+descriptor and dense `UInt8` bytes, builds the locality-ID index once, and
+supports directional point lookup and a one-row reachability scan. The
+`src/car` API is a thin mode-specific façade over that implementation. Point
+lookup returns whole minutes or `undefined` for an unavailable pair.
+Reachability returns the shared `{ localityId, travelMinutes }` shape, ordered
+by travel time and then locality ID.
 
 OSRM is not required for runtime car reachability. Each runtime reachability
 query scans exactly one precomputed locality matrix row.
 
-The runtime keeps the generated format unchanged: row-major `UInt16`
-little-endian whole minutes, with `65535` reserved for unreachable cells. On a
-little-endian host it can read the matrix through a typed view without copying
-the 33 MB payload; the runtime diagnostics report whether a copy was required.
+The canonical runtime format is row-major `UInt8`: `0–240` are whole travel
+minutes, `255` means unavailable or beyond the published four-hour horizon,
+and `241–254` are reserved and invalid in schema version 1. The four-hour
+dataset capability is separate from product policy. An application may expose
+a smaller maximum, including the viewer's current 120-minute setting, without
+changing or regenerating the matrix.
+
+Because each cell is one byte, the common runtime path uses a zero-copy
+`Uint8Array` view over approximately 15.82 MiB rather than retaining a second
+decoded matrix. The runtime diagnostics report the view size, copy behavior,
+and locality-index entry count.
+
 The `data/runtime/car` directory is the complete generated data dependency: its
 `manifest.json` and `travel-times.bin` are the only generated files the runtime
 loads. It does not read the processed matrix path, road anchors, locality CSV,
@@ -255,9 +307,12 @@ npm run car:runtime:inspect
 ```
 
 This inspection command is performance- and behavior-oriented: it prints
-reference lookups and reachable-locality counts, then reports matrix-copy,
-memory, and timing distributions. Use `car:runtime:verify` for the focused
-runtime-artifact integrity check. Neither command requires OSRM.
+reference lookups, 30/60/90/120/180/240-minute reachability counts, examples
+on both sides of the four-hour boundary, and initialization, point-lookup,
+90-minute scan, and 240-minute scan timings. The publication command reports
+the complete conversion buckets. Use
+`car:runtime:verify` for the focused runtime-artifact integrity check. Neither
+command requires OSRM.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly
@@ -313,6 +368,13 @@ Frequency templates are expanded at their declared headways during timetable con
 The router performs multi-source, one-to-all Range-RAPTOR queries against the compact fixed-day timetable.
 
 Meaningful direct and access-adjusted departure opportunities are evaluated latest-to-earliest within 07:00–09:00. The result stores the shortest travel duration to every reachable stop together with its best departure and corresponding arrival, bounded by the requested maximum commute duration.
+
+The future transit matrix will publish the fastest representative-morning
+journey whose origin departure occurs within 07:00–09:00, preserving durations
+up to 240 minutes. The window restricts departure, not arrival: for example, a
+journey departing at 08:55 and arriving after 09:00 remains eligible when its
+total duration is no more than four hours. The current viewer can continue to
+offer only a 120-minute slider over that richer dataset.
 
 Transfers can connect different dense routing-stop IDs without consuming another vehicle leg. Only one transfer edge is traversed after a vehicle arrival; transfer edges are not chained within a RAPTOR round.
 

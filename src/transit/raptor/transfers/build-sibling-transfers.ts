@@ -1,6 +1,6 @@
 import type { TransitStop } from '../../stops';
+import { USE_QUERY_TRANSFER_TIME } from '../transfer-encoding';
 import { TransferEdgeRegistry } from './merge-transfer-edges';
-import { USE_QUERY_TRANSFER_TIME } from './types';
 
 export const buildSiblingTransfers = (
   transitStops: readonly TransitStop[],

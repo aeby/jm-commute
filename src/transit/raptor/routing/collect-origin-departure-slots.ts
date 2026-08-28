@@ -1,9 +1,9 @@
 import {
   getDepartureTime,
   getPickupType,
-  type RaptorTimetable,
-} from '../timetable';
-import { USE_QUERY_TRANSFER_TIME } from '../transfers';
+} from '../timetable/route-pattern-access';
+import type { RaptorTimetable } from '../timetable/types';
+import { USE_QUERY_TRANSFER_TIME } from '../transfer-encoding';
 import {
   validateOriginDepartureInputs,
   type ValidatedOriginDepartureInputs,

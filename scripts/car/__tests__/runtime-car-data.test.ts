@@ -1,12 +1,5 @@
 import { createHash } from 'node:crypto';
-import {
-  mkdtemp,
-  mkdir,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -14,26 +7,48 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   authenticateRuntimeCarData,
+  authenticateSourceCarData,
+  convertCarTravelTimeMatrixToRuntime,
   publishRuntimeCarData,
   type RuntimeCarDataPaths,
 } from '../runtime-car-data';
 
-const MATRIX_BYTES = Uint8Array.from([0, 0, 93, 0, 95, 0, 0, 0]);
+const SOURCE_VALUES = [
+  0, 1, 120, 121,
+  180, 0, 239, 240,
+  241, 254, 0, 431,
+  65_535, 120, 240, 0,
+] as const;
+const EXPECTED_RUNTIME_VALUES = [
+  0, 1, 120, 121,
+  180, 0, 239, 240,
+  255, 255, 0, 255,
+  255, 120, 240, 0,
+] as const;
 const SHA_A = 'a'.repeat(64);
 const SHA_B = 'b'.repeat(64);
 const temporaryDirectories: string[] = [];
+
+function encodeSource(values: readonly number[]): Uint8Array {
+  const bytes = new Uint8Array(values.length * 2);
+  const view = new DataView(bytes.buffer);
+  values.forEach((value, index) => view.setUint16(index * 2, value, true));
+  return bytes;
+}
+
+const SOURCE_MATRIX_BYTES = encodeSource(SOURCE_VALUES);
 
 function sha256(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function manifestValue(matrixSha256 = sha256(MATRIX_BYTES)): {
-  readonly [key: string]: unknown;
-} {
+function sourceManifestValue(
+  matrixSha256 = sha256(SOURCE_MATRIX_BYTES),
+): Readonly<Record<string, unknown>> {
   return {
     schemaVersion: 1,
-    localityCount: 2,
-    localityIds: ['3011:bern', '8001:zurich'],
+    localityCount: 4,
+    localityIds: ['A', 'B', 'C', 'D'],
     layout: 'ROW_MAJOR',
     valueEncoding: 'UINT16_LE',
     unit: 'MINUTES',
@@ -47,17 +62,15 @@ function manifestValue(matrixSha256 = sha256(MATRIX_BYTES)): {
       profile: 'car.lua',
       algorithm: 'ch',
     },
-    matrixByteLength: MATRIX_BYTES.byteLength,
+    matrixByteLength: SOURCE_MATRIX_BYTES.byteLength,
     matrixSha256,
   };
 }
 
-function manifestBytes(
-  value: Readonly<Record<string, unknown>> = manifestValue(),
+function sourceManifestBytes(
+  value: Readonly<Record<string, unknown>> = sourceManifestValue(),
 ): Uint8Array {
-  // Leading/trailing whitespace proves publication retains source bytes rather
-  // than replacing them with a normalized JSON serialization.
-  return Buffer.from(`\n${JSON.stringify(value, null, 3)}\n`, 'utf8');
+  return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 async function createPublicationFixture(): Promise<{
@@ -80,171 +93,175 @@ async function createPublicationFixture(): Promise<{
     outputManifestPath: join(outputDirectory, 'manifest.json'),
     outputMatrixPath: join(outputDirectory, 'travel-times.bin'),
   };
-  const sourceManifestBytes = manifestBytes();
-  const sourceMatrixBytes = Uint8Array.from(MATRIX_BYTES);
+  const manifestBytes = sourceManifestBytes();
+  const matrixBytes = Uint8Array.from(SOURCE_MATRIX_BYTES);
   await Promise.all([
-    writeFile(paths.sourceManifestPath, sourceManifestBytes),
-    writeFile(paths.sourceMatrixPath, sourceMatrixBytes),
+    writeFile(paths.sourceManifestPath, manifestBytes),
+    writeFile(paths.sourceMatrixPath, matrixBytes),
   ]);
   return {
     paths,
-    sourceManifestBytes,
-    sourceMatrixBytes,
+    sourceManifestBytes: manifestBytes,
+    sourceMatrixBytes: matrixBytes,
     outputDirectory,
   };
 }
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map(async (directory) =>
+    temporaryDirectories.splice(0).map((directory) =>
       rm(directory, { recursive: true, force: true }),
     ),
   );
 });
 
-describe('authenticateRuntimeCarData', () => {
-  it('uses the canonical strict parser and retains provenance structurally', () => {
-    const authenticated = authenticateRuntimeCarData(
-      manifestBytes(),
-      MATRIX_BYTES,
+describe('convertCarTravelTimeMatrixToRuntime', () => {
+  it('applies the exact 0–240/255 conversion without mutating the source', () => {
+    const matrixBytes = Uint8Array.from(SOURCE_MATRIX_BYTES);
+    const originalBytes = Uint8Array.from(matrixBytes);
+
+    const converted = convertCarTravelTimeMatrixToRuntime(
+      sourceManifestBytes(),
+      matrixBytes,
       'fixture',
     );
 
-    expect(authenticated.manifest.localityIds).toEqual([
-      '3011:bern',
-      '8001:zurich',
-    ]);
-    expect(authenticated.manifest.anchorsSha256).toBe(SHA_A);
-    expect(authenticated.manifest.localityInputSha256).toBe(SHA_B);
-    expect(authenticated.manifest.roadGraph).toEqual({
-      sourcePbfSha256: SHA_B,
-      osrmVersion: '26.8.0',
-      profile: 'car.lua',
-      algorithm: 'ch',
+    expect([...converted.matrixBytes]).toEqual(EXPECTED_RUNTIME_VALUES);
+    expect(matrixBytes).toEqual(originalBytes);
+    expect(converted.manifest.mode).toBe('CAR');
+    expect(converted.manifest.matrix.maxTravelMinutes).toBe(240);
+    expect(converted.manifest.matrix.valueEncoding).toBe('UINT8');
+    expect(converted.manifest.matrix.localityIds).toEqual(['A', 'B', 'C', 'D']);
+    expect(converted.manifest.source).toEqual({
+      sourceMatrixSha256: sha256(SOURCE_MATRIX_BYTES),
+      anchorsSha256: SHA_A,
+      localityInputSha256: SHA_B,
+      roadGraph: {
+        sourcePbfSha256: SHA_B,
+        osrmVersion: '26.8.0',
+        profile: 'car.lua',
+        algorithm: 'ch',
+      },
     });
-    expect(authenticated.matrixSha256).toBe(sha256(MATRIX_BYTES));
+    expect(converted.statistics).toEqual({
+      totalCells: 16,
+      cellsRetainedZeroTo120: 7,
+      cellsRetained121To240: 5,
+      cellsConvertedAbove240: 3,
+      cellsConvertedFromSourceUnavailable: 1,
+      zeroMinuteCells: 4,
+      exact120MinuteCells: 2,
+      exact240MinuteCells: 2,
+      unavailableCells: 4,
+    });
   });
 
-  it('rejects fields outside the canonical manifest contract', () => {
-    const invalidManifest = {
-      ...manifestValue(),
-      generatedAt: '2026-08-28T12:00:00Z',
+  it('is deterministic for identical authenticated source bytes', () => {
+    const first = convertCarTravelTimeMatrixToRuntime(
+      sourceManifestBytes(),
+      SOURCE_MATRIX_BYTES,
+    );
+    const second = convertCarTravelTimeMatrixToRuntime(
+      sourceManifestBytes(),
+      SOURCE_MATRIX_BYTES,
+    );
+
+    expect(second.manifestBytes).toEqual(first.manifestBytes);
+    expect(second.matrixBytes).toEqual(first.matrixBytes);
+  });
+
+  it('rejects malformed, corrupted, and nonzero-diagonal source data', () => {
+    const malformedManifest = {
+      ...sourceManifestValue(),
+      valueEncoding: 'UINT8',
     };
-
     expect(() =>
-      authenticateRuntimeCarData(
-        manifestBytes(invalidManifest),
-        MATRIX_BYTES,
-        'fixture',
+      convertCarTravelTimeMatrixToRuntime(
+        sourceManifestBytes(malformedManifest),
+        SOURCE_MATRIX_BYTES,
       ),
-    ).toThrow('unexpected field(s) generatedAt');
-  });
+    ).toThrow('expected "UINT16_LE"');
 
-  it('rejects same-sized matrix corruption by SHA-256', () => {
-    const corrupted = Uint8Array.from(MATRIX_BYTES);
-    corrupted[2] = 94;
-
+    const corrupted = Uint8Array.from(SOURCE_MATRIX_BYTES);
+    corrupted[2] = 2;
     expect(() =>
-      authenticateRuntimeCarData(
-        manifestBytes(),
-        corrupted,
-        'corrupt fixture',
-      ),
-    ).toThrow(`manifest expects ${sha256(MATRIX_BYTES)}`);
-  });
+      convertCarTravelTimeMatrixToRuntime(sourceManifestBytes(), corrupted),
+    ).toThrow('manifest expects');
 
-  it('rejects a source manifest whose matrix SHA-256 is stale', () => {
-    const staleSha256 = 'f'.repeat(64);
-
+    const nonzeroDiagonal = Uint8Array.from(SOURCE_MATRIX_BYTES);
+    new DataView(nonzeroDiagonal.buffer).setUint16(0, 1, true);
     expect(() =>
-      authenticateRuntimeCarData(
-        manifestBytes(manifestValue(staleSha256)),
-        MATRIX_BYTES,
-        'stale source fixture',
-      ),
-    ).toThrow(`manifest expects ${staleSha256}`);
-  });
-
-  it('rejects the wrong matrix byte length before checking its digest', () => {
-    expect(() =>
-      authenticateRuntimeCarData(
-        manifestBytes(),
-        MATRIX_BYTES.subarray(0, 6),
-        'short fixture',
-      ),
-    ).toThrow('matrix has 6 bytes; manifest expects 8');
-  });
-
-  it('rejects authenticated bytes that violate runtime matrix invariants', () => {
-    const nonzeroDiagonal = Uint8Array.from(MATRIX_BYTES);
-    nonzeroDiagonal[0] = 1;
-
-    expect(() =>
-      authenticateRuntimeCarData(
-        manifestBytes(manifestValue(sha256(nonzeroDiagonal))),
+      convertCarTravelTimeMatrixToRuntime(
+        sourceManifestBytes(sourceManifestValue(sha256(nonzeroDiagonal))),
         nonzeroDiagonal,
-        'structurally invalid fixture',
       ),
-    ).toThrow('self cell for "3011:bern" must be 0');
-  });
-
-  it('rejects manifest bytes that are not valid UTF-8', () => {
-    expect(() =>
-      authenticateRuntimeCarData(
-        Uint8Array.from([0xc3, 0x28]),
-        MATRIX_BYTES,
-        'invalid fixture',
-      ),
-    ).toThrow('manifest is not valid UTF-8');
+    ).toThrow('must remain 0');
   });
 });
 
-describe('publishRuntimeCarData', () => {
-  it('preserves exact manifest and matrix bytes through staged publication', async () => {
+describe('runtime car data authentication and publication', () => {
+  it('authenticates both source and converted runtime contracts', () => {
+    const source = authenticateSourceCarData(
+      sourceManifestBytes(),
+      SOURCE_MATRIX_BYTES,
+    );
+    const converted = convertCarTravelTimeMatrixToRuntime(
+      sourceManifestBytes(),
+      SOURCE_MATRIX_BYTES,
+    );
+    const runtime = authenticateRuntimeCarData(
+      converted.manifestBytes,
+      converted.matrixBytes,
+    );
+
+    expect(source.matrixSha256).toBe(sha256(SOURCE_MATRIX_BYTES));
+    expect(runtime.manifest).toEqual(converted.manifest);
+    expect(runtime.matrixSha256).toBe(sha256(converted.matrixBytes));
+  });
+
+  it('publishes authenticated converted bytes and leaves source bytes unchanged', async () => {
     const fixture = await createPublicationFixture();
+    const expected = convertCarTravelTimeMatrixToRuntime(
+      fixture.sourceManifestBytes,
+      fixture.sourceMatrixBytes,
+    );
 
     const result = await publishRuntimeCarData(fixture.paths);
+    const [publishedManifest, publishedMatrix, sourceManifest, sourceMatrix] =
+      await Promise.all([
+        readFile(fixture.paths.outputManifestPath),
+        readFile(fixture.paths.outputMatrixPath),
+        readFile(fixture.paths.sourceManifestPath),
+        readFile(fixture.paths.sourceMatrixPath),
+      ]);
 
-    const [publishedManifest, publishedMatrix] = await Promise.all([
-      readFile(fixture.paths.outputManifestPath),
-      readFile(fixture.paths.outputMatrixPath),
-    ]);
-    expect(publishedManifest).toEqual(Buffer.from(fixture.sourceManifestBytes));
-    expect(publishedMatrix).toEqual(Buffer.from(fixture.sourceMatrixBytes));
-    expect(result.localityCount).toBe(2);
-    expect(result.manifest.byteLength).toBe(
-      fixture.sourceManifestBytes.byteLength,
-    );
-    expect(result.manifest.sha256).toBe(
-      sha256(fixture.sourceManifestBytes),
-    );
-    expect(result.matrix.byteLength).toBe(MATRIX_BYTES.byteLength);
-    expect(result.matrix.sha256).toBe(sha256(MATRIX_BYTES));
+    expect(publishedManifest).toEqual(Buffer.from(expected.manifestBytes));
+    expect(publishedMatrix).toEqual(Buffer.from(expected.matrixBytes));
+    expect(sourceManifest).toEqual(Buffer.from(fixture.sourceManifestBytes));
+    expect(sourceMatrix).toEqual(Buffer.from(fixture.sourceMatrixBytes));
+    expect(result.matrix.byteLength).toBe(16);
+    expect(result.sourceMatrix.byteLength).toBe(32);
     expect((await readdir(fixture.outputDirectory)).toSorted()).toEqual([
       'manifest.json',
       'travel-times.bin',
     ]);
   });
 
-  it('produces identical authenticated artifacts on deterministic reruns', async () => {
+  it('produces byte-identical artifacts on deterministic reruns', async () => {
     const fixture = await createPublicationFixture();
 
     const first = await publishRuntimeCarData(fixture.paths);
     const firstManifest = await readFile(fixture.paths.outputManifestPath);
     const firstMatrix = await readFile(fixture.paths.outputMatrixPath);
     const second = await publishRuntimeCarData(fixture.paths);
-    const secondManifest = await readFile(fixture.paths.outputManifestPath);
-    const secondMatrix = await readFile(fixture.paths.outputMatrixPath);
 
-    expect(secondManifest).toEqual(firstManifest);
-    expect(secondMatrix).toEqual(firstMatrix);
+    expect(await readFile(fixture.paths.outputManifestPath)).toEqual(firstManifest);
+    expect(await readFile(fixture.paths.outputMatrixPath)).toEqual(firstMatrix);
     expect(second.manifest.sha256).toBe(first.manifest.sha256);
     expect(second.matrix.sha256).toBe(first.matrix.sha256);
-    expect(second.manifest.byteLength).toBe(first.manifest.byteLength);
-    expect(second.matrix.byteLength).toBe(first.matrix.byteLength);
   });
 
-  it('refuses publication when a source path overlaps an output path', async () => {
+  it('refuses publication when source and output paths overlap', async () => {
     const fixture = await createPublicationFixture();
 
     await expect(

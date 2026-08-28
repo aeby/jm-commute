@@ -12,7 +12,6 @@ export type {
 export type {
   ExactTimes,
   FixedDayRoutingManifest,
-  PickupDropOffType,
   RoutingFrequencyWindow,
   RoutingStopTime,
   RoutingTrip,

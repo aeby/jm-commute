@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FastestWindowResult } from '@core/transit/raptor';
+import type { FastestWindowResult } from '@core/transit/raptor/routing/types';
 import { computed, ref, shallowRef } from 'vue';
 
 import CommuteMap from './components/CommuteMap.vue';

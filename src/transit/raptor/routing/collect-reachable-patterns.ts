@@ -1,4 +1,4 @@
-import type { RaptorTimetable } from '../timetable';
+import type { RaptorTimetable } from '../timetable/types';
 
 export const UNCOLLECTED_PATTERN_INDEX = -1;
 

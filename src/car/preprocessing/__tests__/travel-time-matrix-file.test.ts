@@ -2,10 +2,6 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  parseCarTravelTimeMatrixManifest,
-  parseCarTravelTimeMatrixManifestJson,
-} from '@core/car';
 import type { CarLocalityRoadAnchorsFile } from '@core/car/preprocessing';
 import {
   createCarTravelTimeMatrixManifest,
@@ -13,6 +9,10 @@ import {
   serializeCarTravelTimeMatrixManifest,
   validateCarTravelTimeMatrixAgainstAnchors,
 } from '@core/car/preprocessing';
+import {
+  parseCarTravelTimeMatrixManifest,
+  parseCarTravelTimeMatrixManifestJson,
+} from '@core/car/preprocessing/travel-time-matrix-format';
 import { encodeTravelMinutesLittleEndian } from '../travel-time-matrix';
 
 const SHA_A = 'a'.repeat(64);
