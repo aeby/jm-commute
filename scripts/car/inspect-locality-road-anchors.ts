@@ -12,7 +12,7 @@ import {
   type Coordinate,
 } from '@core/car/preprocessing';
 import { createLocalityId, LocalityResolver } from '@core/localities';
-import { parseLocalitiesCsv } from '../../src/localities/node';
+import { parseLocalitiesCsv } from '@core/localities/node';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');
 const LOCALITIES_PATH = resolve(

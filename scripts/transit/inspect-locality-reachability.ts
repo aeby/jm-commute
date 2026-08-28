@@ -25,17 +25,12 @@ import type {
   FastestWindowResult,
   FastestWindowRoutingDiagnostics,
 } from '@core/transit/raptor/routing/types';
+import { readUtf8Input } from './prepared-transit-inputs';
+import { loadRaptorCompiler } from './load-raptor-compiler';
 import {
-  DEFAULT_LOCALITIES_FILE_PATH,
-  readUtf8Input,
-} from './transit-inspection-inputs';
-import { loadRaptorInspectionTimetable } from './load-raptor-inspection-timetable';
-
-const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const DEFAULT_LOCALITY_INDEX_PATH = resolve(
-  PROJECT_ROOT,
-  'data/processed/locality-routing-index.json',
-);
+  LOCALITY_ROUTING_INDEX_PATH,
+  RAW_LOCALITIES_PATH,
+} from './paths';
 const WARM_UP_COUNT = 5;
 const MEASURED_COUNT = 50;
 
@@ -189,10 +184,10 @@ async function main(): Promise<void> {
     requireOption(values['max-travel-minutes'], 'max-travel-minutes'),
   );
   const localitiesFile = resolve(
-    values['localities-file'] ?? DEFAULT_LOCALITIES_FILE_PATH,
+    values['localities-file'] ?? RAW_LOCALITIES_PATH,
   );
   const localityIndexPath = resolve(
-    values['locality-index-file'] ?? DEFAULT_LOCALITY_INDEX_PATH,
+    values['locality-index-file'] ?? LOCALITY_ROUTING_INDEX_PATH,
   );
   const [localitiesCsv, localityIndex] = await Promise.all([
     readUtf8Input(localitiesFile, 'locality CSV'),
@@ -217,7 +212,7 @@ async function main(): Promise<void> {
     throw new Error(`Locality "${localityId}" has no active routing stops.`);
   }
 
-  const { timetable } = await loadRaptorInspectionTimetable();
+  const { timetable } = await loadRaptorCompiler();
   const windowStartSeconds = parseGtfsTimeToSeconds(
     PROJECT_CONFIG.transit.referenceScenario.morningWindow.start,
   );

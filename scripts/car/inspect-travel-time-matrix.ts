@@ -21,7 +21,7 @@ import {
   LocalityResolver,
   type LocalityQuery,
 } from '@core/localities';
-import { parseLocalitiesCsv } from '../../src/localities/node';
+import { parseLocalitiesCsv } from '@core/localities/node';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');
 const OUTPUT_DIRECTORY = resolve(

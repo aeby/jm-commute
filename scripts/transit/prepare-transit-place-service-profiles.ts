@@ -1,33 +1,34 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-import { PROJECT_CONFIG } from '../src/config';
-import { parseGtfsTimeToSeconds } from '../src/transit/gtfs';
+import { PROJECT_CONFIG } from '@core/config';
+import { parseGtfsTimeToSeconds } from '@core/transit/gtfs';
 import {
   loadFixedDateGtfsFeed,
   processGtfsCsvRows,
   readCsvColumn,
-} from '../src/transit/gtfs/node';
+} from '@core/transit/gtfs/node';
 import {
   parseTransitPlacesJson,
   type TransitPlace,
-} from '../src/transit/places';
+} from '@core/transit/places';
 import {
   isRailRouteType,
   type TransitPlaceServiceProfileDataset,
-} from '../src/transit/service-profiles';
-import { createTransitPlaceProfileAccumulator } from '../src/transit/service-profiles/transit-place-profile-accumulator';
-import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
+} from '@core/transit/service-profiles';
+import { createTransitPlaceProfileAccumulator } from '@core/transit/service-profiles/transit-place-profile-accumulator';
 
-const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const GTFS_DIRECTORY = join(PROJECT_ROOT, 'data', 'raw', 'gtfs');
+import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
+import {
+  RAW_GTFS_DIRECTORY,
+  TRANSIT_PLACES_PATH,
+  TRANSIT_PLACE_SERVICE_PROFILES_PATH,
+} from './paths';
+
 const TRANSIT_PLACES_RELATIVE_PATH =
-  'data/processed/transit-places.json';
-const TRANSIT_PLACES_PATH = join(PROJECT_ROOT, TRANSIT_PLACES_RELATIVE_PATH);
+  'data/processed/transit/places.json';
 const OUTPUT_RELATIVE_PATH =
-  'data/processed/transit-place-service-profiles.json';
-const OUTPUT_PATH = join(PROJECT_ROOT, OUTPUT_RELATIVE_PATH);
+  'data/processed/transit/place-service-profiles.json';
 const REFERENCE_SCENARIO = PROJECT_CONFIG.transit.referenceScenario;
 const SERVICE_DATE = REFERENCE_SCENARIO.serviceDate.replaceAll('-', '');
 
@@ -49,7 +50,7 @@ async function loadTransitPlaces(): Promise<readonly TransitPlace[]> {
 
 async function main(): Promise<void> {
   const fixedDateFeed = await loadFixedDateGtfsFeed(
-    GTFS_DIRECTORY,
+    RAW_GTFS_DIRECTORY,
     SERVICE_DATE,
   );
   const activeTrips = new Map(
@@ -76,7 +77,7 @@ async function main(): Promise<void> {
   let qualifyingDepartureCount = 0;
 
   const stopTimeRowCount = await processGtfsCsvRows(
-    join(GTFS_DIRECTORY, 'stop_times.txt'),
+    resolve(RAW_GTFS_DIRECTORY, 'stop_times.txt'),
     ['trip_id', 'departure_time', 'stop_id', 'pickup_type'],
     (row, columns) => {
       if (
@@ -107,7 +108,7 @@ async function main(): Promise<void> {
   ).length;
 
   await writeUtf8FileAtomically(
-    OUTPUT_PATH,
+    TRANSIT_PLACE_SERVICE_PROFILES_PATH,
     `${JSON.stringify(dataset, null, 2)}\n`,
   );
 

@@ -1,25 +1,15 @@
 import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { PROJECT_CONFIG } from '@core/config';
+import { prepareFixedDayRoutingData } from '@core/transit/routing-data/prepare-fixed-day-routing-data';
 
-import { PROJECT_CONFIG } from '../src/config';
-import { prepareFixedDayRoutingData } from '../src/transit/routing-data/prepare-fixed-day-routing-data';
+import {
+  FIXED_DAY_ROUTING_DIRECTORY,
+  RAW_GTFS_DIRECTORY,
+  TRANSIT_STOPS_PATH,
+} from './paths';
 
-const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const GTFS_DIRECTORY = join(PROJECT_ROOT, 'data', 'raw', 'gtfs');
-const TRANSIT_STOPS_PATH = join(
-  PROJECT_ROOT,
-  'data',
-  'processed',
-  'transit-stops.json',
-);
-const OUTPUT_DIRECTORY = join(
-  PROJECT_ROOT,
-  'data',
-  'processed',
-  'fixed-day-routing',
-);
-const OUTPUT_RELATIVE_DIRECTORY = 'data/processed/fixed-day-routing';
+const OUTPUT_RELATIVE_DIRECTORY =
+  'data/processed/transit/fixed-day-routing';
 
 function formatBytes(bytes: number): string {
   return new Intl.NumberFormat('en-US').format(bytes);
@@ -28,9 +18,9 @@ function formatBytes(bytes: number): string {
 async function main(): Promise<void> {
   const { referenceScenario } = PROJECT_CONFIG.transit;
   const result = await prepareFixedDayRoutingData({
-    gtfsDirectory: GTFS_DIRECTORY,
+    gtfsDirectory: RAW_GTFS_DIRECTORY,
     transitStopsPath: TRANSIT_STOPS_PATH,
-    outputDirectory: OUTPUT_DIRECTORY,
+    outputDirectory: FIXED_DAY_ROUTING_DIRECTORY,
     serviceDate: referenceScenario.serviceDate,
     routingWindowStart: referenceScenario.morningWindow.start,
     routingWindowEnd: referenceScenario.morningWindow.end,

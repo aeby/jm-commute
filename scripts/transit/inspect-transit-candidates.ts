@@ -1,18 +1,18 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { LocalityResolver } from '../src/localities';
-import { parseLocalitiesCsv } from '../src/localities/node';
-import { PROJECT_CONFIG } from '../src/config';
+import { PROJECT_CONFIG } from '@core/config';
+import { LocalityResolver } from '@core/localities';
+import { parseLocalitiesCsv } from '@core/localities/node';
 import {
   selectTransitPlaceCandidates,
   type SelectTransitPlaceCandidatesOptions,
-} from '../src/transit/candidates';
+} from '@core/transit/candidates';
 import {
-  DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
   readUtf8Input,
-} from './transit-inspection-inputs';
+} from './prepared-transit-inputs';
+import { RAW_LOCALITIES_PATH } from './paths';
 
 function requireOption(value: string | undefined, name: string): string {
   if (value === undefined || value.trim().length === 0) {
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     strict: true,
   });
   const localitiesFile = resolve(
-    values['localities-file'] ?? DEFAULT_LOCALITIES_FILE_PATH,
+    values['localities-file'] ?? RAW_LOCALITIES_PATH,
   );
   const postalCode = requireOption(values['postal-code'], 'postal-code');
   const city = requireOption(values.city, 'city');

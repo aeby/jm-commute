@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertMatchingGtfsFeedVersion } from '../load-raptor-inspection-timetable';
+import { assertMatchingGtfsFeedVersion } from '../load-raptor-compiler';
 
 describe('assertMatchingGtfsFeedVersion', () => {
   it('accepts matching raw and processed feed versions', () => {

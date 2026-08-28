@@ -5,27 +5,13 @@ import {
   getTravelMinutes,
   type TravelTimeIndex,
 } from '../travel-time-matrix';
-import {
-  getTravelTimeIndexDiagnostics,
-  type TravelTimeIndexDiagnostics,
-} from '../travel-time-matrix/travel-time-index';
 import { parseCarTravelTimeManifest } from './travel-time-manifest';
 
 const carTravelTimeIndexBrand: unique symbol = Symbol('CarTravelTimeIndex');
 
-/** Opaque car-mode handle around the canonical dense matrix index. */
-export interface CarTravelTimeIndex {
+/** Car-branded view of the canonical dense matrix index. */
+export interface CarTravelTimeIndex extends TravelTimeIndex {
   readonly [carTravelTimeIndexBrand]: true;
-}
-
-const sharedIndexByCarIndex = new WeakMap<CarTravelTimeIndex, TravelTimeIndex>();
-
-function requireSharedIndex(index: CarTravelTimeIndex): TravelTimeIndex {
-  const sharedIndex = sharedIndexByCarIndex.get(index);
-  if (sharedIndex === undefined) {
-    throw new TypeError('Invalid car travel-time index.');
-  }
-  return sharedIndex;
 }
 
 /** Creates a car façade over the shared transport-independent matrix index. */
@@ -37,22 +23,10 @@ export function createCarTravelTimeIndex(
     manifest,
     'car travel-time index manifest',
   );
-  const sharedIndex = createTravelTimeIndex(
+  return createTravelTimeIndex(
     validatedManifest.matrix,
     matrixBytes,
-  );
-  const carIndex = Object.freeze({
-    [carTravelTimeIndexBrand]: true as const,
-  });
-  sharedIndexByCarIndex.set(carIndex, sharedIndex);
-  return carIndex;
-}
-
-/** @internal Runtime benchmark diagnostics without exposing the shared index. */
-export function getCarTravelTimeIndexDiagnostics(
-  index: CarTravelTimeIndex,
-): TravelTimeIndexDiagnostics {
-  return getTravelTimeIndexDiagnostics(requireSharedIndex(index));
+  ) as CarTravelTimeIndex;
 }
 
 export function getCarTravelMinutes(
@@ -60,11 +34,7 @@ export function getCarTravelMinutes(
   fromLocalityId: LocalityId,
   toLocalityId: LocalityId,
 ): number | undefined {
-  return getTravelMinutes(
-    requireSharedIndex(index),
-    fromLocalityId,
-    toLocalityId,
-  );
+  return getTravelMinutes(index, fromLocalityId, toLocalityId);
 }
 
 export function getReachableLocalitiesByCar(
@@ -72,9 +42,5 @@ export function getReachableLocalitiesByCar(
   originLocalityId: LocalityId,
   maxTravelMinutes: number,
 ): readonly ReachableLocality[] {
-  return getReachableLocalities(
-    requireSharedIndex(index),
-    originLocalityId,
-    maxTravelMinutes,
-  );
+  return getReachableLocalities(index, originLocalityId, maxTravelMinutes);
 }

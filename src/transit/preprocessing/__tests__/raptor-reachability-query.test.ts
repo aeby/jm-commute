@@ -1,14 +1,11 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { ReachableLocality } from '../../localities';
-import type { RuntimeLocalityRoutingIndex } from '../locality-routing/runtime-types';
-import { runRaptorFastestWindow } from '../raptor/routing/run-raptor-fastest-window';
-import { testPattern, testTimetable } from '../raptor/routing/__tests__/test-timetable';
-import {
-  createTransitRuntimeFromPreparedData,
-  getReachableLocalitiesByTransit,
-} from '../transit-runtime';
-import { resolveFastestReachableLocalities } from '../locality-routing/resolve-fastest-reachable-localities';
+import type { ReachableLocality } from '../../../localities';
+import type { LocalityRoutingStopIndex } from '../../locality-routing/types';
+import { resolveFastestReachableLocalities } from '../../locality-routing/resolve-fastest-reachable-localities';
+import { testPattern, testTimetable } from '../../raptor/routing/__tests__/test-timetable';
+import { runRaptorFastestWindow } from '../../raptor/routing/run-raptor-fastest-window';
+import { createRaptorReachabilityQuery } from '../raptor-reachability-query';
 
 const WINDOW_START = 28_800;
 const WINDOW_END = 28_801;
@@ -22,7 +19,7 @@ function fixture() {
       ],
     ]),
   ]);
-  const localityRoutingIndex: RuntimeLocalityRoutingIndex = {
+  const localityRoutingIndex: LocalityRoutingStopIndex = {
     entries: [
       {
         localityId: '8001:zurich',
@@ -32,9 +29,13 @@ function fixture() {
         localityId: '3011:bern',
         stopIndexes: Uint32Array.of(1),
       },
+      {
+        localityId: '0000:none',
+        stopIndexes: new Uint32Array(),
+      },
     ],
   };
-  const runtime = createTransitRuntimeFromPreparedData({
+  const query = createRaptorReachabilityQuery({
     timetable,
     localityRoutingIndex,
     windowStartSeconds: WINDOW_START,
@@ -42,21 +43,12 @@ function fixture() {
     maxTransfers: 0,
     minTransferTimeSeconds: 0,
   });
-  return { timetable, localityRoutingIndex, runtime };
+  return { timetable, localityRoutingIndex, query };
 }
 
-describe('TransitRuntime', () => {
-  it('initializes from injected prepared data without filesystem access', () => {
-    const { runtime } = fixture();
-
-    expect(Object.isFrozen(runtime)).toBe(true);
-    expect(
-      Object.values(runtime).some((value) => value instanceof Uint32Array),
-    ).toBe(false);
-  });
-
+describe('createRaptorReachabilityQuery', () => {
   it('preserves the existing synthetic fastest-window locality result', () => {
-    const { timetable, localityRoutingIndex, runtime } = fixture();
+    const { timetable, localityRoutingIndex, query } = fixture();
     const directResult = resolveFastestReachableLocalities(
       runRaptorFastestWindow(timetable, {
         originStopIndexes: [0],
@@ -70,39 +62,43 @@ describe('TransitRuntime', () => {
     );
 
     expect(
-      getReachableLocalitiesByTransit(runtime, '8001:zurich', 31),
+      query('8001:zurich', 31),
     ).toEqual(directResult);
     expectTypeOf(directResult).toEqualTypeOf<readonly ReachableLocality[]>();
   });
 
   it('applies an inclusive whole-minute threshold and preserves direction', () => {
-    const { runtime } = fixture();
+    const { query } = fixture();
 
     expect(
-      getReachableLocalitiesByTransit(runtime, '8001:zurich', 30),
+      query('8001:zurich', 30),
     ).toEqual([{ localityId: '8001:zurich', travelMinutes: 0 }]);
     expect(
-      getReachableLocalitiesByTransit(runtime, '8001:zurich', 31),
+      query('8001:zurich', 31),
     ).toEqual([
       { localityId: '8001:zurich', travelMinutes: 0 },
       { localityId: '3011:bern', travelMinutes: 31 },
     ]);
     expect(
-      getReachableLocalitiesByTransit(runtime, '3011:bern', 31),
+      query('3011:bern', 31),
     ).toEqual([{ localityId: '3011:bern', travelMinutes: 0 }]);
   });
 
   it('rejects unknown localities and invalid commute limits', () => {
-    const { runtime } = fixture();
+    const { query } = fixture();
 
     expect(() =>
-      getReachableLocalitiesByTransit(runtime, '9999:missing', 30),
+      query('9999:missing', 30),
     ).toThrow('Unknown transit-routing locality');
     expect(() =>
-      getReachableLocalitiesByTransit(runtime, '8001:zurich', -1),
+      query('8001:zurich', -1),
     ).toThrow('nonnegative safe integer');
     expect(() =>
-      getReachableLocalitiesByTransit(runtime, '8001:zurich', 30.5),
+      query('8001:zurich', 30.5),
     ).toThrow('nonnegative safe integer');
+  });
+
+  it('returns no destinations for a known locality without active stops', () => {
+    expect(fixture().query('0000:none', 240)).toEqual([]);
   });
 });

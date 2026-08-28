@@ -19,7 +19,7 @@ import {
   validateCarLocalityRoadAnchorsAgainstInputs,
   type CarLocalityRoadAnchor,
 } from '@core/car/preprocessing';
-import { parseLocalitiesCsv } from '../../src/localities/node';
+import { parseLocalitiesCsv } from '@core/localities/node';
 import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');

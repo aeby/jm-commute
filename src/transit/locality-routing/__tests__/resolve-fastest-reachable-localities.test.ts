@@ -5,7 +5,7 @@ import type { FastestWindowResult } from '../../raptor/routing/types';
 import {
   resolveFastestReachableLocalities,
   resolveFastestReachableLocalitiesDebug,
-  type RuntimeLocalityRoutingEntry,
+  type LocalityRoutingStopEntry,
 } from '..';
 
 const DEPARTURE = 28_800;
@@ -13,7 +13,7 @@ const DEPARTURE = 28_800;
 function entry(
   localityId: string,
   stopIndexes: readonly number[],
-): RuntimeLocalityRoutingEntry {
+): LocalityRoutingStopEntry {
   return {
     localityId,
     stopIndexes: Uint32Array.from(stopIndexes),
@@ -22,7 +22,7 @@ function entry(
 
 function resolveFastest(
   durations: readonly number[],
-  entries: readonly RuntimeLocalityRoutingEntry[],
+  entries: readonly LocalityRoutingStopEntry[],
   departures: readonly number[] = durations.map(() => DEPARTURE),
 ): ReturnType<typeof resolveFastestReachableLocalities> {
   const result: FastestWindowResult = {

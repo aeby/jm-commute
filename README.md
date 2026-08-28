@@ -1,6 +1,7 @@
 # Swiss Commute Reachability
 
-A TypeScript project with an offline routing core for estimating which jobs are reachable by public transport in Switzerland.
+A TypeScript project with offline car and public-transport routing compilers and
+a compact runtime for estimating which Swiss localities are mutually reachable.
 
 Users and jobs are identified approximately by postcode and/or city name. The system will map these locations to public-transport stops and use Swiss timetable data to calculate realistic travel times around lakes, mountains, valleys, and other geographic obstacles.
 
@@ -15,7 +16,11 @@ Users and jobs are identified approximately by postcode and/or city name. The sy
 
 ## Current milestone
 
-The current implementation prepares a compact fixed-day timetable, runs multi-source one-to-all public-transport queries, reduces reachable stops to transport-independent Swiss localities, and visualizes the result in a Vue/MapLibre commute viewer.
+The current implementation compiles car and representative-morning transit
+journeys into deterministic dense locality-to-locality matrices. Production
+queries scan those matrices through one transport-independent runtime index.
+The existing Vue/MapLibre viewer still uses its legacy in-browser RAPTOR path;
+viewer migration is intentionally deferred.
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
@@ -29,16 +34,16 @@ The backend/runtime implementation is canonical. Its boundaries are:
   identity, normalization, resolution, and the shared `ReachableLocality`
   result. Raw official-locality CSV parsing is isolated in
   `src/localities/node.ts`.
-- **Runtime core:** `src/transit/index.ts` exposes an opaque transit runtime
-  query rather than RAPTOR arrays; `src/car/index.ts` exposes only opaque matrix
-  construction and high-level car queries. Algorithms and compact typed arrays
-  remain internal and platform-neutral where natural.
+- **Runtime core:** `src/travel-time-matrix` owns the opaque dense matrix index.
+  `src/car/index.ts` and `src/transit/index.ts` are thin mode-specific façades
+  that expose construction and high-level queries without OSRM or RAPTOR data.
 - **Node/server integration:** explicit `node.ts` entries own filesystem access,
   paths, streaming, `Buffer`, and checksum verification. Node functionality is
   not weakened merely to make a browser bundle possible.
 - **Preprocessing:** GTFS ingestion, candidates, service profiles, normalized
-  routing NDJSON, timetable/transfer construction, OSRM, anchors, matrix
-  generation, publication, and diagnostics remain build-time concerns.
+  routing NDJSON, RAPTOR timetable/transfer construction and matrix compilation,
+  plus OSRM, anchors, car publication, and diagnostics remain build-time
+  concerns.
 - **Browser/viewer:** the legacy Base64 RAPTOR codec, generated `window` data,
   paint scheduling, stop sampling, and map schemas are viewer-owned under
   `apps/commute-viewer`. They are not canonical runtime formats.
@@ -60,9 +65,10 @@ apps/
 ```
 
 `@jm/commute-browser` may add asset loading, decoding, or workers, but it must
-not reimplement locality identity, RAPTOR, transit reduction, or car matrix
-lookup. The dependency must never point from `@jm/commute` to the browser
-adapter.
+not reimplement locality identity or either mode's shared matrix lookup. RAPTOR
+and OSRM remain preprocessing compilers and do not belong in either production
+runtime package. The dependency must never point from `@jm/commute` to the
+browser adapter.
 
 ## Development
 
@@ -84,7 +90,9 @@ npm run car:matrix:prepare
 npm run car:matrix:inspect
 npm run car:runtime:data
 npm run car:runtime:verify
-npm run car:runtime:inspect
+npm run transit:matrix:prepare
+npm run transit:matrix:inspect
+npm run transit:runtime:verify
 npm run viewer:dev
 ```
 
@@ -120,6 +128,9 @@ base `data/processed/car/osrm/switzerland.osrm`:
 ```bash
 npm run car:osrm:prepare
 ```
+
+The preparation output omits the `.cnbg` and `.cnbg_to_ebg` extraction
+intermediates because the pinned CH routing service does not consume them.
 
 Start the development/preprocessing service on the loopback interface only:
 
@@ -160,15 +171,17 @@ OSM → OSRM → full UInt16 locality matrix
                   0–240 / 255
 
 Transit
-GTFS → RAPTOR
-          ↓
-   future UInt8 matrix
-      0–240 / 255
+data/processed/transit inputs → RAPTOR compiler
+                                      ↓
+                            UInt8 locality matrix
+                                0–240 / 255
+                                      ↓
+                          data/runtime/transit/
 
 RUNTIME
 
-car-times.bin       future transit-times.bin
-          └──────────────┬──────────────┘
+data/runtime/car/          data/runtime/transit/
+          └──────────────────┬──────────────────┘
                          ↓
                 shared TravelTimeIndex
                          ↓
@@ -289,8 +302,7 @@ changing or regenerating the matrix.
 
 Because each cell is one byte, the common runtime path uses a zero-copy
 `Uint8Array` view over approximately 15.82 MiB rather than retaining a second
-decoded matrix. The runtime diagnostics report the view size, copy behavior,
-and locality-index entry count.
+decoded matrix. The locality-ID index is built once.
 
 The `data/runtime/car` directory is the complete generated data dependency: its
 `manifest.json` and `travel-times.bin` are the only generated files the runtime
@@ -298,21 +310,6 @@ loads. It does not read the processed matrix path, road anchors, locality CSV,
 OSRM graph, or OpenStreetMap PBF. A Node-only loader is available under
 `src/car/node`, while the public `src/car` boundary contains no filesystem,
 Docker, OSRM, PBF, HTTP-service, or preprocessing dependency.
-
-Benchmark the real runtime implementation with deterministic initialization,
-point-lookup, and Zürich 90-minute reachability samples using:
-
-```bash
-npm run car:runtime:inspect
-```
-
-This inspection command is performance- and behavior-oriented: it prints
-reference lookups, 30/60/90/120/180/240-minute reachability counts, examples
-on both sides of the four-hour boundary, and initialization, point-lookup,
-90-minute scan, and 240-minute scan timings. The publication command reports
-the complete conversion buckets. Use
-`car:runtime:verify` for the focused runtime-artifact integrity check. Neither
-command requires OSRM.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly
@@ -357,6 +354,88 @@ GTFS frequency windows are preserved in the fixed-day input and expanded only wh
 
 The routing manifest records a SHA-256 digest of the NDJSON trip stream. All consumers use one canonical streamed loader that validates the schema, normalized trip records, manifest counts, digest, and configured scenario before building the timetable.
 
+Prepared transit inputs share one namespace:
+
+```text
+data/processed/transit/
+  stops.json
+  places.json
+  place-service-profiles.json
+  fixed-day-routing/
+    manifest.json
+    trips.ndjson
+  locality-routing-index.json
+  matrix-build/              # resumable partial matrix and checkpoint only
+```
+
+### Canonical transit commute matrix
+
+RAPTOR is a build-time compiler for the production transit dataset. Generate
+the complete representative-morning matrix in canonical locality order with:
+
+```bash
+npm run transit:matrix:prepare
+```
+
+The command builds the trusted timetable and transfer graph once, binds them to
+a preprocessing-only locality query, and compiles all 4,073 origin rows. It
+checkpoints every ten complete rows in `data/processed/transit/matrix-build/`;
+`--restart` replaces only that resumable workspace. After validating the
+completed matrix, the same command authenticates and promotes the final pair to
+`data/runtime/transit/`. Promotion writes the matrix first and the manifest
+last, so interruption fails closed under the authenticated loader; the compiler
+workspace is removed only after successful readback. Inspect the result without RAPTOR with:
+
+```bash
+npm run transit:matrix:inspect
+```
+
+The generated value for each origin/destination pair is the shortest total
+journey duration among journeys whose origin departure occurs within
+07:00–09:00. The window restricts departure, not arrival. Values through 240
+minutes are retained, so a journey departing at 08:55 may arrive well after
+09:00. `255` means unavailable within four hours.
+
+```text
+data/runtime/transit/
+  manifest.json
+  travel-times.bin
+```
+
+There is no second processed copy or byte-copy publication command. Verify the
+final pair independently using only runtime assets with:
+
+```bash
+npm run transit:runtime:verify
+```
+
+Those two files are the complete generated dependency of production transit
+lookup. `src/transit/node.ts` loads and authenticates them; the public transit
+façade delegates to the same shared `TravelTimeIndex` used by car. Neither
+RAPTOR, a timetable, transfers, GTFS, nor the locality-routing index is loaded
+at production runtime.
+
+The transit manifest wraps the shared matrix descriptor with the service date,
+morning departure window, GTFS feed version, prepared-trip digest, an exact
+fingerprint of the constructed timetable/transfer state, the locality-routing
+artifact SHA-256, and the effective routing policy. It contains no timestamps
+or machine paths.
+
+The current repository has no separately persisted prepared transfer graph.
+Consequently, matrix preparation reconstructs that in-memory graph once using
+the already-present local GTFS calendar and transfer inputs. It does not
+download or regenerate raw GTFS. Persisting that intermediate graph would be a
+future preprocessing improvement; it does not affect the final runtime
+boundary.
+
+The existing locality-routing artifact also predates explicit upstream
+provenance: it stores deterministic numeric stop indexes but no embedded
+timetable/source-stop fingerprint or candidate-policy fields. This build
+records the exact artifact SHA-256 alongside the exact constructed-timetable
+fingerprint and treats that prepared pair as trusted. A future locality-index
+schema should cryptographically bind those two inputs before they reach matrix
+generation.
+
 ### Compact RAPTOR timetable
 
 The fixed-day trips are streamed into deterministic dense stop IDs and compact, non-overtaking route patterns. Stop times use typed arrays, pickup and drop-off values use two-bit packing, and each stop has route-pattern adjacency for later RAPTOR scans.
@@ -369,9 +448,9 @@ The router performs multi-source, one-to-all Range-RAPTOR queries against the co
 
 Meaningful direct and access-adjusted departure opportunities are evaluated latest-to-earliest within 07:00–09:00. The result stores the shortest travel duration to every reachable stop together with its best departure and corresponding arrival, bounded by the requested maximum commute duration.
 
-The future transit matrix will publish the fastest representative-morning
-journey whose origin departure occurs within 07:00–09:00, preserving durations
-up to 240 minutes. The window restricts departure, not arrival: for example, a
+The transit matrix publishes the fastest representative-morning journey whose
+origin departure occurs within 07:00–09:00, preserving durations up to 240
+minutes. The window restricts departure, not arrival: for example, a
 journey departing at 08:55 and arriving after 09:00 remains eligible when its
 total duration is no more than four hours. The current viewer can continue to
 offer only a 120-minute slider over that richer dataset.

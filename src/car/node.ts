@@ -9,27 +9,7 @@ import {
 import { parseCarTravelTimeManifestJson } from './travel-time-manifest';
 
 export interface LoadCarTravelTimeIndexOptions {
-  readonly manifestPath: string;
-  readonly matrixPath: string;
-}
-
-export interface CarRuntimeDataPaths extends LoadCarTravelTimeIndexOptions {
-  readonly directory: string;
-}
-
-/** Resolves the generated runtime artifacts from an explicit project root. */
-export function resolveCarRuntimeDataPaths(
-  projectRoot: string,
-): CarRuntimeDataPaths {
-  if (typeof projectRoot !== 'string' || projectRoot.trim().length === 0) {
-    throw new TypeError('Car runtime data project root must be a nonempty path.');
-  }
-  const directory = resolve(projectRoot, 'data', 'runtime', 'car');
-  return {
-    directory,
-    manifestPath: resolve(directory, 'manifest.json'),
-    matrixPath: resolve(directory, 'travel-times.bin'),
-  };
+  readonly runtimeDataDirectory: string;
 }
 
 async function readManifest(path: string): Promise<string> {
@@ -59,23 +39,28 @@ async function readMatrix(path: string): Promise<Buffer> {
 export async function loadCarTravelTimeIndex(
   options: LoadCarTravelTimeIndexOptions,
 ): Promise<CarTravelTimeIndex> {
-  const manifestJson = await readManifest(options.manifestPath);
+  if (options.runtimeDataDirectory.trim().length === 0) {
+    throw new TypeError('Car runtime data directory must be a nonempty path.');
+  }
+  const manifestPath = resolve(options.runtimeDataDirectory, 'manifest.json');
+  const matrixPath = resolve(options.runtimeDataDirectory, 'travel-times.bin');
+  const manifestJson = await readManifest(manifestPath);
   const manifest = parseCarTravelTimeManifestJson(
     manifestJson,
-    `car travel-time manifest "${options.manifestPath}"`,
+    `car travel-time manifest "${manifestPath}"`,
   );
-  const matrixBytes = await readMatrix(options.matrixPath);
+  const matrixBytes = await readMatrix(matrixPath);
 
   if (matrixBytes.byteLength !== manifest.matrix.matrixByteLength) {
     throw new Error(
-      `Car travel-time matrix at "${options.matrixPath}" has ${matrixBytes.byteLength} bytes; manifest expects ${manifest.matrix.matrixByteLength}.`,
+      `Car travel-time matrix at "${matrixPath}" has ${matrixBytes.byteLength} bytes; manifest expects ${manifest.matrix.matrixByteLength}.`,
     );
   }
 
   const actualSha256 = createHash('sha256').update(matrixBytes).digest('hex');
   if (actualSha256 !== manifest.matrix.matrixSha256) {
     throw new Error(
-      `Car travel-time matrix at "${options.matrixPath}" has SHA-256 ${actualSha256}; manifest expects ${manifest.matrix.matrixSha256}.`,
+      `Car travel-time matrix at "${matrixPath}" has SHA-256 ${actualSha256}; manifest expects ${manifest.matrix.matrixSha256}.`,
     );
   }
 

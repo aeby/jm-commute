@@ -87,15 +87,8 @@ describe('car travel-time façade', () => {
     );
   });
 
-  it('does not accept a generic or future other-mode index as a car handle', () => {
+  it('keeps the shared index out of the car façade type', () => {
     const sharedIndex = createTravelTimeIndex(descriptor(), MATRIX_BYTES);
     expectTypeOf(sharedIndex).not.toMatchObjectType<CarTravelTimeIndex>();
-    expect(() =>
-      getCarTravelMinutes(
-        sharedIndex as unknown as CarTravelTimeIndex,
-        'A',
-        'B',
-      ),
-    ).toThrow('Invalid car travel-time index');
   });
 });

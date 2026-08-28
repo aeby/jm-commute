@@ -34,9 +34,6 @@ dist-ssr
 
 /data/processed/*
 !/data/processed/.gitkeep
-!/data/processed/fixed-day-routing/
-/data/processed/fixed-day-routing/*
-!/data/processed/fixed-day-routing/.gitkeep
 !/data/processed/car/
 /data/processed/car/*
 !/data/processed/car/osrm/
@@ -45,12 +42,18 @@ dist-ssr
 !/data/processed/car/travel-time-matrix/
 /data/processed/car/travel-time-matrix/*
 !/data/processed/car/travel-time-matrix/.gitkeep
+!/data/processed/transit/
+/data/processed/transit/*
+!/data/processed/transit/.gitkeep
 
 !/data/runtime/
 /data/runtime/*
 !/data/runtime/car/
 /data/runtime/car/*
 !/data/runtime/car/.gitkeep
+!/data/runtime/transit/
+/data/runtime/transit/*
+!/data/runtime/transit/.gitkeep
 
 /apps/commute-viewer/public/generated/*
 !/apps/commute-viewer/public/generated/.gitkeep

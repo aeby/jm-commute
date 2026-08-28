@@ -6,7 +6,6 @@ import {
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   getTravelTimeMatrixCellIndex,
   parseTravelTimeMatrixDescriptor,
-  parseTravelTimeMatrixDescriptorJson,
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
   UNAVAILABLE_TRAVEL_TIME,
   type TravelTimeMatrixDescriptor,
@@ -33,9 +32,6 @@ describe('canonical travel-time matrix descriptor', () => {
   it('strictly parses the complete transport-independent contract', () => {
     const descriptor = validDescriptor();
     expect(parseTravelTimeMatrixDescriptor(descriptor)).toEqual(descriptor);
-    expect(
-      parseTravelTimeMatrixDescriptorJson(JSON.stringify(descriptor)),
-    ).toEqual(descriptor);
   });
 
   it.each([

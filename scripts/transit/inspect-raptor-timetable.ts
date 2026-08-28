@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { fileURLToPath } from 'node:url';
 
 import { PROJECT_CONFIG } from '@core/config';
 import { validateFixedDayRoutingManifestScenario } from '@core/transit/routing-data';
@@ -12,14 +10,7 @@ import type {
   RaptorTimetableBuildStage,
   RaptorTimetableBuildStatistics,
 } from '@core/transit/raptor/timetable/types';
-
-const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const ROUTING_DIRECTORY = join(
-  PROJECT_ROOT,
-  'data',
-  'processed',
-  'fixed-day-routing',
-);
+import { FIXED_DAY_ROUTING_DIRECTORY } from './paths';
 
 interface MemorySnapshot {
   readonly heapUsed: number;
@@ -146,7 +137,9 @@ const timetableFingerprint = (timetable: RaptorTimetable): string => {
 };
 
 async function main(): Promise<void> {
-  const routingDataset = await loadFixedDayRoutingDataset(ROUTING_DIRECTORY);
+  const routingDataset = await loadFixedDayRoutingDataset(
+    FIXED_DAY_ROUTING_DIRECTORY,
+  );
   const { manifest } = routingDataset;
   const reference = PROJECT_CONFIG.transit.referenceScenario;
   validateFixedDayRoutingManifestScenario(manifest, {

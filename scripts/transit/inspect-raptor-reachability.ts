@@ -16,11 +16,11 @@ import type {
   FastestWindowRoutingDiagnostics,
 } from '@core/transit/raptor/routing/types';
 import {
-  DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
   readUtf8Input,
-} from './transit-inspection-inputs';
-import { loadRaptorInspectionTimetable } from './load-raptor-inspection-timetable';
+} from './prepared-transit-inputs';
+import { loadRaptorCompiler } from './load-raptor-compiler';
+import { RAW_LOCALITIES_PATH } from './paths';
 
 const WARM_UP_QUERY_COUNT = 5;
 const BENCHMARK_QUERY_COUNT = 50;
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
     strict: true,
   });
   const localitiesFile = resolve(
-    values['localities-file'] ?? DEFAULT_LOCALITIES_FILE_PATH,
+    values['localities-file'] ?? RAW_LOCALITIES_PATH,
   );
   const postalCode = requireOption(values['postal-code'], 'postal-code');
   const city = requireOption(values.city, 'city');
@@ -212,7 +212,7 @@ async function main(): Promise<void> {
     transferBuildMilliseconds,
     transferMemoryBefore,
     transferMemoryAfter,
-  } = await loadRaptorInspectionTimetable({
+  } = await loadRaptorCompiler({
     virtualTransfersEnabled: values['virtual-transfers'],
   });
   const transferDegrees = transferDegreeStatistics(

@@ -1,16 +1,24 @@
 import type { LocalityId } from '../../localities';
+import {
+  parseCarRoadGraphMetadata as parseSharedCarRoadGraphMetadata,
+  type CarRoadGraphMetadata,
+} from '../road-graph-metadata';
+import {
+  calculateTravelTimeMatrixCellCount,
+  getTravelTimeMatrixCellIndex,
+} from '../../travel-time-matrix/travel-time-matrix-format';
+
+export {
+  calculateTravelTimeMatrixCellCount,
+  getTravelTimeMatrixCellIndex,
+};
 
 export const CAR_TRAVEL_TIME_MATRIX_SCHEMA_VERSION = 1;
 export const UNREACHABLE_TRAVEL_MINUTES = 0xffff;
 export const MAX_TRAVEL_MINUTES = UNREACHABLE_TRAVEL_MINUTES - 1;
 export const TRAVEL_TIME_MATRIX_BYTES_PER_CELL = 2;
 
-export interface CarRoadGraphMetadata {
-  readonly sourcePbfSha256: string;
-  readonly osrmVersion: string;
-  readonly profile: 'car.lua';
-  readonly algorithm: 'ch';
-}
+export type { CarRoadGraphMetadata } from '../road-graph-metadata';
 
 export interface CarTravelTimeMatrixManifest {
   readonly schemaVersion: 1;
@@ -29,7 +37,6 @@ export interface CarTravelTimeMatrixManifest {
 }
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
-const OSRM_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u;
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -72,52 +79,11 @@ export function parseCarRoadGraphMetadata(
   source = 'value',
   path = 'roadGraph',
 ): CarRoadGraphMetadata {
-  if (!isRecord(value)) {
+  return parseSharedCarRoadGraphMetadata(value, path, (invalidPath, detail) => {
     throw new Error(
-      `Invalid car road graph metadata in ${source} at ${path}: expected an object.`,
+      `Invalid car road graph metadata in ${source} at ${invalidPath}: ${detail}.`,
     );
-  }
-  requireExactCarDataKeys(
-    value,
-    ['sourcePbfSha256', 'osrmVersion', 'profile', 'algorithm'],
-    (detail) => {
-      throw new Error(
-        `Invalid car road graph metadata in ${source} at ${path}: ${detail}.`,
-      );
-    },
-  );
-  if (
-    typeof value.osrmVersion !== 'string' ||
-    !OSRM_VERSION_PATTERN.test(value.osrmVersion)
-  ) {
-    throw new Error(
-      `Invalid car road graph metadata in ${source} at ${path}.osrmVersion: expected a semantic version such as 26.8.0.`,
-    );
-  }
-  if (value.profile !== 'car.lua') {
-    throw new Error(
-      `Invalid car road graph metadata in ${source} at ${path}.profile: expected "car.lua".`,
-    );
-  }
-  if (value.algorithm !== 'ch') {
-    throw new Error(
-      `Invalid car road graph metadata in ${source} at ${path}.algorithm: expected "ch".`,
-    );
-  }
-  if (
-    typeof value.sourcePbfSha256 !== 'string' ||
-    !SHA256_PATTERN.test(value.sourcePbfSha256)
-  ) {
-    throw new Error(
-      `Invalid car road graph metadata in ${source} at ${path}.sourcePbfSha256: expected a lowercase SHA-256 digest.`,
-    );
-  }
-  return {
-    sourcePbfSha256: value.sourcePbfSha256,
-    osrmVersion: value.osrmVersion,
-    profile: value.profile,
-    algorithm: value.algorithm,
-  };
+  });
 }
 
 function parseLocalityIds(
@@ -174,19 +140,6 @@ function parsePositiveSafeInteger(
   return value as number;
 }
 
-export function calculateTravelTimeMatrixCellCount(
-  localityCount: number,
-): number {
-  if (!Number.isSafeInteger(localityCount) || localityCount <= 0) {
-    throw new Error('Matrix locality count must be a positive safe integer.');
-  }
-  const cellCount = localityCount * localityCount;
-  if (!Number.isSafeInteger(cellCount)) {
-    throw new Error('Matrix cell count exceeds JavaScript safe integers.');
-  }
-  return cellCount;
-}
-
 export function calculateTravelTimeMatrixByteLength(
   localityCount: number,
 ): number {
@@ -197,26 +150,6 @@ export function calculateTravelTimeMatrixByteLength(
     throw new Error('Matrix byte length exceeds JavaScript safe integers.');
   }
   return byteLength;
-}
-
-/** Returns the cell index for the deterministic row-major matrix layout. */
-export function getTravelTimeMatrixCellIndex(
-  localityCount: number,
-  originIndex: number,
-  destinationIndex: number,
-): number {
-  calculateTravelTimeMatrixCellCount(localityCount);
-  for (const [index, description] of [
-    [originIndex, 'Origin'],
-    [destinationIndex, 'Destination'],
-  ] as const) {
-    if (!Number.isSafeInteger(index) || index < 0 || index >= localityCount) {
-      throw new Error(
-        `${description} index ${index} is outside the valid range 0–${localityCount - 1}.`,
-      );
-    }
-  }
-  return originIndex * localityCount + destinationIndex;
 }
 
 export function parseCarTravelTimeMatrixManifest(

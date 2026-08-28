@@ -71,38 +71,18 @@ async function main(): Promise<void> {
   const { statistics } = result;
   console.log(`  Total cells: ${formatInteger(statistics.totalCells)}`);
   printCellStatistic(
-    'Retained 0–120 min',
-    statistics.cellsRetainedZeroTo120,
-    statistics.totalCells,
-  );
-  printCellStatistic(
-    'Retained 121–240 min',
-    statistics.cellsRetained121To240,
+    'Retained 0–240 min',
+    statistics.retainedCells,
     statistics.totalCells,
   );
   printCellStatistic(
     'Converted from >240 min to 255',
-    statistics.cellsConvertedAbove240,
+    statistics.cappedAboveHorizonCells,
     statistics.totalCells,
   );
   printCellStatistic(
     'Converted from source 65535 to 255',
-    statistics.cellsConvertedFromSourceUnavailable,
-    statistics.totalCells,
-  );
-  printCellStatistic(
-    'Zero-minute cells',
-    statistics.zeroMinuteCells,
-    statistics.totalCells,
-  );
-  printCellStatistic(
-    'Exactly 120-minute cells',
-    statistics.exact120MinuteCells,
-    statistics.totalCells,
-  );
-  printCellStatistic(
-    'Exactly 240-minute cells',
-    statistics.exact240MinuteCells,
+    statistics.sourceUnavailableCells,
     statistics.totalCells,
   );
   printCellStatistic(

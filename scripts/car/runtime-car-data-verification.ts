@@ -31,30 +31,16 @@ export interface RuntimeCarReachabilityCheckResult
   readonly reachableLocalityCount: number;
 }
 
-export interface RuntimeCarReachabilityDiagnostic {
-  readonly label: string;
-  readonly originLocalityId: LocalityId;
-  readonly maxTravelMinutes: number;
-}
-
-export interface RuntimeCarReachabilityDiagnosticResult
-  extends RuntimeCarReachabilityDiagnostic {
-  readonly reachableLocalityCount: number;
-}
-
 export interface VerifyRuntimeCarDataOptions
   extends LoadCarTravelTimeIndexOptions {
   readonly pointChecks: readonly RuntimeCarPointCheck[];
   readonly reachabilityChecks: readonly RuntimeCarReachabilityCheck[];
-  readonly diagnosticReachabilityQueries?: readonly RuntimeCarReachabilityDiagnostic[];
 }
 
 export interface RuntimeCarDataVerification {
-  readonly manifestPath: string;
-  readonly matrixPath: string;
+  readonly runtimeDataDirectory: string;
   readonly pointChecks: readonly RuntimeCarPointCheckResult[];
   readonly reachabilityChecks: readonly RuntimeCarReachabilityCheckResult[];
-  readonly diagnosticReachabilityQueries: readonly RuntimeCarReachabilityDiagnosticResult[];
 }
 
 function formatTravelMinutes(value: number | undefined): string {
@@ -80,10 +66,7 @@ export async function verifyRuntimeCarData(
   requireChecks(options.pointChecks, 'point check');
   requireChecks(options.reachabilityChecks, 'reachability check');
 
-  const index = await loadCarTravelTimeIndex({
-    manifestPath: options.manifestPath,
-    matrixPath: options.matrixPath,
-  });
+  const index = await loadCarTravelTimeIndex(options);
   const pointChecks = options.pointChecks.map((check) => ({
     ...check,
     travelMinutes: getCarTravelMinutes(
@@ -98,16 +81,6 @@ export async function verifyRuntimeCarData(
       index,
       check.originLocalityId,
       check.maxTravelMinutes,
-    ).length,
-  }));
-  const diagnosticReachabilityQueries = (
-    options.diagnosticReachabilityQueries ?? []
-  ).map((diagnostic) => ({
-    ...diagnostic,
-    reachableLocalityCount: getReachableLocalitiesByCar(
-      index,
-      diagnostic.originLocalityId,
-      diagnostic.maxTravelMinutes,
     ).length,
   }));
   const mismatches = [
@@ -133,10 +106,8 @@ export async function verifyRuntimeCarData(
   }
 
   return {
-    manifestPath: options.manifestPath,
-    matrixPath: options.matrixPath,
+    runtimeDataDirectory: options.runtimeDataDirectory,
     pointChecks,
     reachabilityChecks,
-    diagnosticReachabilityQueries,
   };
 }

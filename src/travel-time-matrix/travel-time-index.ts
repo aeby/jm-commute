@@ -14,12 +14,6 @@ export interface TravelTimeIndex {
   readonly [travelTimeIndexBrand]: true;
 }
 
-export interface TravelTimeIndexDiagnostics {
-  readonly matrixBytesCopied: false;
-  readonly matrixValuesByteLength: number;
-  readonly localityIndexEntryCount: number;
-}
-
 interface TravelTimeIndexInternals {
   readonly localityCount: number;
   readonly localityIds: readonly LocalityId[];
@@ -150,18 +144,6 @@ export function createTravelTimeIndex(
     values,
   });
   return opaqueIndex;
-}
-
-/** @internal Diagnostics for publication and runtime benchmark tooling. */
-export function getTravelTimeIndexDiagnostics(
-  index: TravelTimeIndex,
-): TravelTimeIndexDiagnostics {
-  const internals = requireInternals(index);
-  return Object.freeze({
-    matrixBytesCopied: false,
-    matrixValuesByteLength: internals.values.byteLength,
-    localityIndexEntryCount: internals.localityIndexes.size,
-  });
 }
 
 export function getTravelMinutes(

@@ -21,17 +21,15 @@ import type {
   VirtualTransferOptions,
 } from '@core/transit/raptor/transfers/types';
 import type { TransitStop } from '@core/transit/stops';
-import { loadTransitStopsInput } from './transit-inspection-inputs';
+import { loadTransitStopsInput } from './prepared-transit-inputs';
+import {
+  FIXED_DAY_ROUTING_DIRECTORY,
+  RAW_GTFS_DIRECTORY,
+} from './paths';
 
-const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const ROUTING_DIRECTORY = resolve(
-  PROJECT_ROOT,
-  'data/processed/fixed-day-routing',
-);
-const GTFS_DIRECTORY = resolve(PROJECT_ROOT, 'data/raw/gtfs');
-const GTFS_TRANSFERS_PATH = resolve(GTFS_DIRECTORY, 'transfers.txt');
+const GTFS_TRANSFERS_PATH = resolve(RAW_GTFS_DIRECTORY, 'transfers.txt');
 
-export interface LoadedInspectionRaptorTimetable {
+export interface LoadedRaptorCompiler {
   readonly manifest: FixedDayRoutingManifest;
   readonly timetable: RaptorTimetable;
   readonly stopIndexBySourceId: ReadonlyMap<string, number>;
@@ -44,7 +42,7 @@ export interface LoadedInspectionRaptorTimetable {
   readonly transferMemoryAfter: NodeJS.MemoryUsage;
 }
 
-export interface LoadRaptorInspectionTimetableOptions {
+export interface LoadRaptorCompilerOptions {
   readonly virtualTransfersEnabled?: boolean;
   readonly includeTransferDiagnostics?: boolean;
 }
@@ -60,10 +58,12 @@ export function assertMatchingGtfsFeedVersion(
   }
 }
 
-export async function loadRaptorInspectionTimetable(
-  options: LoadRaptorInspectionTimetableOptions = {},
-): Promise<LoadedInspectionRaptorTimetable> {
-  const routingDataset = await loadFixedDayRoutingDataset(ROUTING_DIRECTORY);
+export async function loadRaptorCompiler(
+  options: LoadRaptorCompilerOptions = {},
+): Promise<LoadedRaptorCompiler> {
+  const routingDataset = await loadFixedDayRoutingDataset(
+    FIXED_DAY_ROUTING_DIRECTORY,
+  );
   const reference = PROJECT_CONFIG.transit.referenceScenario;
   validateFixedDayRoutingManifestScenario(routingDataset.manifest, {
     serviceDate: reference.serviceDate,
@@ -80,7 +80,7 @@ export async function loadRaptorInspectionTimetable(
   const serviceDate =
     PROJECT_CONFIG.transit.referenceScenario.serviceDate.replaceAll('-', '');
   const { activeServiceIds, feedInfo } = await loadFixedDateActiveServices(
-    GTFS_DIRECTORY,
+    RAW_GTFS_DIRECTORY,
     serviceDate,
   );
   assertMatchingGtfsFeedVersion(

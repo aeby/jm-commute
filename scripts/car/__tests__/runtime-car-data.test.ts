@@ -145,13 +145,9 @@ describe('convertCarTravelTimeMatrixToRuntime', () => {
     });
     expect(converted.statistics).toEqual({
       totalCells: 16,
-      cellsRetainedZeroTo120: 7,
-      cellsRetained121To240: 5,
-      cellsConvertedAbove240: 3,
-      cellsConvertedFromSourceUnavailable: 1,
-      zeroMinuteCells: 4,
-      exact120MinuteCells: 2,
-      exact240MinuteCells: 2,
+      retainedCells: 12,
+      cappedAboveHorizonCells: 3,
+      sourceUnavailableCells: 1,
       unavailableCells: 4,
     });
   });

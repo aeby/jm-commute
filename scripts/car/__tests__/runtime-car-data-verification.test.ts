@@ -4,8 +4,6 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { resolveCarRuntimeDataPaths } from '@core/car/node';
-
 import { verifyRuntimeCarData } from '../runtime-car-data-verification';
 
 const MATRIX_BYTES = Uint8Array.from([0, 93, 95, 0]);
@@ -53,9 +51,18 @@ async function createProjectRoot(): Promise<string> {
   return projectRoot;
 }
 
+function runtimePaths(projectRoot: string) {
+  const runtimeDataDirectory = join(projectRoot, 'data', 'runtime', 'car');
+  return {
+    runtimeDataDirectory,
+    manifestPath: join(runtimeDataDirectory, 'manifest.json'),
+    matrixPath: join(runtimeDataDirectory, 'travel-times.bin'),
+  };
+}
+
 async function writeRuntimeFixture(projectRoot: string): Promise<void> {
-  const paths = resolveCarRuntimeDataPaths(projectRoot);
-  await mkdir(paths.directory, { recursive: true });
+  const paths = runtimePaths(projectRoot);
+  await mkdir(paths.runtimeDataDirectory, { recursive: true });
   await Promise.all([
     writeFile(paths.manifestPath, manifestJson()),
     writeFile(paths.matrixPath, MATRIX_BYTES),
@@ -91,7 +98,7 @@ describe('verifyRuntimeCarData', () => {
   it('initializes and queries only the resolved runtime artifacts', async () => {
     const projectRoot = await createProjectRoot();
     await writeRuntimeFixture(projectRoot);
-    const paths = resolveCarRuntimeDataPaths(projectRoot);
+    const paths = runtimePaths(projectRoot);
 
     const verification = await verifyRuntimeCarData({
       ...paths,
@@ -123,17 +130,9 @@ describe('verifyRuntimeCarData', () => {
           expectedReachableLocalityCount: 1,
         },
       ],
-      diagnosticReachabilityQueries: [
-        {
-          label: 'Bern within the full dataset horizon',
-          originLocalityId: '3011:bern',
-          maxTravelMinutes: 240,
-        },
-      ],
     });
 
-    expect(verification.manifestPath).toBe(paths.manifestPath);
-    expect(verification.matrixPath).toBe(paths.matrixPath);
+    expect(verification.runtimeDataDirectory).toBe(paths.runtimeDataDirectory);
     expect(verification.pointChecks.map(({ travelMinutes }) => travelMinutes)).toEqual([
       93,
       95,
@@ -143,20 +142,12 @@ describe('verifyRuntimeCarData', () => {
         ({ reachableLocalityCount }) => reachableLocalityCount,
       ),
     ).toEqual([2, 1]);
-    expect(verification.diagnosticReachabilityQueries).toEqual([
-      {
-        label: 'Bern within the full dataset horizon',
-        originLocalityId: '3011:bern',
-        maxTravelMinutes: 240,
-        reachableLocalityCount: 2,
-      },
-    ]);
   });
 
   it('does not fall back to valid-looking preprocessing paths', async () => {
     const projectRoot = await createProjectRoot();
     await writePreprocessingFixture(projectRoot);
-    const paths = resolveCarRuntimeDataPaths(projectRoot);
+    const paths = runtimePaths(projectRoot);
 
     await expect(
       verifyRuntimeCarData({
@@ -184,7 +175,7 @@ describe('verifyRuntimeCarData', () => {
   it('rejects a truncated runtime matrix before running queries', async () => {
     const projectRoot = await createProjectRoot();
     await writeRuntimeFixture(projectRoot);
-    const paths = resolveCarRuntimeDataPaths(projectRoot);
+    const paths = runtimePaths(projectRoot);
     await writeFile(paths.matrixPath, MATRIX_BYTES.subarray(0, 3));
 
     await expect(
@@ -212,7 +203,7 @@ describe('verifyRuntimeCarData', () => {
 
   it('requires both verification query kinds', async () => {
     const projectRoot = await createProjectRoot();
-    const paths = resolveCarRuntimeDataPaths(projectRoot);
+    const paths = runtimePaths(projectRoot);
     await expect(
       verifyRuntimeCarData({
         ...paths,
@@ -246,7 +237,7 @@ describe('verifyRuntimeCarData', () => {
   it('aggregates point and reachability baseline mismatches', async () => {
     const projectRoot = await createProjectRoot();
     await writeRuntimeFixture(projectRoot);
-    const paths = resolveCarRuntimeDataPaths(projectRoot);
+    const paths = runtimePaths(projectRoot);
 
     await expect(
       verifyRuntimeCarData({

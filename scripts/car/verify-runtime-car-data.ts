@@ -1,12 +1,9 @@
 import { resolve } from 'node:path';
 
-import { resolveCarRuntimeDataPaths } from '@core/car/node';
-
 import {
   verifyRuntimeCarData,
   type RuntimeCarPointCheck,
   type RuntimeCarReachabilityCheck,
-  type RuntimeCarReachabilityDiagnostic,
 } from './runtime-car-data-verification';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');
@@ -74,28 +71,16 @@ const REACHABILITY_CHECKS = REACHABILITY_ORIGINS.flatMap((origin) =>
     }),
   ),
 );
-const HIGH_HORIZON_DIAGNOSTICS = REACHABILITY_ORIGINS.flatMap((origin) =>
-  ([180, 240] as const).map(
-    (maxTravelMinutes): RuntimeCarReachabilityDiagnostic => ({
-      label: `${origin.label}, ${maxTravelMinutes} min`,
-      originLocalityId: origin.localityId,
-      maxTravelMinutes,
-    }),
-  ),
-);
-
 async function main(): Promise<void> {
-  const paths = resolveCarRuntimeDataPaths(PROJECT_ROOT);
+  const runtimeDataDirectory = resolve(PROJECT_ROOT, 'data/runtime/car');
   const verification = await verifyRuntimeCarData({
-    ...paths,
+    runtimeDataDirectory,
     pointChecks: POINT_CHECKS,
     reachabilityChecks: REACHABILITY_CHECKS,
-    diagnosticReachabilityQueries: HIGH_HORIZON_DIAGNOSTICS,
   });
 
   console.log('Runtime car data verified:');
-  console.log(`  Manifest: ${verification.manifestPath}`);
-  console.log(`  Matrix: ${verification.matrixPath}`);
+  console.log(`  Directory: ${verification.runtimeDataDirectory}`);
   console.log('');
   console.log('Directional point checks:');
   for (const check of verification.pointChecks) {
@@ -107,11 +92,6 @@ async function main(): Promise<void> {
   console.log('Reachable-locality checks (including the origin):');
   for (const check of verification.reachabilityChecks) {
     console.log(`  ${check.label}: ${check.reachableLocalityCount}`);
-  }
-  console.log('');
-  console.log('Four-hour dataset diagnostics (not hardcoded baselines):');
-  for (const diagnostic of verification.diagnosticReachabilityQueries) {
-    console.log(`  ${diagnostic.label}: ${diagnostic.reachableLocalityCount}`);
   }
 }
 

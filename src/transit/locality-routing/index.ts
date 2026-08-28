@@ -12,8 +12,6 @@ export type { ReachableLocalityDebug } from './resolve-fastest-reachable-localit
 export type {
   LocalityRoutingEntry,
   LocalityRoutingIndex,
+  LocalityRoutingStopEntry,
+  LocalityRoutingStopIndex,
 } from './types';
-export type {
-  RuntimeLocalityRoutingEntry,
-  RuntimeLocalityRoutingIndex,
-} from './runtime-types';

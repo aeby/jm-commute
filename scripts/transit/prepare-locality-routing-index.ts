@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import { PROJECT_CONFIG } from '@core/config';
@@ -9,20 +8,19 @@ import { buildRaptorTimetable } from '@core/transit/raptor/timetable/build-rapto
 import { buildSourceStopIndex } from '@core/transit/raptor/timetable/dense-stop-ids';
 import { validateFixedDayRoutingManifestScenario } from '@core/transit/routing-data';
 import { loadFixedDayRoutingDataset } from '@core/transit/routing-data/node';
+import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
 import {
-  DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
   readUtf8Input,
-} from './transit-inspection-inputs';
-import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
+} from './prepared-transit-inputs';
+import {
+  FIXED_DAY_ROUTING_DIRECTORY,
+  LOCALITY_ROUTING_INDEX_PATH,
+  RAW_LOCALITIES_PATH,
+} from './paths';
 
-const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const ROUTING_DATA_DIRECTORY = resolve(
-  PROJECT_ROOT,
-  'data/processed/fixed-day-routing',
-);
-const OUTPUT_RELATIVE_PATH = 'data/processed/locality-routing-index.json';
-const OUTPUT_PATH = resolve(PROJECT_ROOT, OUTPUT_RELATIVE_PATH);
+const OUTPUT_RELATIVE_PATH =
+  'data/processed/transit/locality-routing-index.json';
 
 const formatInteger = (value: number): string =>
   new Intl.NumberFormat('en-US').format(value);
@@ -39,14 +37,14 @@ function median(sortedValues: readonly number[]): number {
 
 async function main(): Promise<void> {
   const [localitiesCsv, candidateInputs] = await Promise.all([
-    readUtf8Input(DEFAULT_LOCALITIES_FILE_PATH, 'locality CSV'),
+    readUtf8Input(RAW_LOCALITIES_PATH, 'locality CSV'),
     loadTransitCandidateInputs(),
   ]);
   const localities = parseLocalitiesCsv(localitiesCsv);
 
   const timetableStart = performance.now();
   const routingDataset = await loadFixedDayRoutingDataset(
-    ROUTING_DATA_DIRECTORY,
+    FIXED_DAY_ROUTING_DIRECTORY,
   );
   const scenario = PROJECT_CONFIG.transit.referenceScenario;
   validateFixedDayRoutingManifestScenario(routingDataset.manifest, {
@@ -78,7 +76,7 @@ async function main(): Promise<void> {
   };
   const output = `${JSON.stringify(dataset, null, 2)}\n`;
   const sha256 = createHash('sha256').update(output).digest('hex');
-  await writeUtf8FileAtomically(OUTPUT_PATH, output);
+  await writeUtf8FileAtomically(LOCALITY_ROUTING_INDEX_PATH, output);
 
   const stopCounts = index.entries
     .map(({ stopIndexes }) => stopIndexes.length)

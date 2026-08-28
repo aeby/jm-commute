@@ -3,9 +3,9 @@ import { isPreferredFastestJourney } from '../raptor/routing/fastest-journey-pol
 import { UNREACHED_TIME } from '../raptor/routing/state';
 import type { FastestWindowResult } from '../raptor/routing/types';
 import type {
-  RuntimeLocalityRoutingEntry,
-  RuntimeLocalityRoutingIndex,
-} from './runtime-types';
+  LocalityRoutingStopEntry,
+  LocalityRoutingStopIndex,
+} from './types';
 
 export interface ReachableLocalityDebug extends ReachableLocality {
   readonly departureTimeSeconds: number;
@@ -44,7 +44,7 @@ interface FastestLocalityJourney {
 
 function findFastestLocalityJourney(
   routingResult: FastestWindowResult,
-  entry: RuntimeLocalityRoutingEntry,
+  entry: LocalityRoutingStopEntry,
 ): FastestLocalityJourney | undefined {
   let best: FastestLocalityJourney | undefined;
 
@@ -99,9 +99,9 @@ function findFastestLocalityJourney(
 
 function resolveLocalities<TResult extends ReachableLocality>(
   routingResult: FastestWindowResult,
-  localityIndex: RuntimeLocalityRoutingIndex,
+  localityIndex: LocalityRoutingStopIndex,
   createResult: (
-    entry: RuntimeLocalityRoutingEntry,
+    entry: LocalityRoutingStopEntry,
     journey: FastestLocalityJourney,
   ) => TResult,
 ): readonly TResult[] {
@@ -120,7 +120,7 @@ function resolveLocalities<TResult extends ReachableLocality>(
 
 export function resolveFastestReachableLocalities(
   routingResult: FastestWindowResult,
-  localityIndex: RuntimeLocalityRoutingIndex,
+  localityIndex: LocalityRoutingStopIndex,
 ): readonly ReachableLocality[] {
   return resolveLocalities(routingResult, localityIndex, (entry, journey) => ({
     localityId: entry.localityId,
@@ -130,7 +130,7 @@ export function resolveFastestReachableLocalities(
 
 export function resolveFastestReachableLocalitiesDebug(
   routingResult: FastestWindowResult,
-  localityIndex: RuntimeLocalityRoutingIndex,
+  localityIndex: LocalityRoutingStopIndex,
 ): readonly ReachableLocalityDebug[] {
   return resolveLocalities(routingResult, localityIndex, (entry, journey) => ({
     localityId: entry.localityId,

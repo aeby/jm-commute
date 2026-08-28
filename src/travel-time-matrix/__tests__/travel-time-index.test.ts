@@ -10,7 +10,6 @@ import {
   type TravelTimeIndex,
   type TravelTimeMatrixDescriptor,
 } from '../index';
-import { getTravelTimeIndexDiagnostics } from '../travel-time-index';
 
 const LOCALITY_IDS = [
   '1000:origin',
@@ -170,12 +169,6 @@ describe('transport-independent UInt8 travel-time index', () => {
   it('keeps Uint8Array and ArrayBuffer inputs as zero-copy matrix views', () => {
     const bytes = VALUES.slice();
     const fromView = createTravelTimeIndex(descriptor(), bytes);
-    const viewDiagnostics = getTravelTimeIndexDiagnostics(fromView);
-    expect(viewDiagnostics).toEqual({
-      matrixBytesCopied: false,
-      matrixValuesByteLength: VALUES.byteLength,
-      localityIndexEntryCount: LOCALITY_IDS.length,
-    });
     bytes[1] = 119;
     expect(getTravelMinutes(fromView, '1000:origin', '9000:zeta')).toBe(119);
 

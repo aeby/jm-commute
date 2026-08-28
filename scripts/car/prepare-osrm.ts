@@ -32,6 +32,10 @@ const OUTPUT_PARENT_DIRECTORY = resolve(
   'data/processed/car',
 );
 const OUTPUT_BASENAME = 'switzerland.osrm';
+const UNUSED_CH_SERVING_INTERMEDIATE_SUFFIXES = [
+  'cnbg',
+  'cnbg_to_ebg',
+] as const;
 const CONTAINER_INPUT_PATH = '/input/switzerland-latest.osm.pbf';
 const CONTAINER_OUTPUT_PATH = `/data/${OUTPUT_BASENAME}`;
 
@@ -237,6 +241,16 @@ async function verifyContractedGraph(
   return files;
 }
 
+async function removeUnusedServingIntermediates(
+  directory: string,
+): Promise<void> {
+  await Promise.all(
+    UNUSED_CH_SERVING_INTERMEDIATE_SUFFIXES.map((suffix) =>
+      rm(join(directory, `${OUTPUT_BASENAME}.${suffix}`), { force: true }),
+    ),
+  );
+}
+
 async function promoteDataset(
   stagingDirectory: string,
 ): Promise<void> {
@@ -370,6 +384,7 @@ async function main(): Promise<void> {
     console.log('');
 
     await verifyContractedGraph(stagingDirectory);
+    await removeUnusedServingIntermediates(stagingDirectory);
     inputAfter = await inspectInput();
     assertInputUnchanged(inputBefore, inputAfter);
     await writeFile(join(stagingDirectory, '.gitkeep'), '');

@@ -22,9 +22,11 @@ describe('canonical public runtime surfaces', () => {
     ]);
   });
 
-  it('keeps the transit root at the opaque high-level query boundary', () => {
-    expect(Object.keys(transitRuntime)).toEqual([
+  it('exposes only opaque transit creation and high-level queries', () => {
+    expect(Object.keys(transitRuntime).toSorted()).toEqual([
+      'createTransitTravelTimeIndex',
       'getReachableLocalitiesByTransit',
+      'getTransitTravelMinutes',
     ]);
   });
 

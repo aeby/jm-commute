@@ -1,18 +1,14 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { buildTransitPlaces } from '@core/transit/places';
+import { parseTransitStopsJson } from '@core/transit/stops';
 
-import { buildTransitPlaces } from '../src/transit/places';
-import { parseTransitStopsJson } from '../src/transit/stops';
-import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
+import { writeUtf8FileAtomically } from '../write-utf8-file-atomically';
+import { TRANSIT_PLACES_PATH, TRANSIT_STOPS_PATH } from './paths';
 
-const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const INPUT_RELATIVE_PATH = 'data/processed/transit-stops.json';
-const INPUT_PATH = join(PROJECT_ROOT, INPUT_RELATIVE_PATH);
-const OUTPUT_RELATIVE_PATH = 'data/processed/transit-places.json';
-const OUTPUT_PATH = join(PROJECT_ROOT, OUTPUT_RELATIVE_PATH);
+const INPUT_RELATIVE_PATH = 'data/processed/transit/stops.json';
+const OUTPUT_RELATIVE_PATH = 'data/processed/transit/places.json';
 
-const json = await readFile(INPUT_PATH, 'utf8');
+const json = await readFile(TRANSIT_STOPS_PATH, 'utf8');
 const stops = parseTransitStopsJson(json, INPUT_RELATIVE_PATH);
 const places = buildTransitPlaces(stops);
 const stationIds = new Set<string>();
@@ -40,7 +36,7 @@ const standaloneStopPlaceCount = places.length - parentStationPlaceCount;
 const excludedStationCount = inputStationCount - parentStationPlaceCount;
 
 await writeUtf8FileAtomically(
-  OUTPUT_PATH,
+  TRANSIT_PLACES_PATH,
   `${JSON.stringify(places, null, 2)}\n`,
 );
 

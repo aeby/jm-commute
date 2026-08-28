@@ -246,17 +246,3 @@ export function parseTravelTimeMatrixDescriptor(
     matrixSha256: value.matrixSha256,
   });
 }
-
-export function parseTravelTimeMatrixDescriptorJson(
-  json: string,
-  source = 'travel-time matrix descriptor JSON',
-): TravelTimeMatrixDescriptor {
-  let value: unknown;
-  try {
-    value = JSON.parse(json);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to parse ${source}: ${message}`, { cause: error });
-  }
-  return parseTravelTimeMatrixDescriptor(value, source);
-}

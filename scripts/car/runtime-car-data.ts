@@ -14,7 +14,7 @@ import {
   TRAVEL_TIME_MATRIX_BYTES_PER_CELL as SOURCE_BYTES_PER_CELL,
   UNREACHABLE_TRAVEL_MINUTES as SOURCE_UNAVAILABLE_VALUE,
   type CarTravelTimeMatrixManifest as SourceCarTravelTimeMatrixManifest,
-} from '../../src/car/preprocessing/travel-time-matrix-format';
+} from '@core/car/preprocessing/travel-time-matrix-format';
 import {
   COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
   TRAVEL_TIME_MATRIX_SCHEMA_VERSION,
@@ -36,13 +36,9 @@ export interface RuntimeCarDataArtifactSummary {
 
 export interface RuntimeCarMatrixConversionStatistics {
   readonly totalCells: number;
-  readonly cellsRetainedZeroTo120: number;
-  readonly cellsRetained121To240: number;
-  readonly cellsConvertedAbove240: number;
-  readonly cellsConvertedFromSourceUnavailable: number;
-  readonly zeroMinuteCells: number;
-  readonly exact120MinuteCells: number;
-  readonly exact240MinuteCells: number;
+  readonly retainedCells: number;
+  readonly cappedAboveHorizonCells: number;
+  readonly sourceUnavailableCells: number;
   readonly unavailableCells: number;
 }
 
@@ -201,39 +197,22 @@ export function convertCarTravelTimeMatrixToRuntime(
   const cellCount = sourceManifest.localityCount * sourceManifest.localityCount;
   const runtimeMatrixBytes = new Uint8Array(cellCount);
 
-  let cellsRetainedZeroTo120 = 0;
-  let cellsRetained121To240 = 0;
-  let cellsConvertedAbove240 = 0;
-  let cellsConvertedFromSourceUnavailable = 0;
-  let zeroMinuteCells = 0;
-  let exact120MinuteCells = 0;
-  let exact240MinuteCells = 0;
+  let retainedCells = 0;
+  let cappedAboveHorizonCells = 0;
+  let sourceUnavailableCells = 0;
 
   for (let cellIndex = 0; cellIndex < cellCount; cellIndex += 1) {
     const sourceValue = sourceValueAt(sourceMatrixBytes, cellIndex);
     let runtimeValue: number;
     if (sourceValue === SOURCE_UNAVAILABLE_VALUE) {
       runtimeValue = UNAVAILABLE_TRAVEL_TIME;
-      cellsConvertedFromSourceUnavailable += 1;
+      sourceUnavailableCells += 1;
     } else if (sourceValue > COMMUTE_MATRIX_MAX_TRAVEL_MINUTES) {
       runtimeValue = UNAVAILABLE_TRAVEL_TIME;
-      cellsConvertedAbove240 += 1;
+      cappedAboveHorizonCells += 1;
     } else {
       runtimeValue = sourceValue;
-      if (sourceValue <= 120) {
-        cellsRetainedZeroTo120 += 1;
-      } else {
-        cellsRetained121To240 += 1;
-      }
-      if (sourceValue === 0) {
-        zeroMinuteCells += 1;
-      }
-      if (sourceValue === 120) {
-        exact120MinuteCells += 1;
-      }
-      if (sourceValue === COMMUTE_MATRIX_MAX_TRAVEL_MINUTES) {
-        exact240MinuteCells += 1;
-      }
+      retainedCells += 1;
     }
     runtimeMatrixBytes[cellIndex] = runtimeValue;
   }
@@ -291,15 +270,10 @@ export function convertCarTravelTimeMatrixToRuntime(
     source: authenticatedSource,
     statistics: {
       totalCells: cellCount,
-      cellsRetainedZeroTo120,
-      cellsRetained121To240,
-      cellsConvertedAbove240,
-      cellsConvertedFromSourceUnavailable,
-      zeroMinuteCells,
-      exact120MinuteCells,
-      exact240MinuteCells,
-      unavailableCells:
-        cellsConvertedAbove240 + cellsConvertedFromSourceUnavailable,
+      retainedCells,
+      cappedAboveHorizonCells,
+      sourceUnavailableCells,
+      unavailableCells: cappedAboveHorizonCells + sourceUnavailableCells,
     },
   };
 }

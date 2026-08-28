@@ -23,18 +23,17 @@ import {
 } from '@core/transit/locality-routing';
 import { loadLocalityRoutingIndex } from '@core/transit/locality-routing/node';
 import {
-  DEFAULT_LOCALITIES_FILE_PATH,
   loadTransitCandidateInputs,
   readUtf8Input,
-} from './transit-inspection-inputs';
-import { loadRaptorInspectionTimetable } from './load-raptor-inspection-timetable';
+} from './transit/prepared-transit-inputs';
+import { loadRaptorCompiler } from './transit/load-raptor-compiler';
+import {
+  LOCALITY_ROUTING_INDEX_PATH,
+  RAW_LOCALITIES_PATH,
+} from './transit/paths';
 import { writeUtf8FileAtomically } from './write-utf8-file-atomically';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const LOCALITY_INDEX_PATH = resolve(
-  PROJECT_ROOT,
-  'data/processed/locality-routing-index.json',
-);
 const DEFAULT_OUTPUT_PATH = resolve(
   PROJECT_ROOT,
   'apps/commute-viewer/public/generated/commute-data.js',
@@ -148,10 +147,10 @@ export async function buildCommuteViewerData(
     localityIndex,
     loadedTimetable,
   ] = await Promise.all([
-    readUtf8Input(DEFAULT_LOCALITIES_FILE_PATH, 'locality CSV'),
+    readUtf8Input(RAW_LOCALITIES_PATH, 'locality CSV'),
     loadTransitCandidateInputs(),
-    loadLocalityRoutingIndex(LOCALITY_INDEX_PATH),
-    loadRaptorInspectionTimetable(),
+    loadLocalityRoutingIndex(LOCALITY_ROUTING_INDEX_PATH),
+    loadRaptorCompiler(),
   ]);
   const { manifest, timetable, stopIndexBySourceId, transitStops } =
     loadedTimetable;

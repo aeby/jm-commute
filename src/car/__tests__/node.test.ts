@@ -5,10 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { getCarTravelMinutes } from '../index';
-import {
-  loadCarTravelTimeIndex,
-  resolveCarRuntimeDataPaths,
-} from '../node';
+import { loadCarTravelTimeIndex } from '../node';
 
 const MATRIX_BYTES = Uint8Array.from([0, 93, 95, 0]);
 const MATRIX_SHA256 =
@@ -49,7 +46,7 @@ const temporaryDirectories: string[] = [];
 
 async function createFixture(
   matrixBytes: Uint8Array = MATRIX_BYTES,
-): Promise<{ readonly manifestPath: string; readonly matrixPath: string }> {
+): Promise<{ readonly runtimeDataDirectory: string }> {
   const directory = await mkdtemp(join(tmpdir(), 'jm-commute-car-node-'));
   temporaryDirectories.push(directory);
   const manifestPath = join(directory, 'manifest.json');
@@ -58,7 +55,7 @@ async function createFixture(
     writeFile(manifestPath, manifestJson()),
     writeFile(matrixPath, matrixBytes),
   ]);
-  return { manifestPath, matrixPath };
+  return { runtimeDataDirectory: directory };
 }
 
 afterEach(async () => {
@@ -100,45 +97,16 @@ describe('loadCarTravelTimeIndex', () => {
   it('reports manifest and matrix read failures with their paths', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'jm-commute-car-node-'));
     temporaryDirectories.push(directory);
-    const manifestPath = join(directory, 'missing-manifest.json');
-    const matrixPath = join(directory, 'missing-matrix.bin');
+    const manifestPath = join(directory, 'manifest.json');
+    const matrixPath = join(directory, 'travel-times.bin');
 
     await expect(
-      loadCarTravelTimeIndex({ manifestPath, matrixPath }),
+      loadCarTravelTimeIndex({ runtimeDataDirectory: directory }),
     ).rejects.toThrow(`manifest at "${manifestPath}"`);
 
     await writeFile(manifestPath, manifestJson());
     await expect(
-      loadCarTravelTimeIndex({ manifestPath, matrixPath }),
+      loadCarTravelTimeIndex({ runtimeDataDirectory: directory }),
     ).rejects.toThrow(`matrix at "${matrixPath}"`);
-  });
-});
-
-describe('resolveCarRuntimeDataPaths', () => {
-  it('resolves only the fixed runtime artifact names from an explicit project root', () => {
-    const projectRoot = join(tmpdir(), 'explicit-project-root');
-
-    expect(resolveCarRuntimeDataPaths(projectRoot)).toEqual({
-      directory: join(projectRoot, 'data', 'runtime', 'car'),
-      manifestPath: join(
-        projectRoot,
-        'data',
-        'runtime',
-        'car',
-        'manifest.json',
-      ),
-      matrixPath: join(
-        projectRoot,
-        'data',
-        'runtime',
-        'car',
-        'travel-times.bin',
-      ),
-    });
-  });
-
-  it('rejects an omitted project-root path instead of falling back to cwd', () => {
-    expect(() => resolveCarRuntimeDataPaths('')).toThrow('nonempty path');
-    expect(() => resolveCarRuntimeDataPaths('   ')).toThrow('nonempty path');
   });
 });

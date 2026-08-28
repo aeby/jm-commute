@@ -1,44 +1,27 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-
 import {
   parseTransitPlacesJson,
   type TransitPlace,
-} from '../src/transit/places';
+} from '@core/transit/places';
 import type {
   TransitPlaceServiceProfile,
   TransitPlaceServiceProfileDataset,
-} from '../src/transit/service-profiles';
+} from '@core/transit/service-profiles';
 import {
   parseTransitStopsJson,
   type TransitStop,
-} from '../src/transit/stops';
+} from '@core/transit/stops';
 
-const PROJECT_ROOT = resolve(import.meta.dirname, '..');
-const TRANSIT_PLACES_RELATIVE_PATH =
-  'data/processed/transit-places.json';
+import {
+  TRANSIT_PLACES_PATH,
+  TRANSIT_PLACE_SERVICE_PROFILES_PATH,
+  TRANSIT_STOPS_PATH,
+} from './paths';
+
+const TRANSIT_PLACES_RELATIVE_PATH = 'data/processed/transit/places.json';
 const SERVICE_PROFILES_RELATIVE_PATH =
-  'data/processed/transit-place-service-profiles.json';
-const TRANSIT_STOPS_RELATIVE_PATH =
-  'data/processed/transit-stops.json';
-
-export const DEFAULT_LOCALITIES_FILE_PATH = resolve(
-  PROJECT_ROOT,
-  'data/raw/AMTOVZ_CSV_WGS84.csv',
-);
-
-const TRANSIT_PLACES_PATH = resolve(
-  PROJECT_ROOT,
-  TRANSIT_PLACES_RELATIVE_PATH,
-);
-const SERVICE_PROFILES_PATH = resolve(
-  PROJECT_ROOT,
-  SERVICE_PROFILES_RELATIVE_PATH,
-);
-const TRANSIT_STOPS_PATH = resolve(
-  PROJECT_ROOT,
-  TRANSIT_STOPS_RELATIVE_PATH,
-);
+  'data/processed/transit/place-service-profiles.json';
+const TRANSIT_STOPS_RELATIVE_PATH = 'data/processed/transit/stops.json';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -148,7 +131,7 @@ export const loadTransitCandidateInputs = async (): Promise<{
   const [placesJson, profilesJson] = await Promise.all([
     readUtf8Input(TRANSIT_PLACES_PATH, 'processed transit-place JSON'),
     readUtf8Input(
-      SERVICE_PROFILES_PATH,
+      TRANSIT_PLACE_SERVICE_PROFILES_PATH,
       'processed transit-place service-profile JSON',
     ),
   ]);
