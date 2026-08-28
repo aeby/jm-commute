@@ -1,22 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { runRaptorFastestWindow } from '../../transit/raptor';
+import { runRaptorFastestWindow } from '..';
 import {
   buildPatternAdjacency,
   encodePickupDropOffTypes,
   type RaptorRoutePattern,
   type RaptorTimetable,
-} from '../../transit/raptor/timetable';
+} from '../timetable';
 import {
+  decodeFloat32ArrayBase64,
+  decodeRaptorTimetable,
   decodeUint8ArrayBase64,
   decodeUint32ArrayBase64,
-  decodeValidationTimetable,
-  deserializeValidationTimetable,
+  deserializeRaptorTimetable,
+  encodeFloat32ArrayBase64,
   encodeUint8ArrayBase64,
   encodeUint32ArrayBase64,
-  reconstructValidationTimetable,
-  serializeValidationTimetable,
-} from '../validation-data';
+  reconstructRaptorTimetable,
+  serializeRaptorTimetable,
+} from '../browser-timetable';
 
 function pattern(
   stops: readonly number[],
@@ -73,7 +75,7 @@ function timetable(): RaptorTimetable {
   };
 }
 
-describe('validation timetable Base64 codec', () => {
+describe('RAPTOR browser timetable Base64 codec', () => {
   it('round-trips Uint8 values', () => {
     const values = new Uint8Array([0, 1, 127, 255]);
     expect(decodeUint8ArrayBase64(encodeUint8ArrayBase64(values))).toEqual(
@@ -88,18 +90,33 @@ describe('validation timetable Base64 codec', () => {
     );
   });
 
+  it('round-trips little-endian Float32 values including NaN', () => {
+    const values = new Float32Array([0, -0, 1.25, -73.5, Number.NaN]);
+    const decoded = decodeFloat32ArrayBase64(
+      encodeFloat32ArrayBase64(values),
+    );
+
+    expect(decoded).toEqual(values);
+    expect(Number.isNaN(decoded[4])).toBe(true);
+  });
+
   it('round-trips empty arrays', () => {
     expect(decodeUint8ArrayBase64(encodeUint8ArrayBase64(new Uint8Array())))
       .toEqual(new Uint8Array());
     expect(decodeUint32ArrayBase64(encodeUint32ArrayBase64(new Uint32Array())))
       .toEqual(new Uint32Array());
+    expect(
+      decodeFloat32ArrayBase64(
+        encodeFloat32ArrayBase64(new Float32Array()),
+      ),
+    ).toEqual(new Float32Array());
   });
 });
 
-describe('validation timetable serialization', () => {
+describe('RAPTOR browser timetable serialization', () => {
   it('flattens pattern, adjacency, and transfer arrays with offsets', () => {
-    const decoded = decodeValidationTimetable(
-      serializeValidationTimetable(timetable()),
+    const decoded = decodeRaptorTimetable(
+      serializeRaptorTimetable(timetable()),
     );
 
     expect(decoded.patternStopOffsets).toEqual(new Uint32Array([0, 3, 5]));
@@ -123,8 +140,8 @@ describe('validation timetable serialization', () => {
 
   it('round-trips a complete timetable using shared subarray views', () => {
     const original = timetable();
-    const reconstructed = deserializeValidationTimetable(
-      serializeValidationTimetable(original),
+    const reconstructed = deserializeRaptorTimetable(
+      serializeRaptorTimetable(original),
     );
 
     expect(reconstructed.sourceStopIds).toEqual(original.sourceStopIds);
@@ -146,18 +163,18 @@ describe('validation timetable serialization', () => {
 
   it('reconstructs decoded arrays without an additional decoding pass', () => {
     const original = timetable();
-    const decoded = decodeValidationTimetable(
-      serializeValidationTimetable(original),
+    const decoded = decodeRaptorTimetable(
+      serializeRaptorTimetable(original),
     );
-    expect(reconstructValidationTimetable(decoded).patterns).toEqual(
+    expect(reconstructRaptorTimetable(decoded).patterns).toEqual(
       original.patterns,
     );
   });
 
   it('produces an identical fastest-window result after deserialization', () => {
     const original = timetable();
-    const reconstructed = deserializeValidationTimetable(
-      serializeValidationTimetable(original),
+    const reconstructed = deserializeRaptorTimetable(
+      serializeRaptorTimetable(original),
     );
     const query = {
       originStopIndexes: [0],

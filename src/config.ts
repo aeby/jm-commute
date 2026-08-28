@@ -26,13 +26,4 @@ export const PROJECT_CONFIG = {
       },
     },
   },
-  validationUi: {
-    defaultTravelTimeMinutes: 60,
-    minTravelTimeMinutes: 15,
-    maxTravelTimeMinutes: 120,
-    travelTimeStepMinutes: 5,
-    autocompleteResultLimit: 20,
-    displayedHubLimit: 10,
-    displayedReachableLocalityLimit: 100,
-  },
 } as const;

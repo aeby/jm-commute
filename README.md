@@ -1,6 +1,6 @@
 # Swiss Commute Reachability
 
-An offline TypeScript project for estimating which jobs are reachable by public transport in Switzerland.
+A TypeScript project with an offline routing core for estimating which jobs are reachable by public transport in Switzerland.
 
 Users and jobs are identified approximately by postcode and/or city name. The system will map these locations to public-transport stops and use Swiss timetable data to calculate realistic travel times around lakes, mountains, valleys, and other geographic obstacles.
 
@@ -11,15 +11,15 @@ Users and jobs are identified approximately by postcode and/or city name. The sy
 3. Load Swiss GTFS timetable data.
 4. Calculate reachable stops with RAPTOR.
 5. Match reachable localities to jobs.
-6. Optionally visualize the result as an isochrone map.
+6. Visualize stop-level reachability on an interactive commute map.
 
 ## Current milestone
 
-The current implementation prepares a compact fixed-day timetable, runs multi-source one-to-all public-transport queries, and reduces reachable stops to transport-independent Swiss localities.
+The current implementation prepares a compact fixed-day timetable, runs multi-source one-to-all public-transport queries, reduces reachable stops to transport-independent Swiss localities, and visualizes the result in a Vue/MapLibre commute viewer.
 
 GTFS station records and their child platforms are normalized into logical transit places, while standalone stops remain individual transit places.
 
-Journey reconstruction, transfer chaining, job matching, and visualization remain out of scope.
+Journey reconstruction, transfer chaining, and job matching remain out of scope.
 
 ## Module boundaries
 
@@ -29,7 +29,7 @@ Journey reconstruction, transfer chaining, job matching, and visualization remai
 - `src/transit/routing-data/` prepares and validates the streamed fixed-day routing dataset.
 - `src/transit/raptor/` owns compact timetable construction, transfer connectivity, and routing.
 - `src/transit/locality-routing/` is the public-transport adapter between generic localities and RAPTOR stop indexes/results.
-- `src/validation-ui/` contains the framework-free offline browser validator.
+- `apps/commute-viewer/` contains the Vue/Vite development viewer; it imports browser-safe routing modules from `src/` rather than duplicating them.
 
 ## Development
 
@@ -43,6 +43,7 @@ npm run data:prepare:places
 npm run data:prepare:service-profiles
 npm run data:prepare:routing-trips
 npm run data:prepare:locality-routing-index
+npm run viewer:dev
 ```
 
 The downloaded source data is stored under `data/raw/` and is not committed to Git. Unit tests use a small local fixture and require no network access.
@@ -133,14 +134,24 @@ One Range-RAPTOR result is reduced to the shortest duration across each locality
 
 The intended job boundary is a transport-independent value such as `job.locality_id = "8001:zurich"`. A future matching layer can run routing once when a user's location or commute preference changes, cache the reachable locality IDs, and use an indexed relational join or `job.locality_id IN (...)`. No database integration is implemented yet.
 
-### Local validation UI
+### Commute viewer
 
-Build the standalone validation page with:
+A Vue/Vite map viewer is available under `apps/commute-viewer`.
+
+Prepare its local runtime data and start the development server with:
 
 ```bash
-npm run build:validation-ui
+npm run viewer:dev
 ```
 
-Then open `dist-validation/index.html` directly in a browser.
+Create a production Vite build with:
 
-The page works without a server or network connection and can be used to inspect locality selection, transit hubs, reachable localities, and estimated commute times.
+```bash
+npm run viewer:build
+```
+
+The viewer uses the same fastest-window public-transport routing implementation, compact timetable, transfer graph, and locality routing index as the core project. It visualizes reachable transit-stop positions as deterministic approximately one-kilometre hexagons above an OpenFreeMap/OpenStreetMap basemap.
+
+Changing the origin recalculates routing once at the viewer's 120-minute maximum. Changing only the commute-time slider filters that existing result without rerunning RAPTOR.
+
+Routing data stays local and no routing API is used. The OpenFreeMap basemap tiles require network connectivity, and the viewer is served through Vite rather than opened with `file://`.

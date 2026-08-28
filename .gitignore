@@ -35,4 +35,5 @@ dist-ssr
 /data/processed/fixed-day-routing/*
 !/data/processed/fixed-day-routing/.gitkeep
 
-/dist-validation/
+/apps/commute-viewer/public/generated/*
+!/apps/commute-viewer/public/generated/.gitkeep

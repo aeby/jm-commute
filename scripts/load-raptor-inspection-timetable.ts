@@ -20,6 +20,7 @@ import {
   type VirtualTransferOptions,
 } from '../src/transit/raptor/transfers';
 import { readGtfsTransfers } from '../src/transit/raptor/transfers/node';
+import type { TransitStop } from '../src/transit/stops';
 import { loadTransitStopsInput } from './transit-inspection-inputs';
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..');
@@ -34,6 +35,7 @@ export interface LoadedInspectionRaptorTimetable {
   readonly manifest: FixedDayRoutingManifest;
   readonly timetable: RaptorTimetable;
   readonly stopIndexBySourceId: ReadonlyMap<string, number>;
+  readonly transitStops: readonly TransitStop[];
   readonly transferGraph: TransferGraphBuildResult;
   readonly virtualTransfers: VirtualTransferOptions;
   readonly timetableBuildMilliseconds: number;
@@ -45,6 +47,17 @@ export interface LoadedInspectionRaptorTimetable {
 export interface LoadRaptorInspectionTimetableOptions {
   readonly virtualTransfersEnabled?: boolean;
   readonly includeTransferDiagnostics?: boolean;
+}
+
+export function assertMatchingGtfsFeedVersion(
+  manifestFeedVersion: string | undefined,
+  rawGtfsFeedVersion: string | undefined,
+): void {
+  if (manifestFeedVersion !== rawGtfsFeedVersion) {
+    throw new Error(
+      `Raw GTFS feed version ${JSON.stringify(rawGtfsFeedVersion ?? 'not supplied')} does not match fixed-day routing manifest source feed version ${JSON.stringify(manifestFeedVersion ?? 'not supplied')}. Rebuild the fixed-day routing data from the current raw GTFS feed.`,
+    );
+  }
 }
 
 export async function loadRaptorInspectionTimetable(
@@ -66,9 +79,13 @@ export async function loadRaptorInspectionTimetable(
   const transitStops = await loadTransitStopsInput();
   const serviceDate =
     PROJECT_CONFIG.transit.referenceScenario.serviceDate.replaceAll('-', '');
-  const { activeServiceIds } = await loadFixedDateActiveServices(
+  const { activeServiceIds, feedInfo } = await loadFixedDateActiveServices(
     GTFS_DIRECTORY,
     serviceDate,
+  );
+  assertMatchingGtfsFeedVersion(
+    routingDataset.manifest.sourceFeedVersion,
+    feedInfo.version,
   );
   const configuredTransfers = PROJECT_CONFIG.transit.routing.transfers;
   const virtualTransfers: VirtualTransferOptions = {
@@ -95,6 +112,7 @@ export async function loadRaptorInspectionTimetable(
     manifest: routingDataset.manifest,
     timetable: attachTransferGraph(baseTimetable, transferGraph),
     stopIndexBySourceId,
+    transitStops,
     transferGraph,
     virtualTransfers,
     timetableBuildMilliseconds,

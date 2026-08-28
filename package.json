@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "data:prepare:stops": "tsx scripts/prepare-transit-stops.ts",
     "data:prepare:places": "tsx scripts/prepare-transit-places.ts",
@@ -13,17 +16,19 @@
     "inspect:raptor-timetable": "node --expose-gc --import tsx scripts/inspect-raptor-timetable.ts",
     "inspect:raptor-reachability": "tsx scripts/inspect-raptor-reachability.ts",
     "inspect:locality-reachability": "tsx scripts/inspect-locality-reachability.ts",
-    "build:validation-ui": "tsx scripts/build-validation-ui.ts",
-    "lint": "oxlint -D correctness -D suspicious --vitest-plugin --deny-warnings src scripts",
+    "inspect:commute-viewer": "tsx scripts/inspect-commute-viewer.ts",
+    "viewer:data": "tsx scripts/build-commute-viewer-data.ts",
+    "viewer:dev": "npm run viewer:data && npm run dev --workspace @jm/commute-viewer",
+    "viewer:build": "npm run viewer:data && npm run build --workspace @jm/commute-viewer",
+    "lint": "oxlint -D correctness -D suspicious --vitest-plugin --vue-plugin --deny-warnings src scripts apps/commute-viewer/src apps/commute-viewer/vite.config.ts vitest.config.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/commute-viewer/tsconfig.json"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
     "oxlint": "^1.80.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },
   "dependencies": {

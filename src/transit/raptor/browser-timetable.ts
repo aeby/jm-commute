@@ -1,38 +1,14 @@
-import type { LocalityId } from '../localities';
-import type { TransitCandidateSelectionMode } from '../transit/candidates';
 import type {
   RaptorRoutePattern,
   RaptorTimetable,
-} from '../transit/raptor/timetable';
+} from './timetable';
 
 const BASE64_CHUNK_SIZE = 0x8000;
 
 const HOST_IS_LITTLE_ENDIAN =
   new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 
-export interface ValidationLocality {
-  readonly localityId: LocalityId;
-  readonly postalCode: string;
-  readonly city: string;
-}
-
-export interface ValidationLocalityRoutingEntry {
-  readonly localityId: LocalityId;
-  readonly selectionMode: TransitCandidateSelectionMode;
-  readonly stopIndexes: readonly number[];
-}
-
-export interface ValidationHubCandidate {
-  readonly placeId: string;
-  readonly name: string;
-  readonly distanceMeters: number;
-  readonly routeCount: number;
-  readonly departureCount: number;
-  readonly railRouteCount: number;
-  readonly railDepartureCount: number;
-}
-
-export interface SerializedValidationTimetable {
+export interface SerializedRaptorTimetable {
   readonly sourceStopIds: readonly string[];
   readonly patternStopOffsetsBase64: string;
   readonly patternStopsBase64: string;
@@ -49,21 +25,7 @@ export interface SerializedValidationTimetable {
   readonly accessTransferValuesBase64: string;
 }
 
-export interface SwissCommuteValidationData {
-  readonly schemaVersion: 1;
-  readonly feedVersion: string;
-  readonly serviceDate: string;
-  readonly routingWindowStart: string;
-  readonly routingWindowEnd: string;
-  readonly localities: readonly ValidationLocality[];
-  readonly localityRoutingEntries: readonly ValidationLocalityRoutingEntry[];
-  readonly hubCandidatesByLocality: Readonly<
-    Record<string, readonly ValidationHubCandidate[]>
-  >;
-  readonly timetable: SerializedValidationTimetable;
-}
-
-export interface DecodedValidationTimetable {
+export interface DecodedRaptorTimetable {
   readonly sourceStopIds: readonly string[];
   readonly patternStopOffsets: Uint32Array;
   readonly patternStops: Uint32Array;
@@ -95,7 +57,7 @@ function base64ToBytes(value: string): Uint8Array {
   try {
     binary = atob(value);
   } catch (error) {
-    throw new Error('Validation timetable contains malformed Base64 data.', {
+    throw new Error('RAPTOR timetable contains malformed Base64 data.', {
       cause: error,
     });
   }
@@ -151,6 +113,51 @@ export function decodeUint32ArrayBase64(value: string): Uint32Array {
   return values;
 }
 
+export function encodeFloat32ArrayBase64(values: Float32Array): string {
+  if (HOST_IS_LITTLE_ENDIAN) {
+    return bytesToBase64(
+      new Uint8Array(values.buffer, values.byteOffset, values.byteLength),
+    );
+  }
+
+  const bytes = new Uint8Array(values.length * Float32Array.BYTES_PER_ELEMENT);
+  const view = new DataView(bytes.buffer);
+  values.forEach((value, index) => {
+    view.setFloat32(index * Float32Array.BYTES_PER_ELEMENT, value, true);
+  });
+  return bytesToBase64(bytes);
+}
+
+export function decodeFloat32ArrayBase64(value: string): Float32Array {
+  const bytes = base64ToBytes(value);
+  if (bytes.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) {
+    throw new Error('Base64 Float32 data byte length must be divisible by four.');
+  }
+  if (HOST_IS_LITTLE_ENDIAN) {
+    return new Float32Array(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength / Float32Array.BYTES_PER_ELEMENT,
+    );
+  }
+
+  const values = new Float32Array(
+    bytes.byteLength / Float32Array.BYTES_PER_ELEMENT,
+  );
+  const view = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength,
+  );
+  values.forEach((_, index) => {
+    values[index] = view.getFloat32(
+      index * Float32Array.BYTES_PER_ELEMENT,
+      true,
+    );
+  });
+  return values;
+}
+
 function flattenUint32Arrays(
   arrays: readonly Uint32Array[],
 ): { readonly offsets: Uint32Array; readonly values: Uint32Array } {
@@ -191,9 +198,9 @@ function flattenUint8Arrays(
   return { offsets, values };
 }
 
-export function serializeValidationTimetable(
+export function serializeRaptorTimetable(
   timetable: RaptorTimetable,
-): SerializedValidationTimetable {
+): SerializedRaptorTimetable {
   if (
     timetable.patternOccurrencesByStop.length !==
       timetable.sourceStopIds.length ||
@@ -254,9 +261,9 @@ export function serializeValidationTimetable(
   };
 }
 
-export function decodeValidationTimetable(
-  serialized: SerializedValidationTimetable,
-): DecodedValidationTimetable {
+export function decodeRaptorTimetable(
+  serialized: SerializedRaptorTimetable,
+): DecodedRaptorTimetable {
   return {
     sourceStopIds: serialized.sourceStopIds,
     patternStopOffsets: decodeUint32ArrayBase64(
@@ -325,8 +332,8 @@ function subarrayViews<TArray extends Uint8Array | Uint32Array>(
   );
 }
 
-export function reconstructValidationTimetable(
-  decoded: DecodedValidationTimetable,
+export function reconstructRaptorTimetable(
+  decoded: DecodedRaptorTimetable,
 ): RaptorTimetable {
   const patternCount = decoded.patternTripCounts.length;
   validateOffsets(
@@ -420,15 +427,15 @@ export function reconstructValidationTimetable(
   };
 }
 
-export function deserializeValidationTimetable(
-  serialized: SerializedValidationTimetable,
+export function deserializeRaptorTimetable(
+  serialized: SerializedRaptorTimetable,
 ): RaptorTimetable {
-  return reconstructValidationTimetable(
-    decodeValidationTimetable(serialized),
+  return reconstructRaptorTimetable(
+    decodeRaptorTimetable(serialized),
   );
 }
 
-export function validationTimetableTypedArrayBytes(
+export function raptorTimetableTypedArrayBytes(
   timetable: RaptorTimetable,
 ): number {
   return (
