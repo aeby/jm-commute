@@ -69,7 +69,9 @@ const createDataset = async (
   manifestOverride: FixedDayRoutingManifest = manifest(trips),
   serializedTrips: readonly unknown[] = trips,
 ): Promise<string> => {
-  const directory = await mkdtemp(join(tmpdir(), 'jm-commute-routing-'));
+  const directory = await mkdtemp(
+    join(tmpdir(), 'jobmate-commute-routing-'),
+  );
   temporaryDirectories.push(directory);
   await Promise.all([
     writeFile(

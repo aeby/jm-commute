@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { ReachableLocality } from '@jm/commute';
+import type { ReachableLocality } from '@jobmate/commute';
 import type { LocalityRoutingStopIndex } from '../../network/localities/types';
 import { resolveFastestReachableLocalities } from '../resolve-fastest-reachable-localities';
 import { testPattern, testTimetable } from '../raptor/__tests__/test-timetable';

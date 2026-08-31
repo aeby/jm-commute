@@ -1,8 +1,12 @@
 {
-  "name": "@jm/commute",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@jobmate/commute",
+  "version": "0.1.0",
+  "description": "Read-only lookups over precomputed road and public-transport travel times between Swiss localities.",
+  "license": "MIT",
+  "author": "Jobmate",
   "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "data/localities.json",
@@ -10,6 +14,8 @@
     "data/public_transport/travel-times.bin",
     "data/road/manifest.json",
     "data/road/travel-times.bin",
+    "DATA_SOURCES.md",
+    "LICENSE",
     "README.md"
   ],
   "exports": {
@@ -23,9 +29,31 @@
     }
   },
   "scripts": {
-    "build": "node --input-type=module -e \"import { rm } from 'node:fs/promises'; await rm('dist', { recursive: true, force: true });\" && tsc -p tsconfig.json"
+    "build": "node --input-type=module -e \"import { rm } from 'node:fs/promises'; await rm('dist', { recursive: true, force: true });\" && tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm --prefix ../.. run commute:package:verify"
+  },
+  "keywords": [
+    "commute",
+    "switzerland",
+    "travel-time",
+    "public-transport",
+    "road"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aeby/jm-commute.git",
+    "directory": "packages/commute"
+  },
+  "homepage": "https://github.com/aeby/jm-commute#readme",
+  "bugs": {
+    "url": "https://github.com/aeby/jm-commute/issues"
   },
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

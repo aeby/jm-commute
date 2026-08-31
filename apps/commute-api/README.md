@@ -1,6 +1,6 @@
-# `@jm/commute-api`
+# `@jobmate/commute-api`
 
-Loopback-first Node HTTP adapter for the server-only `@jm/commute` runtime.
+Loopback-first Node HTTP adapter for the server-only `@jobmate/commute` runtime.
 It exposes the canonical locality catalog and map-ready reachability GeoJSON;
 it never serves or imports commute matrices in browser code.
 
@@ -29,7 +29,7 @@ npm run commute:api:typecheck
 ```
 
 Running `npm run dev` directly in this workspace is also supported. Its
-`predev` step rebuilds `@jm/commute` before starting the
+`predev` step rebuilds `@jobmate/commute` before starting the
 TypeScript watcher, so the generated package entry points cannot be stale.
 
 Defaults are `127.0.0.1:3001`. Override them with `COMMUTE_API_HOST` and

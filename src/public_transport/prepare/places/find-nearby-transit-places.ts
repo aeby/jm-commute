@@ -1,4 +1,4 @@
-import type { Locality } from '@jm/commute';
+import type { Locality } from '@jobmate/commute';
 import { haversineDistanceMeters } from './haversine-distance-meters';
 import type {
   NearbyTransitPlace,

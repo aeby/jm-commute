@@ -1,5 +1,5 @@
 {
-  "name": "@jm/commute-api",
+  "name": "@jobmate/commute-api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@jm/commute": "0.0.0"
+    "@jobmate/commute": "*"
   },
   "engines": {
     "node": ">=20"

@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks';
 
-import { MAX_TRAVEL_MINUTES } from '@jm/commute';
+import { MAX_TRAVEL_MINUTES } from '@jobmate/commute';
 
 import type {
   CommuteApiRuntime,

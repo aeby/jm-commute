@@ -11,7 +11,7 @@ import {
 } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
-import type { LocalityId } from '@jm/commute';
+import type { LocalityId } from '@jobmate/commute';
 import {
   matrixByteLength,
   MAX_TRAVEL_MINUTES,

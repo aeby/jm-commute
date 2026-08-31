@@ -35,7 +35,7 @@ async function measureDirectory(path: string): Promise<{
 export async function buildCommutePackage(): Promise<CommutePackageBuildResult> {
   const command = await runCommand(
     'npm',
-    ['run', 'build', '--workspace', '@jm/commute'],
+    ['run', 'build', '--workspace', '@jobmate/commute'],
     { cwd: PROJECT_ROOT },
   );
   const output = await measureDirectory(
@@ -50,7 +50,7 @@ export async function buildCommutePackage(): Promise<CommutePackageBuildResult> 
 
 async function main(): Promise<void> {
   const result = await buildCommutePackage();
-  console.log('Built @jm/commute with TypeScript (no bundler).');
+  console.log('Built @jobmate/commute with TypeScript (no bundler).');
   console.log(`  Time: ${formatMilliseconds(result.elapsedMilliseconds)}`);
   console.log(`  Output files: ${result.outputFileCount}`);
   console.log(`  Output size: ${formatBytes(result.outputByteLength)}`);

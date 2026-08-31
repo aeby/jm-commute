@@ -1,4 +1,4 @@
-import { loadCommuteRuntime } from '@jm/commute/node';
+import { loadCommuteRuntime } from '@jobmate/commute/node';
 
 import { readCommuteApiConfig } from './config.js';
 import { createCommuteApiServer } from './server.js';

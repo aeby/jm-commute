@@ -5,7 +5,9 @@ import { resolve } from 'node:path';
 const directories: string[] = [];
 
 export async function createTemporaryDirectory(label: string): Promise<string> {
-  const directory = await mkdtemp(resolve(tmpdir(), `jm-commute-${label}-`));
+  const directory = await mkdtemp(
+    resolve(tmpdir(), `jobmate-commute-${label}-`),
+  );
   directories.push(directory);
   return directory;
 }
@@ -17,4 +19,3 @@ export async function removeTemporaryDirectories(): Promise<void> {
     ),
   );
 }
-

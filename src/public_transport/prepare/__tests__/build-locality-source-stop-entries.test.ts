@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Locality } from '@jm/commute';
+import type { Locality } from '@jobmate/commute';
 import type { TransitPlace } from '../places';
 import { buildLocalitySourceStopEntries } from '../build-locality-source-stop-entries';
 

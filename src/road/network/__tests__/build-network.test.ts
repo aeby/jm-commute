@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Locality } from '@jm/commute';
+import type { Locality } from '@jobmate/commute';
 
 import { buildNetwork } from '../build-network';
 import type { RoadRouter } from '../types';

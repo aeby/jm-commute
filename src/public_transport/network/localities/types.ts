@@ -1,4 +1,4 @@
-import type { LocalityId } from '@jm/commute';
+import type { LocalityId } from '@jobmate/commute';
 
 /** Locality-to-network-stop fields consumed by matrix compilation. */
 export interface LocalityRoutingStopEntry {

@@ -8,7 +8,7 @@ import {
   vi,
 } from 'vitest';
 
-import type { Locality, ReachableLocality } from '@jm/commute';
+import type { Locality, ReachableLocality } from '@jobmate/commute';
 
 import type { CommuteApiRuntime } from '../api-types.js';
 import {

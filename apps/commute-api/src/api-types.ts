@@ -2,13 +2,13 @@ import type {
   CommuteMode,
   Locality,
   LocalityId,
-} from '@jm/commute';
-import type { CommuteRuntime } from '@jm/commute/node';
+} from '@jobmate/commute';
+import type { CommuteRuntime } from '@jobmate/commute/node';
 
 import type { GeographicBounds } from './visualization/geojson.js';
 import type { ReachabilityHexFeatureCollection } from './visualization/reachability-hexes.js';
 
-export type { CommuteMode } from '@jm/commute';
+export type { CommuteMode } from '@jobmate/commute';
 
 /** Minimal runtime surface consumed by this HTTP application. */
 export type CommuteApiRuntime = Pick<

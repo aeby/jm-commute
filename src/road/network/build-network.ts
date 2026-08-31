@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { Locality, LocalityId } from '@jm/commute';
+import type { Locality, LocalityId } from '@jobmate/commute';
 
 import type { PreparedData, RoadGraphMetadata } from '../prepare';
 import type {

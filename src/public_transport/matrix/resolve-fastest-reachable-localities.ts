@@ -1,4 +1,4 @@
-import type { ReachableLocality } from '@jm/commute';
+import type { ReachableLocality } from '@jobmate/commute';
 import type {
   LocalityRoutingStopEntry,
   LocalityRoutingStopIndex,

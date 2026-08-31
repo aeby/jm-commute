@@ -1,4 +1,4 @@
-# JM Commute
+# Jobmate Commute
 
 Precomputed travel times between 4,073 Swiss localities.
 
@@ -11,7 +11,7 @@ OpenStreetMap ─→ road/ ────────────────→ r
 Swiss GTFS ────→ public_transport/ ────→ public_transport matrix ──┼─→ runtime/
                                                                    │      │
 official localities CSV ────────────────────────────────────────────┘      ▼
-                                                                    @jm/commute
+                                                               @jobmate/commute
                                                                          │
                                                                          ▼
                                                                     API + viewer
@@ -70,11 +70,15 @@ npm run road:matrix
 npm run commute:package:data
 npm run commute:package:build
 npm run commute:package:pack
+npm run commute:package:verify
 
 npm test
 npm run typecheck
 npm run lint
 ```
+
+See [PUBLISHING.md](./PUBLISHING.md) for the npm account, verification, and
+release procedure for `@jobmate/commute`.
 
 Preparation and matrix commands skip complete outputs. Pass `-- --restart` to
 replace an output or incompatible checkpoint intentionally.
@@ -163,12 +167,12 @@ package.
 
 ## Standalone API
 
-`@jm/commute` does not contain OSRM, OpenStreetMap, GTFS, RAPTOR, graph, or
+`@jobmate/commute` does not contain OSRM, OpenStreetMap, GTFS, RAPTOR, graph, or
 timetable code. Its Node entry point reads the locality array and two matrices,
 then exposes one small object:
 
 ```ts
-import { loadCommuteRuntime } from '@jm/commute/node';
+import { loadCommuteRuntime } from '@jobmate/commute/node';
 
 const runtime = await loadCommuteRuntime();
 const origin = runtime.resolve({ postalCode: '8001', city: 'Zürich' });

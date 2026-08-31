@@ -6,13 +6,13 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@jm\/commute\/node$/u,
+        find: /^@jobmate\/commute\/node$/u,
         replacement: fileURLToPath(
           new URL('./packages/commute/src/node.ts', import.meta.url),
         ),
       },
       {
-        find: /^@jm\/commute$/u,
+        find: /^@jobmate\/commute$/u,
         replacement: fileURLToPath(
           new URL('./packages/commute/src/index.ts', import.meta.url),
         ),

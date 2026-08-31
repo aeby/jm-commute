@@ -1,4 +1,4 @@
-import type { Locality } from '@jm/commute';
+import type { Locality } from '@jobmate/commute';
 
 export interface RoadGraphMetadata {
   readonly sourcePbfSha256: string;

@@ -1,4 +1,4 @@
-import type { LocalityId } from '@jm/commute';
+import type { LocalityId } from '@jobmate/commute';
 
 import type { RoadGraphMetadata } from '../prepare';
 

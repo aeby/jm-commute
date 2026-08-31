@@ -1,4 +1,4 @@
-import type { LocalityId } from '@jm/commute';
+import type { LocalityId } from '@jobmate/commute';
 import type { LocalityRoutingStopIndex } from '../network/localities/types';
 import type { PublicTransportNetwork } from '../network/timetable/types';
 import { resolveFastestReachableLocalities } from './resolve-fastest-reachable-localities';

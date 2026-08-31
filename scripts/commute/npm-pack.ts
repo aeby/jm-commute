@@ -52,7 +52,7 @@ export async function createNpmPackageTarball(
   requestedOutputDirectory?: string,
 ): Promise<NpmPackResult> {
   const outputDirectory = requestedOutputDirectory === undefined
-    ? await mkdtemp(resolve(tmpdir(), 'jm-commute-pack-'))
+    ? await mkdtemp(resolve(tmpdir(), 'jobmate-commute-pack-'))
     : isAbsolute(requestedOutputDirectory)
       ? requestedOutputDirectory
       : resolve(PROJECT_ROOT, requestedOutputDirectory);
@@ -64,6 +64,8 @@ export async function createNpmPackageTarball(
       'pack',
       '--json',
       '--offline',
+      '--ignore-scripts',
+      '--dry-run=false',
       '--pack-destination',
       outputDirectory,
       '--cache',

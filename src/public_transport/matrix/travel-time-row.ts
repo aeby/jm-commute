@@ -1,4 +1,4 @@
-import type { LocalityId, ReachableLocality } from '@jm/commute';
+import type { LocalityId, ReachableLocality } from '@jobmate/commute';
 import {
   MAX_TRAVEL_MINUTES,
   UNAVAILABLE_TRAVEL_TIME,

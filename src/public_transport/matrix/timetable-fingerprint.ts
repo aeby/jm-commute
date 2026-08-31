@@ -3,9 +3,9 @@ import { createHash, type Hash } from 'node:crypto';
 import type { LocalityRoutingStopIndex } from '../network/localities/types';
 import type { PublicTransportNetwork } from '../network/timetable/types';
 
-const FORMAT_PREFIX = 'jm-commute:raptor-timetable-fingerprint:v1';
+const FORMAT_PREFIX = 'jobmate-commute:raptor-timetable-fingerprint:v1';
 const LOCALITY_FORMAT_PREFIX =
-  'jm-commute:public-transport-locality-index:v1';
+  'jobmate-commute:public-transport-locality-index:v1';
 
 function updateUint32(hash: Hash, value: number, description: string): void {
   if (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff) {

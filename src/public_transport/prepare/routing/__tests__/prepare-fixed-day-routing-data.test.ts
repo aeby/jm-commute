@@ -40,7 +40,7 @@ interface FixtureWorkspace {
 }
 
 async function createFixtureWorkspace(): Promise<FixtureWorkspace> {
-  const root = await mkdtemp(join(tmpdir(), 'jm-commute-routing-'));
+  const root = await mkdtemp(join(tmpdir(), 'jobmate-commute-routing-'));
   const gtfsDirectory = join(root, 'gtfs');
   const transitStopsPath = join(root, 'transit-stops.json');
   const outputDirectory = join(root, 'output');

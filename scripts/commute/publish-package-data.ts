@@ -4,7 +4,7 @@ import { assembleRuntimeData } from './package-data';
 
 async function main(): Promise<void> {
   const result = await assembleRuntimeData();
-  console.log('Assembled runtime assets for @jm/commute.');
+  console.log('Assembled runtime assets for @jobmate/commute.');
   console.log(`  Source: ${result.runtimeDataDirectory}`);
   console.log(`  Package: ${result.packageDataDirectory}`);
   console.log(`  Localities: ${result.localityCount}`);

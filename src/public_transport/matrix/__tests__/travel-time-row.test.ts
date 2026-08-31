@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ReachableLocality } from '@jm/commute';
+import type { ReachableLocality } from '@jobmate/commute';
 import {
   createTransitTravelTimeMatrixRowGenerator,
   type TransitReachabilityQuery,

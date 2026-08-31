@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   const packed = await createNpmPackageTarball(
     requestedOutputDirectory(process.argv.slice(2)),
   );
-  console.log('Built and packed @jm/commute.');
+  console.log('Built and packed @jobmate/commute.');
   console.log(
     `  Build: ${formatMilliseconds(build.elapsedMilliseconds)}, ` +
       `${build.outputFileCount} files, ${formatBytes(build.outputByteLength)}`,

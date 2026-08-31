@@ -2,7 +2,7 @@ import { parse } from 'csv-parse/sync';
 
 import {
   type Locality,
-} from '@jm/commute';
+} from '@jobmate/commute';
 import {
   createLocalityId,
   normalizeCityName,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Locality } from '@jm/commute';
+import type { Locality } from '@jobmate/commute';
 import { findNearbyTransitPlaces } from '../find-nearby-transit-places';
 import { haversineDistanceMeters } from '../haversine-distance-meters';
 import type { TransitPlace } from '../types';

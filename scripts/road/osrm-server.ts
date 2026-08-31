@@ -64,7 +64,8 @@ function runDockerStop(containerName: string): Promise<boolean> {
 export async function startOsrmServer(
   options: OsrmServerOptions,
 ): Promise<RunningOsrmServer> {
-  const containerName = `jm-commute-road-osrm-${process.pid}-${randomUUID()}`;
+  const containerName =
+    `jobmate-commute-road-osrm-${process.pid}-${randomUUID()}`;
   const child = spawn(
     'docker',
     createOsrmServerDockerArguments(options, containerName),

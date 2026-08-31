@@ -11,8 +11,8 @@
     "noEmit": false,
     "paths": {
       // TypeScript selects the declarations; tsx selects the sibling JavaScript.
-      "@jm/commute": ["../../packages/commute/dist/index"],
-      "@jm/commute/node": ["../../packages/commute/dist/node"]
+      "@jobmate/commute": ["../../packages/commute/dist/index"],
+      "@jobmate/commute/node": ["../../packages/commute/dist/node"]
     },
     "types": ["node"]
   },
