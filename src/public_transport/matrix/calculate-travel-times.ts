@@ -12,22 +12,19 @@ import {
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import type { LocalityId } from '@jm/commute';
-import type { TransitTravelTimeSource } from '@commute-internal/transit/travel-time-manifest';
 import {
-  COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+  matrixByteLength,
+  MAX_TRAVEL_MINUTES,
   UNAVAILABLE_TRAVEL_TIME,
-} from '@commute-internal/travel-time-matrix';
+} from '@commute-internal/matrix';
 
 import type { LocalityRoutingStopIndex } from '../network/localities/types';
 import type { PublicTransportNetwork } from '../network/timetable/types';
 import {
-  authenticateTransitMatrixData,
-  createTransitTravelTimeManifest,
-  publishTransitMatrixArtifacts,
-  serializeTransitTravelTimeManifest,
-  type AuthenticatedTransitMatrixData,
-  type TransitMatrixPublicationPaths,
-} from './artifacts';
+  publishMatrixArtifact,
+  type MatrixArtifactPaths,
+  type PublishedMatrixArtifact,
+} from '../../runtime';
 import {
   createTransitTravelTimeMatrixCheckpoint,
   parseTransitTravelTimeMatrixCheckpointJson,
@@ -51,7 +48,7 @@ const VALIDATION_ORIGIN_COUNT = 20;
 const VALIDATION_DESTINATIONS_PER_ORIGIN = 5;
 
 export interface PublicTransportMatrixPaths
-  extends TransitMatrixPublicationPaths {
+  extends MatrixArtifactPaths {
   readonly workDirectory: string;
 }
 
@@ -89,8 +86,14 @@ export interface TravelTimeMatrixValidation {
   readonly exactMatches: number;
 }
 
+export interface PublicTransportArtifactSource {
+  readonly gtfsFeed: string;
+  readonly serviceDate: string;
+  readonly morningWindow: string;
+}
+
 export interface CalculateTravelTimesResult
-  extends AuthenticatedTransitMatrixData {
+  extends PublishedMatrixArtifact<PublicTransportArtifactSource> {
   readonly validation: TravelTimeMatrixValidation;
 }
 
@@ -242,47 +245,39 @@ function createQuery(options: CalculateTravelTimesOptions) {
 
 function createManifestSource(
   options: CalculateTravelTimesOptions,
-): TransitTravelTimeSource {
+): PublicTransportArtifactSource {
   return {
     serviceDate: options.provenance.serviceDate,
-    morningWindow: options.provenance.morningWindow,
-    gtfsFeedVersion: options.provenance.gtfsFeedVersion,
-    routingDataFingerprint: options.provenance.routingDataFingerprint,
-    timetableFingerprint: createRaptorTimetableFingerprint(options.network),
-    localityRoutingIndexSha256: createLocalityRoutingIndexFingerprint(
-      options.localityRoutingIndex,
-    ),
-    routingPolicy: {
-      maxTransfers: options.provenance.maxTransfers,
-      minTransferTimeSeconds: options.provenance.minTransferTimeSeconds,
-      virtualTransfersEnabled: false,
-    },
+    morningWindow:
+      `${options.provenance.morningWindow.start}-${options.provenance.morningWindow.end}`,
+    gtfsFeed: options.provenance.gtfsFeedVersion,
   };
 }
 
 function resumeIdentity(
   localityCount: number,
-  source: TransitTravelTimeSource,
+  options: CalculateTravelTimesOptions,
 ): TransitTravelTimeMatrixResumeIdentity {
   const queryPolicySha256 = createHash('sha256')
     .update(
       JSON.stringify({
         schemaVersion: 1,
-        serviceDate: source.serviceDate,
-        morningWindow: source.morningWindow,
-        maxTransfers: source.routingPolicy.maxTransfers,
-        minTransferTimeSeconds:
-          source.routingPolicy.minTransferTimeSeconds,
+        serviceDate: options.provenance.serviceDate,
+        morningWindow: options.provenance.morningWindow,
+        maxTransfers: options.provenance.maxTransfers,
+        minTransferTimeSeconds: options.provenance.minTransferTimeSeconds,
       }),
     )
     .digest('hex');
   return {
     localityCount,
-    maxTravelMinutes: COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+    maxTravelMinutes: MAX_TRAVEL_MINUTES,
     valueEncoding: 'UINT8',
-    routingDataFingerprint: source.routingDataFingerprint,
-    timetableFingerprint: source.timetableFingerprint,
-    localityRoutingIndexSha256: source.localityRoutingIndexSha256,
+    routingDataFingerprint: options.provenance.routingDataFingerprint,
+    timetableFingerprint: createRaptorTimetableFingerprint(options.network),
+    localityRoutingIndexSha256: createLocalityRoutingIndexFingerprint(
+      options.localityRoutingIndex,
+    ),
     queryPolicySha256,
   };
 }
@@ -401,7 +396,7 @@ function queryResultMap(
   const values = new Map<LocalityId, number>();
   for (const result of queryReachableLocalities(
     originLocalityId,
-    COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+    MAX_TRAVEL_MINUTES,
   )) {
     values.set(result.localityId, result.travelMinutes);
   }
@@ -480,26 +475,24 @@ function validateIndependentSample(
 async function finalizeMatrix(
   paths: MatrixWorkPaths,
   localityIds: readonly LocalityId[],
-  source: TransitTravelTimeSource,
+  source: PublicTransportArtifactSource,
   queryReachableLocalities: TransitReachabilityQuery,
 ): Promise<CalculateTravelTimesResult> {
   const matrixBytes = await readFile(paths.partialMatrixPath);
-  const manifestBytes = serializeTransitTravelTimeManifest(
-    createTransitTravelTimeManifest(localityIds, matrixBytes, source),
-  );
-  authenticateTransitMatrixData(
-    manifestBytes,
-    matrixBytes,
-    'completed transit matrix',
-  );
+  const expectedByteLength = matrixByteLength(localityIds.length);
+  if (matrixBytes.byteLength !== expectedByteLength) {
+    throw new Error(
+      `Completed public-transport matrix has ${matrixBytes.byteLength} bytes; expected ${expectedByteLength}.`,
+    );
+  }
   const validation = validateIndependentSample(
     localityIds,
     queryReachableLocalities,
     matrixBytes,
   );
-  const published = await publishTransitMatrixArtifacts(
-    manifestBytes,
+  const published = await publishMatrixArtifact(
     matrixBytes,
+    source,
     paths,
   );
   await Promise.all([
@@ -524,7 +517,7 @@ export async function calculateTravelTimes(
     localityIds,
     queryReachableLocalities,
   );
-  const identity = resumeIdentity(localityIds.length, source);
+  const identity = resumeIdentity(localityIds.length, options);
   let checkpoint = await initializeOrResume(
     paths,
     identity,

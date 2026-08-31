@@ -22,7 +22,7 @@ const reachabilityResponse = () => ({
     latitude: locality.latitude,
     longitude: locality.longitude,
   },
-  mode: 'transit',
+  mode: 'public_transport',
   maxTravelMinutes: 240,
   reachableLocalityCount: 2,
   hexagonCount: 1,
@@ -110,7 +110,7 @@ describe('CommuteApiClient', () => {
 
     const result = await client.loadReachability(
       locality.localityId,
-      'transit',
+      'public_transport',
       abortController.signal,
     );
 
@@ -124,7 +124,7 @@ describe('CommuteApiClient', () => {
     });
     expect(JSON.parse(String(init?.body))).toEqual({
       originLocalityId: locality.localityId,
-      mode: 'transit',
+      mode: 'public_transport',
       maxTravelMinutes: 240,
     });
   });
@@ -147,7 +147,7 @@ describe('CommuteApiClient', () => {
     });
 
     await expect(
-      client.loadReachability('0000:unknown', 'car'),
+      client.loadReachability('0000:unknown', 'road'),
     ).rejects.toEqual(
       expect.objectContaining<Partial<CommuteApiClientError>>({
         status: 400,
@@ -174,10 +174,10 @@ describe('commute API response validation', () => {
     const parsed = parseReachabilityResponse(
       wireResponse,
       locality.localityId,
-      'transit',
+      'public_transport',
     );
     expect(parsed).toMatchObject({
-      mode: 'transit',
+      mode: 'public_transport',
       maxTravelMinutes: 240,
       hexagonCount: 1,
     });
@@ -187,14 +187,14 @@ describe('commute API response validation', () => {
       parseReachabilityResponse(
         { ...reachabilityResponse(), maxTravelMinutes: 120 },
         locality.localityId,
-        'transit',
+        'public_transport',
       ),
     ).toThrow(/must be 240/u);
     expect(() =>
       parseReachabilityResponse(
         { ...reachabilityResponse(), hexagonCount: 2 },
         locality.localityId,
-        'transit',
+        'public_transport',
       ),
     ).toThrow(/does not match GeoJSON/u);
   });

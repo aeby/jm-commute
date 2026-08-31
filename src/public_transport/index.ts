@@ -17,6 +17,7 @@ export {
   calculateTravelTimes,
   type CalculateTravelTimesOptions,
   type CalculateTravelTimesResult,
+  type PublicTransportArtifactSource,
   type PublicTransportMatrixPaths,
   type PublicTransportMatrixProvenance,
   type TravelTimeMatrixProgress,

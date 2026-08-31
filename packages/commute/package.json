@@ -6,10 +6,10 @@
   "files": [
     "dist",
     "data/localities.json",
-    "data/car/manifest.json",
-    "data/car/travel-times.bin",
-    "data/transit/manifest.json",
-    "data/transit/travel-times.bin",
+    "data/public_transport/manifest.json",
+    "data/public_transport/travel-times.bin",
+    "data/road/manifest.json",
+    "data/road/travel-times.bin",
     "README.md"
   ],
   "exports": {
@@ -23,7 +23,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b tsconfig.json --clean && tsc -p tsconfig.json"
+    "build": "node --input-type=module -e \"import { rm } from 'node:fs/promises'; await rm('dist', { recursive: true, force: true });\" && tsc -p tsconfig.json"
   },
   "engines": {
     "node": ">=20"

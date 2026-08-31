@@ -15,10 +15,6 @@ import {
   calculateTravelTimes,
   type PublicTransportMatrixProvenance,
 } from '../calculate-travel-times';
-import {
-  createLocalityRoutingIndexFingerprint,
-  createRaptorTimetableFingerprint,
-} from '../timetable-fingerprint';
 
 const temporaryDirectories: string[] = [];
 
@@ -161,25 +157,19 @@ describe('calculateTravelTimes', () => {
     });
 
     expect(progress).toEqual([11]);
-    expect(result.manifest.matrix.localityCount).toBe(11);
     expect(result.manifest.source).toEqual({
+      gtfsFeed: 'fixture',
       serviceDate: '2026-09-07',
-      morningWindow: { start: '07:00:00', end: '09:00:00' },
-      gtfsFeedVersion: 'fixture',
-      routingDataFingerprint: 'a'.repeat(64),
-      timetableFingerprint: createRaptorTimetableFingerprint(value),
-      localityRoutingIndexSha256: createLocalityRoutingIndexFingerprint(
-        localityRoutingIndex,
-      ),
-      routingPolicy: {
-        maxTransfers: 0,
-        minTransferTimeSeconds: 120,
-        virtualTransfersEnabled: false,
-      },
+      morningWindow: '07:00:00-09:00:00',
     });
+    expect(result.manifest.date).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+    expect(result.manifest.fingerprint).toMatch(/^[0-9a-f]{64}$/u);
     expect(result.matrixByteLength).toBe(121);
     expect(result.validation).toEqual({ sampleSize: 55, exactMatches: 55 });
     expect(await readFile(paths.matrixPath)).toEqual(Buffer.alloc(121));
+    expect(
+      JSON.parse(await readFile(paths.manifestPath, 'utf8')),
+    ).toEqual(result.manifest);
     await expect(stat(workDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });

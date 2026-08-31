@@ -8,7 +8,7 @@ export interface Locality {
   readonly longitude: number;
 }
 
-export type CommuteMode = 'car' | 'transit';
+export type CommuteMode = 'road' | 'public_transport';
 
 export type LongitudeLatitudePosition = [number, number];
 

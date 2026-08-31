@@ -35,7 +35,7 @@ const reachabilityCoordinator = new ViewerReachabilityCoordinator(apiClient);
 
 const localities = shallowRef<readonly Locality[]>([]);
 const selectedLocalityId = ref<string>();
-const selectedMode = ref<CommuteMode>('transit');
+const selectedMode = ref<CommuteMode>('public_transport');
 const selectedCommuteMinutes = ref(VIEWER_CONFIG.commute.defaultMinutes);
 const reachabilityResponse = shallowRef<ReachabilityResponse>();
 
@@ -142,7 +142,7 @@ void loadLocalities();
   <main class="viewer-page">
     <header class="viewer-header">
       <div class="viewer-brand">
-        <p class="viewer-eyebrow">Switzerland · car and public transport</p>
+        <p class="viewer-eyebrow">Switzerland · road and public transport</p>
         <h1 class="viewer-title">Commute reachability</h1>
         <p class="viewer-subtitle">
           Explore precomputed morning travel times across canonical Swiss localities.
@@ -165,12 +165,12 @@ void loadLocalities();
           <legend class="control-label">Transport</legend>
           <div class="transport-options">
             <label class="transport-option">
-              <input v-model="selectedMode" type="radio" value="transit" />
+              <input v-model="selectedMode" type="radio" value="public_transport" />
               <span>Public transport</span>
             </label>
             <label class="transport-option">
-              <input v-model="selectedMode" type="radio" value="car" />
-              <span>Car</span>
+              <input v-model="selectedMode" type="radio" value="road" />
+              <span>Road</span>
             </label>
           </div>
         </fieldset>
@@ -224,7 +224,7 @@ void loadLocalities();
       <div class="diagnostics" aria-label="Viewer diagnostics">
         <dl class="diagnostic">
           <dt>Mode</dt>
-          <dd>{{ selectedMode === 'transit' ? 'Public transport' : 'Car' }}</dd>
+          <dd>{{ selectedMode === 'public_transport' ? 'Public transport' : 'Road' }}</dd>
         </dl>
         <dl class="diagnostic">
           <dt>Maximum</dt>

@@ -57,16 +57,16 @@ describe('ViewerReachabilityCoordinator', () => {
     );
     const coordinator = new ViewerReachabilityCoordinator({ loadReachability });
 
-    await coordinator.load('8001:zurich', 'transit');
-    await coordinator.load('3011:bern', 'transit');
-    await coordinator.load('3011:bern', 'car');
+    await coordinator.load('8001:zurich', 'public_transport');
+    await coordinator.load('3011:bern', 'public_transport');
+    await coordinator.load('3011:bern', 'road');
 
     expect(loadReachability).toHaveBeenCalledTimes(3);
     expect(loadReachability.mock.calls.map(([origin, mode]) => [origin, mode]))
       .toEqual([
-        ['8001:zurich', 'transit'],
-        ['3011:bern', 'transit'],
-        ['3011:bern', 'car'],
+        ['8001:zurich', 'public_transport'],
+        ['3011:bern', 'public_transport'],
+        ['3011:bern', 'road'],
       ]);
   });
 
@@ -88,16 +88,16 @@ describe('ViewerReachabilityCoordinator', () => {
     );
     const coordinator = new ViewerReachabilityCoordinator({ loadReachability });
 
-    const first = coordinator.load('8001:zurich', 'transit');
-    const second = coordinator.load('3011:bern', 'car');
+    const first = coordinator.load('8001:zurich', 'public_transport');
+    const second = coordinator.load('3011:bern', 'road');
     expect(requests[0]?.signal?.aborted).toBe(true);
     expect(requests[1]?.signal?.aborted).toBe(false);
 
-    requests[1]!.result.resolve(response('3011:bern', 'car'));
+    requests[1]!.result.resolve(response('3011:bern', 'road'));
     await expect(second).resolves.toMatchObject({
-      response: { origin: { localityId: '3011:bern' }, mode: 'car' },
+      response: { origin: { localityId: '3011:bern' }, mode: 'road' },
     });
-    requests[0]!.result.resolve(response('8001:zurich', 'transit'));
+    requests[0]!.result.resolve(response('8001:zurich', 'public_transport'));
     await expect(first).resolves.toBeUndefined();
   });
 
@@ -106,16 +106,16 @@ describe('ViewerReachabilityCoordinator', () => {
     const loadReachability = vi.fn<LoadReachability>()
       .mockReturnValueOnce(first.promise)
       .mockRejectedValueOnce(new Error('API offline'))
-      .mockResolvedValueOnce(response('8001:zurich', 'car'));
+      .mockResolvedValueOnce(response('8001:zurich', 'road'));
     const coordinator = new ViewerReachabilityCoordinator({ loadReachability });
 
-    const stale = coordinator.load('3011:bern', 'transit');
-    await expect(coordinator.load('8001:zurich', 'transit'))
+    const stale = coordinator.load('3011:bern', 'public_transport');
+    await expect(coordinator.load('8001:zurich', 'public_transport'))
       .rejects.toThrow('API offline');
     first.reject(new Error('Old failure'));
     await expect(stale).resolves.toBeUndefined();
-    await expect(coordinator.load('8001:zurich', 'car')).resolves.toMatchObject({
-      response: { mode: 'car' },
+    await expect(coordinator.load('8001:zurich', 'road')).resolves.toMatchObject({
+      response: { mode: 'road' },
     });
   });
 
@@ -128,11 +128,11 @@ describe('ViewerReachabilityCoordinator', () => {
         return result.promise;
       },
     });
-    const pending = coordinator.load('8001:zurich', 'transit');
+    const pending = coordinator.load('8001:zurich', 'public_transport');
 
     coordinator.invalidate();
     expect(signal?.aborted).toBe(true);
-    result.resolve(response('8001:zurich', 'transit'));
+    result.resolve(response('8001:zurich', 'public_transport'));
     await expect(pending).resolves.toBeUndefined();
   });
 
@@ -140,12 +140,12 @@ describe('ViewerReachabilityCoordinator', () => {
     let clock = 10;
     const coordinator = new ViewerReachabilityCoordinator(
       {
-        loadReachability: async () => response('8001:zurich', 'transit'),
+        loadReachability: async () => response('8001:zurich', 'public_transport'),
       },
       { now: () => (clock += 7) },
     );
 
-    await expect(coordinator.load('8001:zurich', 'transit')).resolves
+    await expect(coordinator.load('8001:zurich', 'public_transport')).resolves
       .toMatchObject({ requestMilliseconds: 7 });
   });
 });

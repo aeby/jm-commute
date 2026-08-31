@@ -31,5 +31,5 @@ export const MATRIX_WORK_DIRECTORY = resolve(
 
 export const RUNTIME_DATA_DIRECTORY = resolve(
   PROJECT_ROOT,
-  'data/runtime/transit',
+  'data/runtime/public_transport',
 );

@@ -255,7 +255,7 @@ export function createCommuteApiRequestHandler(
           200,
           {
             status: 'ok',
-            localityCount: options.runtime.localities.all().length,
+            localityCount: options.runtime.localities.length,
           },
           { 'Cache-Control': 'no-store' },
         );

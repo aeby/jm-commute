@@ -15,7 +15,7 @@ export function createLocalitiesRepresentation(
   runtime: Pick<CommuteApiRuntime, 'localities'>,
 ): LocalitiesRepresentation {
   const response: LocalitiesResponse = {
-    localities: runtime.localities.all(),
+    localities: runtime.localities,
   };
   const body = JSON.stringify(response);
   const sha256 = createHash('sha256').update(body, 'utf8').digest('hex');

@@ -1,6 +1,7 @@
-import { parseCarRoadGraphMetadata } from '@commute-internal/car/road-graph-metadata';
-
-import type { RoadPreparedDataManifest } from './types';
+import type {
+  RoadGraphMetadata,
+  RoadPreparedDataManifest,
+} from './types';
 
 export const ROAD_PREPARED_DATA_SCHEMA_VERSION = 1;
 
@@ -12,6 +13,43 @@ function invalid(source: string, path: string, detail: string): never {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseRoadGraphMetadata(
+  value: unknown,
+  source: string,
+): RoadGraphMetadata {
+  if (!isRecord(value)) {
+    return invalid(source, 'roadGraph', 'expected an object');
+  }
+  if (
+    typeof value.sourcePbfSha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/u.test(value.sourcePbfSha256)
+  ) {
+    return invalid(
+      source,
+      'roadGraph.sourcePbfSha256',
+      'expected a lowercase SHA-256 digest',
+    );
+  }
+  if (
+    typeof value.osrmVersion !== 'string' ||
+    !/^\d+\.\d+\.\d+$/u.test(value.osrmVersion)
+  ) {
+    return invalid(source, 'roadGraph.osrmVersion', 'expected a version');
+  }
+  if (value.profile !== 'car.lua') {
+    return invalid(source, 'roadGraph.profile', 'expected "car.lua"');
+  }
+  if (value.algorithm !== 'ch') {
+    return invalid(source, 'roadGraph.algorithm', 'expected "ch"');
+  }
+  return {
+    sourcePbfSha256: value.sourcePbfSha256,
+    osrmVersion: value.osrmVersion,
+    profile: value.profile,
+    algorithm: value.algorithm,
+  };
 }
 
 export function parseRoadPreparedDataManifest(
@@ -39,11 +77,7 @@ export function parseRoadPreparedDataManifest(
 
   return Object.freeze({
     schemaVersion: ROAD_PREPARED_DATA_SCHEMA_VERSION,
-    roadGraph: parseCarRoadGraphMetadata(
-      value.roadGraph,
-      'roadGraph',
-      (path, detail) => invalid(source, path, detail),
-    ),
+    roadGraph: parseRoadGraphMetadata(value.roadGraph, source),
   });
 }
 

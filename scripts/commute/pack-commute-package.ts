@@ -1,10 +1,7 @@
 import { buildCommutePackage } from './build-commute-package';
 import { formatBytes, formatMilliseconds } from './format';
 import { isMainModule } from './main-module';
-import {
-  assertExpectedPackageInventory,
-  createNpmPackageTarball,
-} from './npm-pack';
+import { createNpmPackageTarball } from './npm-pack';
 
 function requestedOutputDirectory(arguments_: readonly string[]): string | undefined {
   if (arguments_.length === 0) {
@@ -23,8 +20,6 @@ async function main(): Promise<void> {
   const packed = await createNpmPackageTarball(
     requestedOutputDirectory(process.argv.slice(2)),
   );
-  assertExpectedPackageInventory(packed);
-
   console.log('Built and packed @jm/commute.');
   console.log(
     `  Build: ${formatMilliseconds(build.elapsedMilliseconds)}, ` +
@@ -44,4 +39,3 @@ if (isMainModule(import.meta.url)) {
     process.exitCode = 1;
   });
 }
-

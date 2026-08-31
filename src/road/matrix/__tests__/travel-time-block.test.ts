@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { UNAVAILABLE_TRAVEL_TIME } from '@commute-internal/travel-time-matrix';
+import { UNAVAILABLE_TRAVEL_TIME } from '@commute-internal/matrix';
 
 import {
   createTravelTimeBlock,

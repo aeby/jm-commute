@@ -4,8 +4,6 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseCarTravelTimeManifestJson } from '@commute-internal/car/travel-time-manifest';
-
 import type { RoadNetwork, RoadRouter } from '../../network';
 import { calculateTravelTimes } from '../calculate-travel-times';
 
@@ -88,14 +86,16 @@ describe('calculateTravelTimes', () => {
       11, 0, 13,
       255, 22, 0,
     ]);
-    const manifest = parseCarTravelTimeManifestJson(
+    const manifest = JSON.parse(
       await readFile(paths.manifestPath, 'utf8'),
-    );
+    ) as typeof result.manifest;
     expect(manifest.source).toEqual({
-      anchorsSha256: 'b'.repeat(64),
-      localityInputSha256: 'a'.repeat(64),
-      roadGraph: network().roadGraph,
+      openStreetMap: 'c'.repeat(64),
+      localityAnchors: 'b'.repeat(64),
+      routingEngine: 'OSRM 26.8.0 / road / ch',
     });
+    expect(Object.keys(manifest)).toEqual(['date', 'fingerprint', 'source']);
+    expect(manifest.fingerprint).toBe(result.fingerprint);
     expect(result.validation).toEqual({ sampleSize: 6, exactMatches: 6 });
     await expect(stat(workDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
   });

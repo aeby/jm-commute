@@ -43,15 +43,15 @@ dist-ssr
 
 !/data/runtime/
 /data/runtime/*
-!/data/runtime/car/
-/data/runtime/car/*
-!/data/runtime/car/.gitkeep
-!/data/runtime/transit/
-/data/runtime/transit/*
-!/data/runtime/transit/.gitkeep
+!/data/runtime/public_transport/
+/data/runtime/public_transport/*
+!/data/runtime/public_transport/.gitkeep
+!/data/runtime/road/
+/data/runtime/road/*
+!/data/runtime/road/.gitkeep
 
 /packages/commute/data/localities.json
-/packages/commute/data/car/*
-!/packages/commute/data/car/.gitkeep
-/packages/commute/data/transit/*
-!/packages/commute/data/transit/.gitkeep
+/packages/commute/data/public_transport/*
+!/packages/commute/data/public_transport/.gitkeep
+/packages/commute/data/road/*
+!/packages/commute/data/road/.gitkeep

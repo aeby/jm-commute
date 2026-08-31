@@ -226,7 +226,7 @@ async function main(): Promise<void> {
     `Published ${result.matrixByteLength} matrix bytes after ` +
       `${result.validation.exactMatches} validation checks.`,
   );
-  console.log(`Matrix SHA-256: ${result.matrixSha256}`);
+  console.log(`Matrix fingerprint: ${result.fingerprint}`);
 }
 
 await runCliCommand(main, {

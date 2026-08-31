@@ -1,7 +1,7 @@
 import {
-  COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
-  TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
-} from '@commute-internal/travel-time-matrix';
+  MATRIX_BYTES_PER_CELL,
+  MAX_TRAVEL_MINUTES,
+} from '@commute-internal/matrix';
 
 export const ROAD_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
 
@@ -74,7 +74,7 @@ export function parseRoadMatrixCheckpoint(
     return invalid(source, 'blockSize', 'expected a valid positive block size');
   }
   const blockSize = value.blockSize as number;
-  if (value.maxTravelMinutes !== COMMUTE_MATRIX_MAX_TRAVEL_MINUTES) {
+  if (value.maxTravelMinutes !== MAX_TRAVEL_MINUTES) {
     return invalid(source, 'maxTravelMinutes', 'expected 240');
   }
   if (value.valueEncoding !== 'UINT8') {
@@ -105,7 +105,7 @@ export function parseRoadMatrixCheckpoint(
     schemaVersion: ROAD_MATRIX_CHECKPOINT_SCHEMA_VERSION,
     localityCount,
     blockSize,
-    maxTravelMinutes: COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+    maxTravelMinutes: MAX_TRAVEL_MINUTES,
     valueEncoding: value.valueEncoding,
     anchorsSha256: value.anchorsSha256,
     nextOriginIndex,
@@ -160,7 +160,7 @@ export function expectedRoadPartialMatrixByteLength(
     throw new RangeError('Road matrix next origin index is invalid.');
   }
   const byteLength =
-    localityCount * nextOriginIndex * TRAVEL_TIME_MATRIX_BYTES_PER_CELL;
+    localityCount * nextOriginIndex * MATRIX_BYTES_PER_CELL;
   if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
     throw new Error('Road partial-matrix byte length is invalid.');
   }

@@ -1,11 +1,13 @@
 import { parse } from 'csv-parse/sync';
 
 import {
-  createLocalityId,
-  normalizeCityName,
   type Locality,
 } from '@jm/commute';
-import { normalizeSwissPostalCode } from '@commute-internal/localities/postal-code';
+import {
+  createLocalityId,
+  normalizeCityName,
+  normalizePostalCode,
+} from '@commute-internal/localities';
 
 const CITY_COLUMN = 'Ortschaftsname';
 const POSTAL_CODE_COLUMN = 'PLZ4';
@@ -139,7 +141,7 @@ export function parseLocalitiesCsv(csv: string): readonly Locality[] {
       rowNumber,
     );
 
-    if (normalizeSwissPostalCode(postalCode) === undefined) {
+    if (normalizePostalCode(postalCode) === undefined) {
       throw new Error(
         `Localities CSV row ${rowNumber} has malformed postal code in "${POSTAL_CODE_COLUMN}": "${postalCode}". Expected exactly four digits.`,
       );

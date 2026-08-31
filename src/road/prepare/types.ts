@@ -1,7 +1,11 @@
 import type { Locality } from '@jm/commute';
-import type { CarRoadGraphMetadata } from '@commute-internal/car/road-graph-metadata';
 
-export type RoadGraphMetadata = CarRoadGraphMetadata;
+export interface RoadGraphMetadata {
+  readonly sourcePbfSha256: string;
+  readonly osrmVersion: string;
+  readonly profile: 'car.lua';
+  readonly algorithm: 'ch';
+}
 
 export interface PreparedData {
   readonly localities: readonly Locality[];

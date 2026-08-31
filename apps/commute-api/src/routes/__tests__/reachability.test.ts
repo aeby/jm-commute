@@ -13,12 +13,9 @@ const zurich: Locality = {
   longitude: 8.542_467,
 };
 
-const runtime: Pick<CommuteApiRuntime, 'localities'> = {
-  localities: {
-    all: () => [zurich],
-    get: (localityId) =>
-      localityId === zurich.localityId ? zurich : undefined,
-  },
+const runtime: Pick<CommuteApiRuntime, 'resolve'> = {
+  resolve: (query) =>
+    query === zurich.localityId ? zurich : undefined,
 };
 
 describe('parseReachabilityRequest', () => {
@@ -27,14 +24,14 @@ describe('parseReachabilityRequest', () => {
       parseReachabilityRequest(
         {
           originLocalityId: '8001:zurich',
-          mode: 'car',
+          mode: 'road',
           maxTravelMinutes: maximum,
         },
         runtime,
       ),
     ).toEqual({
       originLocalityId: '8001:zurich',
-      mode: 'car',
+      mode: 'road',
       maxTravelMinutes: maximum,
     });
   });
@@ -46,7 +43,7 @@ describe('parseReachabilityRequest', () => {
         parseReachabilityRequest(
           {
             originLocalityId: '8001:zurich',
-            mode: 'transit',
+            mode: 'public_transport',
             maxTravelMinutes: maximum,
           },
           runtime,

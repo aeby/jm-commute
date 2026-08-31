@@ -1,8 +1,8 @@
 import type { LocalityId, ReachableLocality } from '@jm/commute';
 import {
-  COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+  MAX_TRAVEL_MINUTES,
   UNAVAILABLE_TRAVEL_TIME,
-} from '@commute-internal/travel-time-matrix';
+} from '@commute-internal/matrix';
 
 export type TransitReachabilityQuery = (
   originLocalityId: LocalityId,
@@ -85,7 +85,7 @@ export function createTransitTravelTimeMatrixRowGenerator(
       const originLocalityId = localityIds[originIndex] as LocalityId;
       const reachable = queryReachableLocalities(
         originLocalityId,
-        COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+        MAX_TRAVEL_MINUTES,
       );
       if (!Array.isArray(reachable)) {
         return invalidQueryResult('expected an array');
@@ -113,10 +113,10 @@ export function createTransitTravelTimeMatrixRowGenerator(
         if (
           !Number.isSafeInteger(result.travelMinutes) ||
           result.travelMinutes < 0 ||
-          result.travelMinutes > COMMUTE_MATRIX_MAX_TRAVEL_MINUTES
+          result.travelMinutes > MAX_TRAVEL_MINUTES
         ) {
           return invalidQueryResult(
-            `entry ${resultIndex} travelMinutes must be an integer from 0 to ${COMMUTE_MATRIX_MAX_TRAVEL_MINUTES}; received ${JSON.stringify(result.travelMinutes)}`,
+            `entry ${resultIndex} travelMinutes must be an integer from 0 to ${MAX_TRAVEL_MINUTES}; received ${JSON.stringify(result.travelMinutes)}`,
           );
         }
         populatedDestinations.add(destinationIndex);

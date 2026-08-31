@@ -21,9 +21,3 @@ export const OFFICIAL_LOCALITIES_CSV_PATH = resolve(
   PROJECT_ROOT,
   'data/raw/AMTOVZ_CSV_WGS84.csv',
 );
-
-export const ROOT_RUNTIME_LOCALITIES_PATH = resolve(
-  ROOT_RUNTIME_DATA_DIRECTORY,
-  'localities.json',
-);
-

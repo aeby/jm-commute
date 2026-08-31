@@ -45,39 +45,33 @@ const LOCALITIES: readonly Locality[] = Object.freeze([
   }),
 ]);
 
-const CAR_REACHABLE: readonly ReachableLocality[] = [
+const ROAD_REACHABLE: readonly ReachableLocality[] = [
   { localityId: '8001:zurich', travelMinutes: 0 },
   { localityId: '3011:bern', travelMinutes: 38 },
   { localityId: '3072:ostermundigen', travelMinutes: 31 },
 ];
-const TRANSIT_REACHABLE: readonly ReachableLocality[] = [
+const PUBLIC_TRANSPORT_REACHABLE: readonly ReachableLocality[] = [
   { localityId: '8001:zurich', travelMinutes: 0 },
   { localityId: '3011:bern', travelMinutes: 45 },
 ];
 
 const byId = new Map(LOCALITIES.map((locality) => [locality.localityId, locality]));
-const carReachability = vi.fn<
-  (originLocalityId: string, maxTravelMinutes: number) =>
+const reachableLocalities = vi.fn<
+  (
+    origin: Locality,
+    maxTravelMinutes: number,
+    mode: 'public_transport' | 'road',
+  ) =>
     readonly ReachableLocality[]
->(() => CAR_REACHABLE);
-const transitReachability = vi.fn<
-  (originLocalityId: string, maxTravelMinutes: number) =>
-    readonly ReachableLocality[]
->(() => TRANSIT_REACHABLE);
+>((_origin, _maximum, mode) =>
+  mode === 'road' ? ROAD_REACHABLE : PUBLIC_TRANSPORT_REACHABLE,
+);
 
 const runtime: CommuteApiRuntime = {
-  localities: {
-    all: () => LOCALITIES,
-    get: (localityId) => byId.get(localityId),
-  },
-  car: {
-    getTravelMinutes: () => undefined,
-    getReachableLocalities: carReachability,
-  },
-  transit: {
-    getTravelMinutes: () => undefined,
-    getReachableLocalities: transitReachability,
-  },
+  localities: LOCALITIES,
+  resolve: (query) =>
+    typeof query === 'string' ? byId.get(query) : undefined,
+  reachableLocalities,
 };
 
 const config: CommuteApiConfig = {
@@ -224,10 +218,10 @@ describe('commute API server', () => {
     expect(cached.headers.get('etag')).toBe(etag);
   });
 
-  it('dispatches car reachability and returns deterministic polygon GeoJSON', async () => {
+  it('dispatches road reachability and returns deterministic polygon GeoJSON', async () => {
     const request = {
       originLocalityId: '8001:zurich',
-      mode: 'car',
+      mode: 'road',
       maxTravelMinutes: 120,
     };
     const first = await postReachability(request);
@@ -243,7 +237,7 @@ describe('commute API server', () => {
         latitude: 47.372_309,
         longitude: 8.542_467,
       },
-      mode: 'car',
+      mode: 'road',
       maxTravelMinutes: 120,
       reachableLocalityCount: 3,
       hexagonCount: 2,
@@ -264,26 +258,34 @@ describe('commute API server', () => {
     expect(firstBody.bounds.west).toBeLessThan(firstBody.bounds.east);
     expect(first.headers.get('server-timing')).toContain('lookup;dur=');
     expect(first.headers.get('server-timing')).toContain('total;dur=');
-    expect(carReachability).toHaveBeenCalledWith('8001:zurich', 120);
+    expect(reachableLocalities).toHaveBeenCalledWith(
+      LOCALITIES[0],
+      120,
+      'road',
+    );
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining(
-        'origin=8001:zurich mode=car maxMinutes=120 reachable=3 hexes=2',
+        'origin=8001:zurich mode=road maxMinutes=120 reachable=3 hexes=2',
       ),
     );
   });
 
-  it('dispatches transit reachability through the transit runtime only', async () => {
+  it('dispatches public-transport reachability', async () => {
     const response = await postReachability({
       originLocalityId: '8001:zurich',
-      mode: 'transit',
+      mode: 'public_transport',
       maxTravelMinutes: 60,
     });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.mode).toBe('transit');
+    expect(body.mode).toBe('public_transport');
     expect(body.reachableLocalityCount).toBe(2);
-    expect(transitReachability).toHaveBeenCalledWith('8001:zurich', 60);
+    expect(reachableLocalities).toHaveBeenCalledWith(
+      LOCALITIES[0],
+      60,
+      'public_transport',
+    );
   });
 
   it.each([
@@ -291,7 +293,7 @@ describe('commute API server', () => {
       'unknown origin',
       {
         originLocalityId: '9999:unknown',
-        mode: 'car',
+        mode: 'road',
         maxTravelMinutes: 30,
       },
       'UNKNOWN_ORIGIN_LOCALITY_ID',
@@ -309,7 +311,7 @@ describe('commute API server', () => {
       'fractional maximum',
       {
         originLocalityId: '8001:zurich',
-        mode: 'car',
+        mode: 'road',
         maxTravelMinutes: 30.5,
       },
       'INVALID_MAX_TRAVEL_MINUTES',
@@ -318,7 +320,7 @@ describe('commute API server', () => {
       'negative maximum',
       {
         originLocalityId: '8001:zurich',
-        mode: 'car',
+        mode: 'road',
         maxTravelMinutes: -1,
       },
       'INVALID_MAX_TRAVEL_MINUTES',
@@ -327,7 +329,7 @@ describe('commute API server', () => {
       'maximum above the matrix horizon',
       {
         originLocalityId: '8001:zurich',
-        mode: 'car',
+        mode: 'road',
         maxTravelMinutes: 241,
       },
       'INVALID_MAX_TRAVEL_MINUTES',
@@ -343,7 +345,7 @@ describe('commute API server', () => {
   it('rejects unexpected fields and malformed or incorrectly typed bodies', async () => {
     const unexpected = await postReachability({
       originLocalityId: '8001:zurich',
-      mode: 'car',
+      mode: 'road',
       maxTravelMinutes: 30,
       hexCellDiameterMeters: 500,
     });

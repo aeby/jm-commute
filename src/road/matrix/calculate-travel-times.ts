@@ -12,9 +12,9 @@ import {
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import {
-  COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
-  calculateTravelTimeMatrixByteLength,
-} from '@commute-internal/travel-time-matrix';
+  matrixByteLength,
+  MAX_TRAVEL_MINUTES,
+} from '@commute-internal/matrix';
 
 import {
   OsrmHttpError,
@@ -22,13 +22,10 @@ import {
   type RoadNetwork,
 } from '../network';
 import {
-  authenticateRoadMatrixData,
-  createRoadTravelTimeManifest,
-  publishRoadMatrixArtifacts,
-  serializeRoadTravelTimeManifest,
-  type AuthenticatedRoadMatrixData,
-  type RoadMatrixPublicationPaths,
-} from './artifacts';
+  publishMatrixArtifact,
+  type MatrixArtifactPaths,
+  type PublishedMatrixArtifact,
+} from '../../runtime';
 import {
   createRoadMatrixCheckpoint,
   parseRoadMatrixCheckpointJson,
@@ -44,7 +41,7 @@ import {
   writeDurationTable,
 } from './travel-time-block';
 
-export interface RoadMatrixPaths extends RoadMatrixPublicationPaths {
+export interface RoadMatrixPaths extends MatrixArtifactPaths {
   readonly workDirectory: string;
 }
 
@@ -74,8 +71,14 @@ export interface RoadMatrixValidation {
   readonly exactMatches: number;
 }
 
+export interface RoadArtifactSource {
+  readonly openStreetMap: string;
+  readonly localityAnchors: string;
+  readonly routingEngine: string;
+}
+
 export interface CalculateTravelTimesResult
-  extends AuthenticatedRoadMatrixData {
+  extends PublishedMatrixArtifact<RoadArtifactSource> {
   readonly validation: RoadMatrixValidation;
 }
 
@@ -287,7 +290,7 @@ function resumeIdentity(
   return {
     localityCount: network.localities.length,
     blockSize: config.blockSize,
-    maxTravelMinutes: COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+    maxTravelMinutes: MAX_TRAVEL_MINUTES,
     valueEncoding: 'UINT8',
     anchorsSha256: network.anchorsSha256,
   };
@@ -484,26 +487,25 @@ async function finalizeMatrix(
   config: RoadMatrixConfig,
 ): Promise<CalculateTravelTimesResult> {
   const matrixBytes = await readFile(paths.partialMatrixPath);
-  const expectedByteLength = calculateTravelTimeMatrixByteLength(
-    network.localities.length,
-  );
+  const expectedByteLength = matrixByteLength(network.localities.length);
   if (matrixBytes.byteLength !== expectedByteLength) {
     throw new Error(
       `Completed road matrix has ${matrixBytes.byteLength} bytes; expected ${expectedByteLength}.`,
     );
   }
-  const manifestBytes = serializeRoadTravelTimeManifest(
-    createRoadTravelTimeManifest(network, matrixBytes),
-  );
-  authenticateRoadMatrixData(manifestBytes, matrixBytes, 'completed road matrix');
   const validation = await validateIndependentSample(
     network,
     matrixBytes,
     config,
   );
-  const published = await publishRoadMatrixArtifacts(
-    manifestBytes,
+  const published = await publishMatrixArtifact(
     matrixBytes,
+    {
+      openStreetMap: network.roadGraph.sourcePbfSha256,
+      localityAnchors: network.anchorsSha256,
+      routingEngine:
+        `OSRM ${network.roadGraph.osrmVersion} / road / ${network.roadGraph.algorithm}`,
+    },
     paths,
   );
   await Promise.all([

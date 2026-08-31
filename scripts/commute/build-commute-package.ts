@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 
 import { formatBytes, formatMilliseconds } from './format';
 import { isMainModule } from './main-module';
-import { verifyPublishedPackageData } from './package-data';
 import { COMMUTE_PACKAGE_DIRECTORY, PROJECT_ROOT } from './paths';
 import { runCommand } from './run-command';
 
@@ -34,7 +33,6 @@ async function measureDirectory(path: string): Promise<{
 }
 
 export async function buildCommutePackage(): Promise<CommutePackageBuildResult> {
-  await verifyPublishedPackageData();
   const command = await runCommand(
     'npm',
     ['run', 'build', '--workspace', '@jm/commute'],

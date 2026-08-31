@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks';
 
-import { COMMUTE_MATRIX_MAX_TRAVEL_MINUTES } from '@jm/commute';
+import { MAX_TRAVEL_MINUTES } from '@jm/commute';
 
 import type {
   CommuteApiRuntime,
@@ -31,7 +31,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 
 export function parseReachabilityRequest(
   value: unknown,
-  runtime: Pick<CommuteApiRuntime, 'localities'>,
+  runtime: Pick<CommuteApiRuntime, 'resolve'>,
 ): ReachabilityRequest {
   if (!isRecord(value)) {
     throw new ReachabilityRequestError(
@@ -64,16 +64,16 @@ export function parseReachabilityRequest(
       'originLocalityId must be a nonempty canonical locality ID.',
     );
   }
-  if (runtime.localities.get(value.originLocalityId) === undefined) {
+  if (runtime.resolve(value.originLocalityId) === undefined) {
     throw new ReachabilityRequestError(
       'UNKNOWN_ORIGIN_LOCALITY_ID',
       `Unknown originLocalityId "${value.originLocalityId}".`,
     );
   }
-  if (value.mode !== 'car' && value.mode !== 'transit') {
+  if (value.mode !== 'road' && value.mode !== 'public_transport') {
     throw new ReachabilityRequestError(
       'INVALID_MODE',
-      'mode must be either "car" or "transit".',
+      'mode must be either "road" or "public_transport".',
     );
   }
   if (
@@ -81,11 +81,11 @@ export function parseReachabilityRequest(
     !Number.isFinite(value.maxTravelMinutes) ||
     !Number.isInteger(value.maxTravelMinutes) ||
     value.maxTravelMinutes < 0 ||
-    value.maxTravelMinutes > COMMUTE_MATRIX_MAX_TRAVEL_MINUTES
+    value.maxTravelMinutes > MAX_TRAVEL_MINUTES
   ) {
     throw new ReachabilityRequestError(
       'INVALID_MAX_TRAVEL_MINUTES',
-      `maxTravelMinutes must be an integer between 0 and ${COMMUTE_MATRIX_MAX_TRAVEL_MINUTES}.`,
+      `maxTravelMinutes must be an integer between 0 and ${MAX_TRAVEL_MINUTES}.`,
     );
   }
 
@@ -113,7 +113,7 @@ export function buildReachabilityResponse(
   request: ReachabilityRequest,
   visualizationConfig: CommuteApiConfig['visualization'],
 ): ReachabilityBuildResult {
-  const origin = runtime.localities.get(request.originLocalityId);
+  const origin = runtime.resolve(request.originLocalityId);
   if (origin === undefined) {
     throw new ReachabilityRequestError(
       'UNKNOWN_ORIGIN_LOCALITY_ID',
@@ -122,14 +122,15 @@ export function buildReachabilityResponse(
   }
 
   const lookupStartedAt = performance.now();
-  const reachable = runtime[request.mode].getReachableLocalities(
-    request.originLocalityId,
+  const reachable = runtime.reachableLocalities(
+    origin,
     request.maxTravelMinutes,
+    request.mode,
   );
   const lookupFinishedAt = performance.now();
 
   const samples: ReachabilityCoordinateSample[] = reachable.map((result) => {
-    const locality = runtime.localities.get(result.localityId);
+    const locality = runtime.resolve(result.localityId);
     if (locality === undefined) {
       throw new Error(
         `Commute runtime returned unknown localityId "${result.localityId}".`,

@@ -10,8 +10,8 @@ GET  /api/localities
 POST /api/reachability
 ```
 
-The reachability request contains exactly `originLocalityId`, `mode` (`car` or
-`transit`), and an integer `maxTravelMinutes` from 0 through 240. Invalid input
+The reachability request contains exactly `originLocalityId`, `mode` (`road` or
+`public_transport`), and an integer `maxTravelMinutes` from 0 through 240. Invalid input
 returns a JSON error envelope and HTTP 400. Unsupported methods return 405,
 unsupported request media types return 415, oversized bodies return 413, and
 unknown routes return 404.
@@ -26,12 +26,10 @@ From the repository root:
 npm run commute:api:dev
 npm run commute:api:start
 npm run commute:api:typecheck
-npm run commute:api:verify
-npm run commute:api:benchmark
 ```
 
 Running `npm run dev` directly in this workspace is also supported. Its
-`predev` step authenticates and rebuilds `@jm/commute` before starting the
+`predev` step rebuilds `@jm/commute` before starting the
 TypeScript watcher, so the generated package entry points cannot be stale.
 
 Defaults are `127.0.0.1:3001`. Override them with `COMMUTE_API_HOST` and

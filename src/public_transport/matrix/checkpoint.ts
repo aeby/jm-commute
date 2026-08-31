@@ -1,7 +1,7 @@
 import {
-  COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
-  TRAVEL_TIME_MATRIX_BYTES_PER_CELL,
-} from '@commute-internal/travel-time-matrix';
+  MATRIX_BYTES_PER_CELL,
+  MAX_TRAVEL_MINUTES,
+} from '@commute-internal/matrix';
 
 export const PUBLIC_TRANSPORT_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
 
@@ -102,11 +102,11 @@ export function parseTransitTravelTimeMatrixCheckpoint(
     source,
     'localityCount',
   );
-  if (value.maxTravelMinutes !== COMMUTE_MATRIX_MAX_TRAVEL_MINUTES) {
+  if (value.maxTravelMinutes !== MAX_TRAVEL_MINUTES) {
     return invalid(
       source,
       'maxTravelMinutes',
-      `expected ${COMMUTE_MATRIX_MAX_TRAVEL_MINUTES}`,
+      `expected ${MAX_TRAVEL_MINUTES}`,
     );
   }
   if (value.valueEncoding !== 'UINT8') {
@@ -127,7 +127,7 @@ export function parseTransitTravelTimeMatrixCheckpoint(
   return Object.freeze({
     schemaVersion: PUBLIC_TRANSPORT_MATRIX_CHECKPOINT_SCHEMA_VERSION,
     localityCount,
-    maxTravelMinutes: COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+    maxTravelMinutes: MAX_TRAVEL_MINUTES,
     valueEncoding: value.valueEncoding,
     routingDataFingerprint: parseSha256(
       value.routingDataFingerprint,
@@ -210,7 +210,7 @@ export function expectedTransitPartialMatrixByteLength(
     );
   }
   const byteLength =
-    nextOriginIndex * localityCount * TRAVEL_TIME_MATRIX_BYTES_PER_CELL;
+    nextOriginIndex * localityCount * MATRIX_BYTES_PER_CELL;
   if (!Number.isSafeInteger(byteLength)) {
     throw new Error('Transit partial matrix byte length exceeds safe integers.');
   }

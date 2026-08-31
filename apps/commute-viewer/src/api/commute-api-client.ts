@@ -202,11 +202,11 @@ export function parseReachabilityResponse(
     'origin.localityId',
   );
   if (
-    response.mode !== 'car' &&
-    response.mode !== 'transit'
+    response.mode !== 'road' &&
+    response.mode !== 'public_transport'
   ) {
     throw new CommuteApiClientError(
-      'Invalid API response: mode must be either "car" or "transit".',
+      'Invalid API response: mode must be either "road" or "public_transport".',
     );
   }
   const maxTravelMinutes = requireNonnegativeInteger(

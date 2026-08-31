@@ -1,4 +1,5 @@
 import type {
+  CommuteMode,
   Locality,
   LocalityId,
 } from '@jm/commute';
@@ -7,17 +8,13 @@ import type { CommuteRuntime } from '@jm/commute/node';
 import type { GeographicBounds } from './visualization/geojson.js';
 import type { ReachabilityHexFeatureCollection } from './visualization/reachability-hexes.js';
 
-export type CommuteMode = 'car' | 'transit';
+export type { CommuteMode } from '@jm/commute';
 
 /** Minimal runtime surface consumed by this HTTP application. */
-export interface CommuteApiRuntime {
-  readonly localities: {
-    all(): readonly Locality[];
-    get(localityId: LocalityId): Locality | undefined;
-  };
-  readonly car: CommuteRuntime['car'];
-  readonly transit: CommuteRuntime['transit'];
-}
+export type CommuteApiRuntime = Pick<
+  CommuteRuntime,
+  'localities' | 'resolve' | 'reachableLocalities'
+>;
 
 export interface LocalitiesResponse {
   readonly localities: readonly Locality[];

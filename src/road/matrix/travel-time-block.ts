@@ -1,7 +1,7 @@
 import {
-  COMMUTE_MATRIX_MAX_TRAVEL_MINUTES,
+  MAX_TRAVEL_MINUTES,
   UNAVAILABLE_TRAVEL_TIME,
-} from '@commute-internal/travel-time-matrix';
+} from '@commute-internal/matrix';
 
 import type { RoadDurationTable } from '../network';
 
@@ -21,7 +21,7 @@ export function encodeRoadDuration(durationSeconds: number | undefined): number 
     throw new Error('Road duration must be a nonnegative finite number.');
   }
   const minutes = Math.ceil(durationSeconds / 60);
-  return minutes <= COMMUTE_MATRIX_MAX_TRAVEL_MINUTES
+  return minutes <= MAX_TRAVEL_MINUTES
     ? minutes
     : UNAVAILABLE_TRAVEL_TIME;
 }
