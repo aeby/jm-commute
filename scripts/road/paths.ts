@@ -2,10 +2,9 @@ import { resolve } from 'node:path';
 
 export const PROJECT_ROOT = resolve(import.meta.dirname, '..', '..');
 
-export const RAW_GTFS_DIRECTORY = resolve(PROJECT_ROOT, 'data/raw/gtfs');
-export const RAW_TRANSFERS_PATH = resolve(
-  RAW_GTFS_DIRECTORY,
-  'transfers.txt',
+export const RAW_OSM_PBF_PATH = resolve(
+  PROJECT_ROOT,
+  'data/raw/osm/switzerland-latest.osm.pbf',
 );
 export const RAW_LOCALITIES_PATH = resolve(
   PROJECT_ROOT,
@@ -14,15 +13,11 @@ export const RAW_LOCALITIES_PATH = resolve(
 
 export const PREPARED_DATA_DIRECTORY = resolve(
   PROJECT_ROOT,
-  'data/processed/public_transport',
+  'data/processed/road',
 );
-export const PREPARED_STOPS_PATH = resolve(
+export const PREPARED_NETWORK_DIRECTORY = resolve(
   PREPARED_DATA_DIRECTORY,
-  'stops.json',
-);
-export const PREPARED_ROUTING_DIRECTORY = resolve(
-  PREPARED_DATA_DIRECTORY,
-  'fixed-day-routing',
+  'network',
 );
 export const MATRIX_WORK_DIRECTORY = resolve(
   PREPARED_DATA_DIRECTORY,
@@ -31,5 +26,5 @@ export const MATRIX_WORK_DIRECTORY = resolve(
 
 export const RUNTIME_DATA_DIRECTORY = resolve(
   PROJECT_ROOT,
-  'data/runtime/transit',
+  'data/runtime/car',
 );

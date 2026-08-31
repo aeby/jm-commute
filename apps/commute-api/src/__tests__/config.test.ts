@@ -17,7 +17,7 @@ describe('readCommuteApiConfig', () => {
       'http://localhost:5173',
     ]);
     expect(config.visualization).toEqual({
-      hexCellDiameterMeters: 2_000,
+      hexCellDiameterMeters: 4_000,
       hexRenderScale: 0.88,
     });
   });

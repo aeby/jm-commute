@@ -63,7 +63,6 @@ function carManifest(localityIds: readonly string[]) {
     mode: 'CAR',
     matrix: matrixDescriptor(localityIds),
     source: {
-      sourceMatrixSha256: SHA_A,
       anchorsSha256: SHA_A,
       localityInputSha256: SHA_B,
       roadGraph: {

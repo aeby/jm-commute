@@ -22,7 +22,6 @@ function manifest(): CarTravelTimeManifest {
       matrixSha256: 'a'.repeat(64),
     },
     source: {
-      sourceMatrixSha256: 'b'.repeat(64),
       anchorsSha256: 'c'.repeat(64),
       localityInputSha256: 'd'.repeat(64),
       roadGraph: {
@@ -55,7 +54,7 @@ describe('parseCarTravelTimeManifest', () => {
       'source digest',
       {
         ...manifest(),
-        source: { ...manifest().source, sourceMatrixSha256: 'not-a-hash' },
+        source: { ...manifest().source, anchorsSha256: 'not-a-hash' },
       },
     ],
     [

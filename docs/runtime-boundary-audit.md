@@ -52,7 +52,7 @@ stage.
 writes only:
 
 ```text
-data/processed/transit/
+data/processed/public_transport/
   stops.json
   fixed-day-routing/
     manifest.json
@@ -86,9 +86,9 @@ a 4,073 × 4,073 row-major `UInt8` matrix. Values `0` through `240` are travel
 minutes and `255` means unavailable within four hours.
 
 Generation checkpoints every ten complete origin rows under
-`data/processed/transit/matrix-build/`. A compatible interrupted run resumes;
-`npm run public-transport:matrix -- --restart` intentionally replaces that
-workspace.
+`data/processed/public_transport/matrix-build/`. A compatible interrupted run
+resumes; `npm run public-transport:matrix -- --restart` intentionally replaces
+that workspace.
 
 After deterministic validation, publication writes and authenticates:
 
@@ -130,7 +130,8 @@ exports.
 ## Other owners
 
 - `src/localities/node.ts` parses the official locality CSV for offline jobs.
-- `src/car/preprocessing/` and `scripts/car/` own the OSRM-based car compiler.
+- `src/road/{prepare,network,matrix}` and `scripts/road/` own the OSRM-based
+  road compiler and publish the runtime car matrix directly.
 - `apps/commute-api` joins package reachability results to representative
   coordinates and serves GeoJSON.
 - `apps/commute-viewer` is a presentation-only client of that API.

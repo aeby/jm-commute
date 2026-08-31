@@ -42,7 +42,6 @@ function manifest(mode: 'car' | 'transit', matrix: Uint8Array) {
         mode: 'CAR',
         matrix: descriptor,
         source: {
-          sourceMatrixSha256: SHA_A,
           anchorsSha256: SHA_B,
           localityInputSha256: SHA_A,
           roadGraph: {
@@ -140,4 +139,3 @@ describe('package runtime-data identity verification', () => {
     ).rejects.toThrow('differs from matrix order');
   });
 });
-

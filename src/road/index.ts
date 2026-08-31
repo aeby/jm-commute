@@ -1,0 +1,35 @@
+export {
+  loadPreparedData,
+  prepareData,
+  type LoadPreparedDataOptions,
+  type OsrmPreparationConfig,
+  type PreparedData,
+  type PrepareDataOptions,
+  type PrepareDataResult,
+  type RoadGraphMetadata,
+} from './prepare';
+export {
+  buildNetwork,
+  OsrmClient,
+  OsrmHttpError,
+  OsrmTransportError,
+  type BuildNetworkOptions,
+  type Coordinate,
+  type OsrmClientOptions,
+  type RoadDurationTable,
+  type RoadLocalityAnchor,
+  type RoadNetwork,
+  type RoadNetworkProgress,
+  type RoadRouteEstimate,
+  type RoadRouter,
+  type SnappedRoadPoint,
+} from './network';
+export {
+  calculateTravelTimes,
+  type CalculateTravelTimesOptions,
+  type CalculateTravelTimesResult,
+  type RoadMatrixConfig,
+  type RoadMatrixPaths,
+  type RoadMatrixProgress,
+  type RoadMatrixValidation,
+} from './matrix';

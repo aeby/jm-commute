@@ -41,7 +41,6 @@ function manifest(): CarTravelTimeManifest {
     mode: 'CAR',
     matrix: descriptor(),
     source: {
-      sourceMatrixSha256: 'b'.repeat(64),
       anchorsSha256: 'c'.repeat(64),
       localityInputSha256: 'd'.repeat(64),
       roadGraph: {

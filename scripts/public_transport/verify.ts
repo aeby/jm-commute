@@ -1,3 +1,5 @@
+import { relative, resolve } from 'node:path';
+
 import type { LocalityId } from '@jm/commute';
 import {
   verifyRuntimeTransitData,
@@ -5,7 +7,16 @@ import {
   type RuntimeTransitReachabilityCheck,
 } from '@core/public_transport/matrix/runtime-data-verification';
 
-import { RUNTIME_DATA_DIRECTORY } from './paths';
+import {
+  findMissingRegularFiles,
+  inspectRegularFileSet,
+  runCliCommand,
+  runCommandStep,
+} from '../cli';
+import { PROJECT_ROOT, RUNTIME_DATA_DIRECTORY } from './paths';
+
+const matrixCommand = 'npm run public-transport:matrix';
+const verifyCommand = 'npm run public-transport:verify';
 
 const pointChecks: readonly RuntimeTransitPointCheck[] = [
   ['8001:zurich', '3011:bern', 62],
@@ -38,15 +49,57 @@ const reachabilityChecks = referenceOrigins.flatMap(
       }),
     ),
 );
+const runtimePaths = [
+  resolve(RUNTIME_DATA_DIRECTORY, 'manifest.json'),
+  resolve(RUNTIME_DATA_DIRECTORY, 'travel-times.bin'),
+];
 
-const result = await verifyRuntimeTransitData({
-  runtimeDataDirectory: RUNTIME_DATA_DIRECTORY,
-  pointChecks,
-  reachabilityChecks,
+async function haveRuntimeData(): Promise<boolean> {
+  const state = await inspectRegularFileSet(runtimePaths);
+  if (state === 'complete') {
+    return true;
+  }
+
+  const missingPaths = await findMissingRegularFiles(runtimePaths);
+  console.error(
+    'Error: Published public-transport data is missing or incomplete:',
+  );
+  for (const path of missingPaths) {
+    console.error(`  - ${relative(PROJECT_ROOT, path)}`);
+  }
+  console.error(
+    state === 'absent'
+      ? `Hint: Run "${matrixCommand}" first, then rerun "${verifyCommand}".`
+      : `Hint: Run "${matrixCommand} -- --restart" to rebuild the complete published pair, then rerun "${verifyCommand}".`,
+  );
+  process.exitCode = 1;
+  return false;
+}
+
+async function main(): Promise<void> {
+  if (!(await haveRuntimeData())) {
+    return;
+  }
+
+  const result = await runCommandStep(
+    'Verify published public-transport data',
+    () =>
+      verifyRuntimeTransitData({
+        runtimeDataDirectory: RUNTIME_DATA_DIRECTORY,
+        pointChecks,
+        reachabilityChecks,
+      }),
+  );
+
+  console.log(
+    `Verified ${result.pointResults.length} point values and ` +
+      `${result.reachabilityResults.length} reachability counts in ` +
+      `${result.runtimeDataDirectory}.`,
+  );
+}
+
+await runCliCommand(main, {
+  fileErrorHint:
+    `Correct the reported filesystem problem, then rerun "${verifyCommand}". ` +
+    `Use "${matrixCommand} -- --restart" if the published pair must be rebuilt.`,
 });
-
-console.log(
-  `Verified ${result.pointResults.length} point values and ` +
-    `${result.reachabilityResults.length} reachability counts in ` +
-    `${result.runtimeDataDirectory}.`,
-);

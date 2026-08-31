@@ -42,10 +42,10 @@ The backend/runtime implementation is canonical. Its boundaries are:
 - **Root locality preprocessing:** `src/localities/node.ts` parses the official
   swisstopo CSV and applies its established duplicate policy. The package never
   reads that source file at runtime.
-- **Offline compilers:** `src/public_transport/{prepare,network,matrix}` owns
-  GTFS normalization, exact RAPTOR network construction, and transit matrix
-  publication. OSRM, anchors, and car matrix publication remain separate
-  build-time concerns.
+- **Offline compilers:** `src/public_transport/{prepare,network,matrix}` and
+  `src/road/{prepare,network,matrix}` own their source normalization, routing
+  networks, and direct matrix publication. Both remain outside the runtime
+  package.
 - **HTTP visualization adapter:** `apps/commute-api` loads the package once and
   owns locality JSON, strict request validation, coordinate joining, hex-grid
   aggregation, GeoJSON, caching headers, and development CORS.
@@ -84,12 +84,9 @@ npm run lint
 npm run public-transport:prepare
 npm run public-transport:matrix
 npm run public-transport:verify
-npm run car:osrm:prepare
-npm run car:anchors:prepare
-npm run car:matrix:prepare
-npm run car:matrix:inspect
-npm run car:runtime:data
-npm run car:runtime:verify
+npm run road:prepare
+npm run road:matrix
+npm run road:verify
 npm run commute:package:data
 npm run commute:package:build
 npm run commute:package:verify
@@ -240,155 +237,74 @@ npm run commute:api:benchmark
 The Vue viewer consumes these endpoints without importing package or compiler
 code and never downloads the matrices.
 
-### Offline car-routing preprocessing
+### Road data
 
-OpenStreetMap provides the source road network. OSRM is used only during
-offline preprocessing with its standard `car.lua` profile and Contraction
-Hierarchies. The production/runtime representation is a compact, precomputed
-locality-to-locality driving-time dataset; the TypeScript
-lookup library will require neither OSRM, Docker, the OpenStreetMap PBF, nor an
-HTTP routing service.
+OpenStreetMap provides the source road network. OSRM is an offline compiler
+dependency only; production lookup uses the published matrix and requires no
+OSRM process, Docker image, or source PBF. The compiler has the same visible
+workflow as public transport while keeping the road-specific implementation
+smaller:
 
-Manually place the Geofabrik Switzerland extract at:
+```text
+raw OSM + official localities
+  → src/road/prepare
+  → src/road/network
+  → src/road/matrix
+  → data/runtime/car/{manifest.json,travel-times.bin}
+```
+
+The stages expose `prepareData`/`loadPreparedData`, `buildNetwork`, and
+`calculateTravelTimes` through `src/road/index.ts`. Runtime terminology remains
+`car`, which is the public commute mode; `road` names the offline compiler.
+
+Place the Geofabrik Switzerland extract at:
 
 ```text
 data/raw/osm/switzerland-latest.osm.pbf
 ```
 
-The preparation script does not download the extract. It keeps that source
-mount read-only, pins the official
-`ghcr.io/project-osrm/osrm-backend:26.8.0-debian` image, runs the standard car
-extraction and CH contraction pipeline, and writes the deterministic dataset
-base `data/processed/car/osrm/switzerland.osrm`:
+Prepare the routing data with:
 
 ```bash
-npm run car:osrm:prepare
+npm run road:prepare
 ```
 
-The preparation output omits the `.cnbg` and `.cnbg_to_ebg` extraction
-intermediates because the pinned CH routing service does not consume them.
+Preparation pins OSRM 26.8.0, the standard `car.lua` profile, and Contraction
+Hierarchies. It runs extraction and contraction as one atomic operation and
+writes the only persistent compiler input to
+`data/processed/road/network/`. Its small manifest records the source-PBF hash
+and exact OSRM configuration; extraction-only files unused by CH routing are
+discarded. An existing complete dataset is reused unless `-- --restart` is
+passed.
 
-Start the development/preprocessing service on the loopback interface only:
+Start the prepared service on the loopback interface while compiling a matrix:
 
 ```bash
 docker run --rm \
   --publish 127.0.0.1:5000:5000 \
-  --mount type=bind,source="$PWD/data/processed/car/osrm",target=/data,readonly \
+  --mount type=bind,source="$PWD/data/processed/road/network",target=/data,readonly \
   ghcr.io/project-osrm/osrm-backend:26.8.0-debian \
   osrm-routed --algorithm ch /data/switzerland.osrm
 ```
 
-Inspect one locality-to-locality route while that service is running:
+Then generate the complete matrix with:
 
 ```bash
-npm run car:inspect -- \
-  --from-postal-code 8001 \
-  --from-city Zürich \
-  --to-postal-code 3011 \
-  --to-city Bern
+npm run road:matrix
 ```
 
-Run the reproducible snap and route diagnostic suite with:
+The command authenticates the prepared graph against the current PBF, loads
+the canonical locality CSV, and snaps all localities to the graph in memory.
+Those locality anchors are fingerprinted for provenance but are not persisted.
+OSRM Table requests fill the matrix in bounded 50 × 50 blocks. Durations are
+rounded conservatively with `ceil(seconds / 60)` and written directly in the
+final row-major UInt8 format: `0–240` are minutes and `255` means unreachable or
+beyond four hours. Self cells are always zero.
 
-```bash
-npm run car:inspect -- --diagnostics
-```
-
-The car architecture keeps offline preparation, runtime-data packaging, and
-runtime lookup as explicit boundaries:
-
-```text
-PREPROCESSING
-
-Car
-OSM → OSRM → full UInt16 locality matrix
-                         ↓
-                UInt8 publication
-                  0–240 / 255
-
-Transit
-raw GTFS + localities → public_transport/prepare
-                              ↓
-                    public_transport/network
-                              ↓
-                     public_transport/matrix
-                              ↓
-                 UInt8 locality matrix 0–240 / 255
-                              ↓
-                    data/runtime/transit/
-
-PACKAGE DATA / RUNTIME
-
-localities.json   car matrix   transit matrix
-       └──────────────┬──────────────┘
-                      ↓
-             @jm/commute/node
-                      ↓
-       LocalityCatalog + TravelTimeIndex
-                      ↓
-                CommuteRuntime
-```
-
-With the local OSRM service running, generate the strictly validated anchor
-artifact at `data/processed/car/locality-road-anchors.json`:
-
-```bash
-npm run car:anchors:prepare
-```
-
-Inspect the persisted distribution, ten longest snaps, and reference
-localities without running OSRM (the current official locality CSV supplies
-display names, original coordinates, and staleness validation):
-
-```bash
-npm run car:anchors:inspect
-```
-
-Large snap distances are retained rather than excluded. For now the nearest
-routable point is intentionally the complete car-anchor approximation, and the
-stored snap distance makes mountain and other unusual cases visible for later
-policy decisions. These anchors are preprocessing data, not a public runtime
-API. Anchors are stored in locale-independent lexical `localityId` order. Their
-input fingerprint is the SHA-256 of compact JSON containing exactly
-`localityId`, `latitude`, and `longitude` in that same order, with no timestamp.
-
-With the local OSRM service running, generate the complete directional matrix
-from those persisted anchors:
-
-```bash
-npm run car:matrix:prepare
-```
-
-Matrix generation is resumable by completed source-row blocks and uses OSRM's
-Table service only during offline preprocessing. The resulting
-`data/processed/car/travel-time-matrix/travel-times.bin` is deterministic
-row-major `UInt16` data encoded explicitly in little-endian byte order. Rows
-and columns share the exact ordered locality IDs recorded in `manifest.json`.
-Each value is a whole travel time in minutes, conservatively calculated as
-`ceil(durationSeconds / 60)`; `65535` is reserved for an unreachable
-origin/destination pair. Self-cells are always zero.
-
-Inspect the completed matrix, reachability, connectivity, and directional
-diagnostics without Docker or a running OSRM service:
-
-```bash
-npm run car:matrix:inspect
-```
-
-### Car runtime data
-
-`data/processed/car/` is the offline working area. It contains preprocessing
-inputs and intermediates such as the OSRM graph, locality road anchors, and the
-validated matrix output. None of those paths is a production/runtime contract.
-
-Package the validated full matrix into the deliberately smaller runtime-data
-boundary with:
-
-```bash
-npm run car:runtime:data
-```
-
-The command writes exactly two deployable data files:
+Completed origin blocks are checkpointed in
+`data/processed/road/matrix-build/`; a compatible interrupted run resumes
+automatically. After deterministic Route-service sample validation, the final
+pair is authenticated and published directly to:
 
 ```text
 data/runtime/car/
@@ -396,32 +312,17 @@ data/runtime/car/
   travel-times.bin
 ```
 
-Both are generated and Git-ignored; the directory's `.gitkeep` is tracked. The
-publisher authenticates the full `UInt16` preprocessing matrix, converts each
-cell deterministically, and leaves that source unchanged:
+There is no persisted locality-anchor artifact, full UInt16 matrix, conversion
+pass, or separate runtime-data build. Publication promotes the matrix first and
+the manifest last, then removes the resumable work directory after authenticated
+readback. The manifest retains only locality-input, in-memory anchor, and road
+graph provenance in addition to the shared matrix descriptor.
 
-```text
-source 0–240   → same UInt8 minute value
-source > 240   → 255
-source 65535   → 255
-```
-
-The runtime manifest wraps the transport-independent matrix descriptor with
-car-specific source-matrix, anchor, locality-input, and road-graph provenance.
-The manifest and binary remain cryptographically tied by the runtime matrix
-SHA-256 and declared byte length. Publication authenticates both staged files,
-promotes the matrix first, and promotes the manifest last as the commit marker;
-an interrupted fixed-name promotion therefore fails closed during the next
-authenticated load. Verify the packaged pair independently with:
+Verify the published data without Docker or OSRM with:
 
 ```bash
-npm run car:runtime:verify
+npm run road:verify
 ```
-
-Building or verifying this runtime pair needs neither Docker nor a live OSRM
-service. Packaging consumes the already prepared matrix; verification reads
-only the packaged pair. Neither command regenerates road anchors or any
-public-transport data.
 
 The transport-independent `packages/commute/src/travel-time-matrix` runtime
 consumes the shared descriptor and dense `UInt8` bytes, builds the locality-ID
@@ -449,14 +350,13 @@ decoded matrix. The locality-ID index is built once.
 The `data/runtime/car` directory is the publication source for the two car
 assets copied into `packages/commute/data/car`. The installed Node loader reads
 only its own package-relative catalog and mode assets. It does not read the
-processed matrix path, road anchors, locality CSV, OSRM graph, or OpenStreetMap
-PBF.
+matrix work directory, locality CSV, OSRM graph, or OpenStreetMap PBF.
 
 This first graph intentionally contains Switzerland only. Near-border routes
 can therefore be disconnected or suboptimal when the real road route briefly
 enters Germany, France, Italy, Austria, or Liechtenstein. No neighboring extract
-is downloaded or merged in this milestone; those diagnostics will inform a
-later data-scope decision.
+is downloaded or merged in this milestone; expanding the data scope remains a
+separate future decision.
 
 OpenStreetMap data is © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
 and is available under the Open Database License. The Switzerland extract is
@@ -481,8 +381,9 @@ offline-only and are never imported by `@jm/commute` at runtime.
 
 ### Central configuration
 
-The reference service date, representative morning window, local-access radius,
-fallback candidate count, and routing limits are configured in `src/config.ts`.
+OSRM identity, request sizing, retry policy, the reference service date,
+representative morning window, locality access, and routing limits are
+configured in `src/config.ts`.
 
 ### Representative morning commute
 
@@ -509,7 +410,7 @@ The routing manifest records a SHA-256 digest of the NDJSON trip stream. All con
 Preparation writes only the normalized stops and fixed-day routing stream:
 
 ```text
-data/processed/transit/
+data/processed/public_transport/
   stops.json
   fixed-day-routing/
     manifest.json
@@ -521,6 +422,11 @@ Run preparation with:
 ```bash
 npm run public-transport:prepare
 ```
+
+If the complete prepared dataset already exists, the command exits successfully
+without rereading GTFS. Use `npm run public-transport:prepare -- --restart` for
+an intentional rebuild. Before writing anything, preparation checks its required
+raw GTFS files and lists any missing inputs.
 
 Transit places and locality-to-source-stop memberships are derived in memory
 when prepared data is loaded. Dense locality stop indexes are resolved only
@@ -539,8 +445,13 @@ npm run public-transport:matrix
 The command validates the prepared data against the configured scenario and raw
 GTFS feed, derives locality source-stop memberships, builds the complete typed
 network once, and calculates the 4,073 × 4,073 matrix. It checkpoints every ten
-complete origin rows in `data/processed/transit/matrix-build/`; pass
-`-- --restart` to intentionally replace only that resumable workspace.
+complete origin rows in `data/processed/public_transport/matrix-build/`. A
+compatible interrupted build resumes automatically. If the published matrix
+already exists, the command exits successfully before loading prepared data or
+building the network. Use `npm run public-transport:matrix -- --restart` for an
+intentional rebuild. If prepared inputs are absent or incomplete, the command
+stops before loading or network construction and points to
+`npm run public-transport:prepare`.
 
 After deterministic sample validation, the command authenticates and publishes
 the final pair directly to `data/runtime/transit/`. The matrix is promoted
@@ -552,6 +463,11 @@ Verify the published assets without loading GTFS or RAPTOR with:
 ```bash
 npm run public-transport:verify
 ```
+
+These commands print stage transitions, elapsed time, and periodic progress so
+long-running work remains visible in non-interactive terminals. Expected file
+errors are reported as concise messages with a recovery command instead of a
+stack trace.
 
 The generated value for each origin/destination pair is the shortest total
 journey duration among journeys whose origin departure occurs within
@@ -622,7 +538,10 @@ locality ID derived from its postal code and normalized city name. During the
 network build, prepared source-stop memberships are resolved to the network's
 dense stop indexes entirely in memory.
 
-One Range-RAPTOR result is reduced to the shortest duration across each locality's routing stops and rounded upward to whole travel minutes. The product-facing result contains only a locality ID and travel minutes, so a future road router can produce the same shape without exposing GTFS or RAPTOR identifiers.
+One Range-RAPTOR result is reduced to the shortest duration across each
+locality's routing stops and rounded upward to whole travel minutes. Both
+offline compilers publish the same product-facing locality ID and travel-minute
+shape without exposing OSRM, GTFS, or RAPTOR identifiers.
 
 The intended job boundary is a transport-independent value such as `job.locality_id = "8001:zurich"`. A future matching layer can run routing once when a user's location or commute preference changes, cache the reachable locality IDs, and use an indexed relational join or `job.locality_id IN (...)`. No database integration is implemented yet.
 

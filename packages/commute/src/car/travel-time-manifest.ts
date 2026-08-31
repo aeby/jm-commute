@@ -11,7 +11,6 @@ export interface CarTravelTimeManifest {
   readonly mode: 'CAR';
   readonly matrix: TravelTimeMatrixDescriptor;
   readonly source: {
-    readonly sourceMatrixSha256: string;
     readonly anchorsSha256: string;
     readonly localityInputSha256: string;
     readonly roadGraph: CarRoadGraphMetadata;
@@ -73,7 +72,6 @@ export function parseCarTravelTimeManifest(
   requireExactKeys(
     value.source,
     [
-      'sourceMatrixSha256',
       'anchorsSha256',
       'localityInputSha256',
       'roadGraph',
@@ -89,11 +87,6 @@ export function parseCarTravelTimeManifest(
       `${source} matrix descriptor`,
     ),
     source: {
-      sourceMatrixSha256: parseSha256(
-        value.source.sourceMatrixSha256,
-        source,
-        'source.sourceMatrixSha256',
-      ),
       anchorsSha256: parseSha256(
         value.source.anchorsSha256,
         source,
