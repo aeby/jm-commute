@@ -1,5 +1,6 @@
 import { relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { setTimeout as delay } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 
 import { PROJECT_CONFIG } from '@core/config';
@@ -8,6 +9,7 @@ import {
   calculateTravelTimes,
   loadPreparedData,
   OsrmClient,
+  OsrmTransportError,
 } from '@core/road';
 
 import {
@@ -26,6 +28,12 @@ import {
   RAW_OSM_PBF_PATH,
   RUNTIME_DATA_DIRECTORY,
 } from './paths';
+import {
+  startOsrmServer,
+  type RunningOsrmServer,
+} from './osrm-server';
+
+const OSRM_STARTUP_TIMEOUT_MILLISECONDS = 5 * 60_000;
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -76,6 +84,49 @@ async function requireFiles(
   console.error(`Hint: ${hint}`);
   process.exitCode = 1;
   return false;
+}
+
+function describeServerExit(server: RunningOsrmServer): string | undefined {
+  const status = server.exitStatus();
+  if (status === undefined) {
+    return undefined;
+  }
+  return status.signal === null
+    ? `exit code ${status.code}`
+    : `signal ${status.signal}`;
+}
+
+async function waitForOsrmServer(
+  router: OsrmClient,
+  locality: { readonly latitude: number; readonly longitude: number },
+  server: RunningOsrmServer,
+): Promise<void> {
+  const deadline = Date.now() + OSRM_STARTUP_TIMEOUT_MILLISECONDS;
+  let lastError: OsrmTransportError | undefined;
+  while (Date.now() < deadline) {
+    try {
+      await router.findNearestRoadPoint(locality);
+      return;
+    } catch (error) {
+      if (!(error instanceof OsrmTransportError)) {
+        throw error;
+      }
+      lastError = error;
+    }
+
+    const exit = describeServerExit(server);
+    if (exit !== undefined) {
+      throw new Error(
+        `The OSRM Docker container stopped with ${exit} before becoming ready.`,
+        { cause: lastError },
+      );
+    }
+    await delay(250);
+  }
+  throw new Error(
+    `The OSRM Docker container did not become ready within ${OSRM_STARTUP_TIMEOUT_MILLISECONDS / 1_000} seconds.`,
+    { cause: lastError },
+  );
 }
 
 async function canBuildMatrix(): Promise<boolean> {
@@ -142,64 +193,94 @@ async function main(): Promise<void> {
       osrm: config.osrm,
     }),
   );
+  const externalOsrmBaseUrl = values['osrm-base-url'];
   const router = new OsrmClient({
-    baseUrl: values['osrm-base-url'] ?? config.osrm.baseUrl,
+    baseUrl: externalOsrmBaseUrl ?? config.osrm.baseUrl,
     requestTimeoutMilliseconds: config.osrm.requestTimeoutMilliseconds,
   });
-  await runCommandStep('Check the OSRM routing service', () =>
-    router.findNearestRoadPoint(prepared.localities[0]!),
-  );
-  const networkStartedAt = performance.now();
-  let lastReportedAnchor = 0;
-  const network = await runCommandStep('Build the locality road network', () =>
-    buildNetwork({
-      preparedData: prepared,
-      router,
-      concurrency: config.network.snapConcurrency,
-      onProgress: ({ completedLocalities, totalLocalities }) => {
-        if (
-          completedLocalities === totalLocalities ||
-          completedLocalities - lastReportedAnchor >= 500
-        ) {
-          console.log(
-            `[progress] Locality anchors: ${completedLocalities} / ${totalLocalities} ` +
-              `(${formatElapsed(performance.now() - networkStartedAt)} elapsed)`,
-          );
-          lastReportedAnchor = completedLocalities;
-        }
-      },
-    }),
-  );
+  let ownedServer: RunningOsrmServer | undefined;
+  try {
+    if (externalOsrmBaseUrl === undefined) {
+      await runCommandStep('Start the OSRM routing service', async () => {
+        ownedServer = await startOsrmServer({
+          image: config.osrm.image,
+          algorithm: config.osrm.algorithm,
+          datasetBasename: config.osrm.datasetBasename,
+          networkDirectory: PREPARED_NETWORK_DIRECTORY,
+        });
+        await waitForOsrmServer(
+          router,
+          prepared.localities[0]!,
+          ownedServer,
+        );
+      });
+    } else {
+      await runCommandStep('Check the external OSRM routing service', () =>
+        router.findNearestRoadPoint(prepared.localities[0]!),
+      );
+    }
 
-  const matrixStartedAt = performance.now();
-  let lastReportedOrigin = 0;
-  const result = await runCommandStep(
-    `Calculate ${network.localities.length} × ${network.localities.length} travel times`,
-    () =>
-      calculateTravelTimes({
-        network,
-        config: config.matrix,
-        paths: matrixPaths,
-        restart: values.restart,
-        onProgress: ({ completedOrigins, totalOrigins }) => {
-          if (
-            completedOrigins === totalOrigins ||
-            completedOrigins - lastReportedOrigin >= 250
-          ) {
-            console.log(
-              `[progress] Matrix origins: ${completedOrigins} / ${totalOrigins} ` +
-                `(${formatElapsed(performance.now() - matrixStartedAt)} elapsed)`,
-            );
-            lastReportedOrigin = completedOrigins;
-          }
-        },
-      }),
-  );
-  console.log(
-    `Published ${result.matrixByteLength} matrix bytes after ` +
-      `${result.validation.exactMatches} validation checks.`,
-  );
-  console.log(`Matrix fingerprint: ${result.fingerprint}`);
+    const networkStartedAt = performance.now();
+    let lastReportedAnchor = 0;
+    const network = await runCommandStep(
+      'Build the locality road network',
+      () =>
+        buildNetwork({
+          preparedData: prepared,
+          router,
+          concurrency: config.network.snapConcurrency,
+          onProgress: ({ completedLocalities, totalLocalities }) => {
+            if (
+              completedLocalities === totalLocalities ||
+              completedLocalities - lastReportedAnchor >= 500
+            ) {
+              console.log(
+                `[progress] Locality anchors: ${completedLocalities} / ${totalLocalities} ` +
+                  `(${formatElapsed(performance.now() - networkStartedAt)} elapsed)`,
+              );
+              lastReportedAnchor = completedLocalities;
+            }
+          },
+        }),
+    );
+
+    const matrixStartedAt = performance.now();
+    let lastReportedOrigin = 0;
+    const result = await runCommandStep(
+      `Calculate ${network.localities.length} × ${network.localities.length} travel times`,
+      () =>
+        calculateTravelTimes({
+          network,
+          config: config.matrix,
+          paths: matrixPaths,
+          restart: values.restart,
+          onProgress: ({ completedOrigins, totalOrigins }) => {
+            if (
+              completedOrigins === totalOrigins ||
+              completedOrigins - lastReportedOrigin >= 250
+            ) {
+              console.log(
+                `[progress] Matrix origins: ${completedOrigins} / ${totalOrigins} ` +
+                  `(${formatElapsed(performance.now() - matrixStartedAt)} elapsed)`,
+              );
+              lastReportedOrigin = completedOrigins;
+            }
+          },
+        }),
+    );
+    console.log(
+      `Published ${result.matrixByteLength} matrix bytes after ` +
+        `${result.validation.exactMatches} validation checks.`,
+    );
+    console.log(`Matrix fingerprint: ${result.fingerprint}`);
+  } finally {
+    const server = ownedServer;
+    if (server !== undefined) {
+      await runCommandStep('Stop the OSRM routing service', () =>
+        server.stop(),
+      );
+    }
+  }
 }
 
 await runCliCommand(main, {

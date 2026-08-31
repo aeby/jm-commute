@@ -129,18 +129,17 @@ data/raw/AMTOVZ_CSV_WGS84.csv
 `npm run road:prepare` runs the pinned OSRM extraction and contraction steps
 and writes the routable network to `data/processed/road/network`.
 
-`npm run road:matrix` snaps the ordered localities, requests bounded OSRM table
-blocks, and writes the final matrix directly. Its resumable work files live in
-`data/processed/road/matrix-build` and are removed after publication.
+`npm run road:matrix` starts the pinned `osrm-routed` Docker container, waits
+for it to become ready, snaps the ordered localities, requests bounded OSRM
+table blocks, and stops the container after publishing the matrix. Its
+resumable work files live in `data/processed/road/matrix-build` and are removed
+after publication.
 
-The matrix command expects the prepared network to be served by OSRM at
-`http://127.0.0.1:5000` by default. For example:
+To use an already-running local or remote OSRM service instead, pass its URL
+explicitly:
 
 ```sh
-docker run --rm --network host \
-  --mount type=bind,source="$PWD/data/processed/road/network",target=/data,readonly \
-  ghcr.io/project-osrm/osrm-backend:26.8.0-debian \
-  osrm-routed --algorithm ch /data/switzerland.osrm
+npm run road:matrix -- --osrm-base-url http://host:5000
 ```
 
 ## Public-transport matrix
