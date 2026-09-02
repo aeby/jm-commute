@@ -57,16 +57,3 @@ and redistribution details. The original package software is available under
 the MIT License. Copies or substantial portions must retain Jobmate's copyright
 and license notice.
 
-## Building from this repository
-
-Before building or packing from this repository, assemble the generated data
-with:
-
-```sh
-npm run commute:package:data
-```
-
-From the repository root, `npm run commute:package:verify` builds the package,
-runs its tests and typecheck, installs the exact tarball into a temporary
-consumer project, and performs a real lookup against both packaged matrices.
-See the repository's `PUBLISHING.md` before publishing a version.
