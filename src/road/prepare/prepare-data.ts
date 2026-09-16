@@ -196,7 +196,6 @@ export async function prepareData(
     }
 
     const manifest: RoadPreparedDataManifest = {
-      schemaVersion: 1,
       roadGraph: {
         sourcePbfSha256,
         osrmVersion: options.osrm.version,

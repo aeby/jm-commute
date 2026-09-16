@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync';
 import type { TransitStop, TransitStopKind } from './types';
 
 const ID_COLUMN = 'stop_id';
+const NAME_COLUMN = 'stop_name';
 const LATITUDE_COLUMN = 'stop_lat';
 const LONGITUDE_COLUMN = 'stop_lon';
 const LOCATION_TYPE_COLUMN = 'location_type';
@@ -10,6 +11,7 @@ const PARENT_STATION_COLUMN = 'parent_station';
 
 const REQUIRED_COLUMNS = [
   ID_COLUMN,
+  NAME_COLUMN,
   LATITUDE_COLUMN,
   LONGITUDE_COLUMN,
   LOCATION_TYPE_COLUMN,
@@ -182,6 +184,7 @@ export function parseGtfsStopsCsv(csv: string): readonly TransitStop[] {
   }
 
   const idIndex = headers.indexOf(ID_COLUMN);
+  const nameIndex = headers.indexOf(NAME_COLUMN);
   const latitudeIndex = headers.indexOf(LATITUDE_COLUMN);
   const longitudeIndex = headers.indexOf(LONGITUDE_COLUMN);
   const locationTypeIndex = headers.indexOf(LOCATION_TYPE_COLUMN);
@@ -211,6 +214,7 @@ export function parseGtfsStopsCsv(csv: string): readonly TransitStop[] {
       rawParentStationId.trim().length === 0 ? undefined : rawParentStationId;
     const stop: TransitStop = {
       id,
+      name: readRequiredText(row, nameIndex, NAME_COLUMN, rowNumber),
       latitude: parseCoordinate(
         row,
         latitudeIndex,

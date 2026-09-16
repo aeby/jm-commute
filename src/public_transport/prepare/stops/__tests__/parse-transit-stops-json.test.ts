@@ -12,7 +12,7 @@ const VALID_STOP = {
 } as const;
 
 describe('parseTransitStopsJson', () => {
-  it('parses routing fields and ignores legacy stop names', () => {
+  it('retains stop names alongside routing fields', () => {
     const station = {
       id: 'station-1',
       name: 'Example Station',
@@ -30,12 +30,14 @@ describe('parseTransitStopsJson', () => {
     ).toEqual([
       {
         id: 'station-1',
+        name: 'Example Station',
         latitude: 47,
         longitude: 8,
         kind: 'STATION',
       },
       {
         id: 'stop-1',
+        name: 'Example Stop',
         latitude: 47.1,
         longitude: 8.2,
         kind: 'STOP_OR_PLATFORM',
@@ -58,6 +60,9 @@ describe('parseTransitStopsJson', () => {
 
   it.each([
     ['id', { ...VALID_STOP, id: ' ' }],
+    ['name', { ...VALID_STOP, name: undefined }],
+    ['name', { ...VALID_STOP, name: ' ' }],
+    ['name', { ...VALID_STOP, name: 12 }],
     ['latitude', { ...VALID_STOP, latitude: Number.NaN }],
     ['longitude', { ...VALID_STOP, longitude: Number.POSITIVE_INFINITY }],
     ['kind', { ...VALID_STOP, kind: 'ENTRANCE' }],

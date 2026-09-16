@@ -36,13 +36,16 @@ export function parseTransitStopsJson(
       return invalid('expected an object');
     }
 
-    const { id, latitude, longitude, kind, parentStationId } = entry;
+    const { id, name, latitude, longitude, kind, parentStationId } = entry;
 
     if (typeof id !== 'string' || id.trim().length === 0) {
       return invalid('"id" must be a nonempty string');
     }
     if (stopIds.has(id)) {
       return invalid(`duplicate "id" ${JSON.stringify(id)}`);
+    }
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      return invalid('"name" must be a nonempty string');
     }
     if (typeof latitude !== 'number' || !Number.isFinite(latitude)) {
       return invalid('"latitude" must be a finite number');
@@ -69,6 +72,7 @@ export function parseTransitStopsJson(
 
     return {
       id,
+      name,
       latitude,
       longitude,
       kind,

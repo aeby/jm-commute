@@ -165,6 +165,9 @@ export function buildReachabilityResponse(
         localityId: origin.localityId,
         latitude: origin.latitude,
         longitude: origin.longitude,
+        ...(origin.publicTransportStationName === undefined
+          ? {}
+          : { publicTransportStationName: origin.publicTransportStationName }),
       },
       mode: request.mode,
       maxTravelMinutes: request.maxTravelMinutes,

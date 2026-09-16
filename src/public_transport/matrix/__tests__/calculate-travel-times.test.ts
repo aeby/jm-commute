@@ -10,11 +10,11 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { LocalityRoutingStopIndex } from '../../network/localities/types';
-import type { PublicTransportNetwork } from '../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../network';
 import {
   calculateTravelTimes,
   type PublicTransportMatrixProvenance,
-} from '../calculate-travel-times';
+} from '..';
 
 const temporaryDirectories: string[] = [];
 
@@ -43,6 +43,7 @@ function localities(count: number): LocalityRoutingStopIndex {
     entries: Array.from({ length: count }, (_, index) => ({
       localityId: `0000:place-${index.toString().padStart(2, '0')}`,
       stopIndexes: Uint32Array.of(0),
+      ...(index === 0 ? {} : { stationName: `Station ${index}` }),
     })),
   };
 }
@@ -161,6 +162,7 @@ describe('calculateTravelTimes', () => {
       gtfsFeed: 'fixture',
       serviceDate: '2026-09-07',
       morningWindow: '07:00:00-09:00:00',
+      stationNames: [null, ...Array.from({ length: 10 }, (_, i) => `Station ${i + 1}`)],
     });
     expect(result.manifest.date).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
     expect(result.manifest.fingerprint).toMatch(/^[0-9a-f]{64}$/u);

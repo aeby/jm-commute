@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { OsrmClient, OsrmHttpError } from '../osrm-client';
+import { OsrmClient, OsrmHttpError } from '..';
 
 function client(
   payload: unknown,

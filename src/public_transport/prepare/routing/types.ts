@@ -22,7 +22,6 @@ export interface RoutingTrip {
 }
 
 export interface FixedDayRoutingManifest {
-  readonly schemaVersion: 1;
   readonly sourceFeedVersion?: string;
   readonly serviceDate: string;
   readonly routingWindowStart: string;

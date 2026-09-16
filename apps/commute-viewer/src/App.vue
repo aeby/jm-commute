@@ -158,6 +158,7 @@ void loadLocalities();
           :localities="localities"
           :model-value="selectedLocality"
           :disabled="loadingLocalities"
+          :show-station-name="selectedMode === 'public_transport'"
           @update:model-value="selectLocality"
         />
 

@@ -1,11 +1,6 @@
-export { buildLocalitySourceStopEntries } from './build-locality-source-stop-entries';
 export { loadPreparedData } from './load-prepared-data';
 export { prepareData } from './prepare-data';
 
-export type {
-  LocalitySourceStopEntry,
-  LocalitySourceStopSelectionOptions,
-} from './build-locality-source-stop-entries';
 export type {
   LoadPreparedDataOptions,
   PreparedData,

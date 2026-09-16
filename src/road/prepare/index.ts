@@ -5,7 +5,6 @@ export {
 export {
   parseRoadPreparedDataManifest,
   parseRoadPreparedDataManifestJson,
-  ROAD_PREPARED_DATA_SCHEMA_VERSION,
   serializeRoadPreparedDataManifest,
 } from './manifest';
 export {

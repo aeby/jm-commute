@@ -4,8 +4,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import type { RoadNetwork, RoadRouter } from '../../network';
-import { calculateTravelTimes } from '../calculate-travel-times';
+import type { RoadNetwork, RoadRouter } from '../..';
+import { calculateTravelTimes } from '..';
 
 function duration(origin: number, destination: number): number | undefined {
   if (origin === 2 && destination === 0) {

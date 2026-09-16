@@ -49,10 +49,9 @@ describe('transit travel-time matrix checkpoints', () => {
     ).toBe(4);
   });
 
-  it('strictly rejects wrong schema, horizon, encoding, hashes, and keys', () => {
+  it('rejects invalid horizon, encoding, hashes, and keys', () => {
     const checkpoint = createTransitTravelTimeMatrixCheckpoint(identity, 2);
     for (const value of [
-      { ...checkpoint, schemaVersion: 2 },
       { ...checkpoint, maxTravelMinutes: 120 },
       { ...checkpoint, valueEncoding: 'UINT16_LE' },
       { ...checkpoint, timetableFingerprint: 'not-a-hash' },

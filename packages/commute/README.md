@@ -2,6 +2,8 @@
 
 A small, read-only lookup package for precomputed Swiss travel times.
 
+See [CHANGELOG.md](./CHANGELOG.md) for release notes.
+
 ```sh
 npm install @jobmate/commute
 ```
@@ -26,6 +28,7 @@ const zurich = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
 const bern = runtime.resolve({ postalCode: '3011', city: 'Bern' });
 
 if (zurich && bern) {
+  console.log(zurich.publicTransportStationName); // e.g. "Zürich, Paradeplatz"
   const roadMinutes = runtime.travelTime(zurich, bern, 'road');
   const publicTransportMinutes = runtime.travelTime(
     zurich,
@@ -38,6 +41,16 @@ if (zurich && bern) {
 `runtime.resolve(...)` also accepts a canonical locality ID. The viewer uses
 `runtime.reachableLocalities(...)` to scan one matrix row for destinations
 within a supplied time limit.
+
+`Locality.publicTransportStationName` is the exact name of the physical station
+or standalone stop selected when compiling the public-transport matrix. It is
+available on `runtime.localities` and `runtime.resolve(...)`; it does not describe
+road routing or individual journey platforms. The field is absent when no active
+station was available for selection.
+
+Names are stored directly in `data/localities.json`, alongside each locality's
+ID and coordinates. Runtime loading reads this array and the two matrices;
+it does not read the provenance manifests.
 
 The values are estimates for a dated routing scenario, not live traffic or
 live timetable results. Inspect the packaged manifests under `data/` when the
@@ -56,4 +69,3 @@ See [DATA_SOURCES.md](./DATA_SOURCES.md) for source links, applicable terms,
 and redistribution details. The original package software is available under
 the MIT License. Copies or substantial portions must retain Jobmate's copyright
 and license notice.
-

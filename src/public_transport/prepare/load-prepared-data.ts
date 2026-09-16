@@ -1,11 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
+import type { Locality } from '@jobmate/commute';
 import { parseLocalitiesCsv } from '../../localities/node';
-import {
-  buildLocalitySourceStopEntries,
-  type LocalitySourceStopEntry,
-  type LocalitySourceStopSelectionOptions,
-} from './build-locality-source-stop-entries';
 import {
   loadFixedDateActiveServices,
   type FixedDateFeedInfo,
@@ -15,8 +12,8 @@ import {
   validateGtfsDate,
 } from './gtfs';
 import { readGtfsTransfers } from './gtfs/read-gtfs-transfers';
+import { readGtfsRailRoutes } from './gtfs/read-gtfs-rail-routes';
 import type { ParsedGtfsTransfer } from './gtfs/types';
-import { buildTransitPlaces } from './places';
 import {
   validateFixedDayRoutingManifestScenario,
   type FixedDayRoutingManifest,
@@ -36,15 +33,15 @@ export interface LoadPreparedDataOptions {
   readonly localitiesPath: string;
   readonly transfersPath: string;
   readonly scenario: PublicTransportScenario;
-  readonly localitySelection: LocalitySourceStopSelectionOptions;
 }
 
 export interface PreparedData {
   readonly manifest: FixedDayRoutingManifest;
   readonly trips: AsyncIterable<RoutingTrip>;
   readonly stops: readonly TransitStop[];
-  readonly localities: readonly LocalitySourceStopEntry[];
+  readonly localities: readonly Locality[];
   readonly activeServiceIds: ReadonlySet<string>;
+  readonly railByRouteId: ReadonlyMap<string, boolean>;
   readonly transferRules: AsyncIterable<ParsedGtfsTransfer>;
   readonly routingWindowStartSeconds: number;
   readonly routingWindowEndSeconds: number;
@@ -87,7 +84,7 @@ function validateFeedVersion(
 export async function loadPreparedData(
   options: LoadPreparedDataOptions,
 ): Promise<PreparedData> {
-  const [routing, stopsJson, localitiesCsv, activeServices] =
+  const [routing, stopsJson, localitiesCsv, activeServices, railByRouteId] =
     await Promise.all([
       loadFixedDayRoutingDataset(options.routingDirectory),
       readUtf8(options.stopsPath, 'prepared public-transport stops'),
@@ -96,6 +93,7 @@ export async function loadPreparedData(
         options.gtfsDirectory,
         toGtfsDate(options.scenario.serviceDate),
       ),
+      readGtfsRailRoutes(join(options.gtfsDirectory, 'routes.txt')),
     ]);
 
   validateFixedDayRoutingManifestScenario(routing.manifest, {
@@ -106,12 +104,7 @@ export async function loadPreparedData(
   validateFeedVersion(routing.manifest, activeServices.feedInfo);
 
   const stops = parseTransitStopsJson(stopsJson, options.stopsPath);
-  const places = buildTransitPlaces(stops);
-  const localities = buildLocalitySourceStopEntries(
-    parseLocalitiesCsv(localitiesCsv),
-    places,
-    options.localitySelection,
-  );
+  const localities = parseLocalitiesCsv(localitiesCsv);
 
   return {
     manifest: routing.manifest,
@@ -119,6 +112,7 @@ export async function loadPreparedData(
     stops,
     localities,
     activeServiceIds: activeServices.activeServiceIds,
+    railByRouteId,
     transferRules: readGtfsTransfers(options.transfersPath),
     routingWindowStartSeconds: parseGtfsTimeToSeconds(
       options.scenario.routingWindowStart,

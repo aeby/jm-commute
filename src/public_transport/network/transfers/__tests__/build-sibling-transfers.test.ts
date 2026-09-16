@@ -7,6 +7,7 @@ import { TransferEdgeRegistry } from '../merge-transfer-edges';
 
 const station = (id: string): TransitStop => ({
   id,
+  name: id,
   latitude: 47,
   longitude: 8,
   kind: 'STATION',
@@ -14,6 +15,7 @@ const station = (id: string): TransitStop => ({
 
 const platform = (id: string, parentStationId: string): TransitStop => ({
   id,
+  name: id,
   latitude: 47,
   longitude: 8,
   kind: 'STOP_OR_PLATFORM',

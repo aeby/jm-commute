@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { loadPreparedData } from '../load-prepared-data';
+import { loadPreparedData } from '..';
 
 const osrm = {
   image: 'example/osrm:26.8.0',
@@ -41,7 +41,6 @@ async function fixture() {
       join(networkDirectory, 'manifest.json'),
       `${JSON.stringify(
         {
-          schemaVersion: 1,
           roadGraph: {
             sourcePbfSha256,
             osrmVersion: osrm.version,

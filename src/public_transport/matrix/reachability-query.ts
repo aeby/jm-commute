@@ -1,6 +1,6 @@
 import type { LocalityId } from '@jobmate/commute';
 import type { LocalityRoutingStopIndex } from '../network/localities/types';
-import type { PublicTransportNetwork } from '../network/timetable/types';
+import type { PublicTransportNetwork } from '../network';
 import { resolveFastestReachableLocalities } from './resolve-fastest-reachable-localities';
 import { runRaptorFastestWindow } from './raptor/run-raptor-fastest-window';
 import { UNREACHED_TIME } from './raptor/state';

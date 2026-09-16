@@ -339,7 +339,6 @@ export async function prepareFixedDayRoutingData(
 
     const tripCount = scheduledTripCount + frequencyTripCount;
     const manifest: FixedDayRoutingManifest = {
-      schemaVersion: 1,
       ...(fixedDateFeed.feedInfo.version === undefined
         ? {}
         : { sourceFeedVersion: fixedDateFeed.feedInfo.version }),

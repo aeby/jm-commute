@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PROJECT_CONFIG } from '../../../../config';
+import { PROJECT_CONFIG } from '@core/config';
 import { resolveActiveServiceIds } from '../resolve-active-service-ids';
 import type { CalendarEntry } from '../types';
 

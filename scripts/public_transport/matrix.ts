@@ -58,6 +58,7 @@ const rawInputPaths = [
   resolve(RAW_GTFS_DIRECTORY, 'feed_info.txt'),
   resolve(RAW_GTFS_DIRECTORY, 'calendar.txt'),
   resolve(RAW_GTFS_DIRECTORY, 'calendar_dates.txt'),
+  resolve(RAW_GTFS_DIRECTORY, 'routes.txt'),
   RAW_TRANSFERS_PATH,
 ];
 
@@ -168,7 +169,6 @@ async function main(): Promise<void> {
         localitiesPath: RAW_LOCALITIES_PATH,
         transfersPath: RAW_TRANSFERS_PATH,
         scenario,
-        localitySelection: config.localityAccess,
       }),
   );
 
@@ -179,8 +179,10 @@ async function main(): Promise<void> {
         trips: prepared.trips,
         transferRules: prepared.transferRules,
         activeServiceIds: prepared.activeServiceIds,
+        railByRouteId: prepared.railByRouteId,
         stops: prepared.stops,
         localities: prepared.localities,
+        localitySelection: config.localityAccess,
         routingWindowStartSeconds: prepared.routingWindowStartSeconds,
         routingWindowEndSeconds: prepared.routingWindowEndSeconds,
       }),

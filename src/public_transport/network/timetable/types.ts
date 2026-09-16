@@ -3,6 +3,8 @@ import type { PickupDropOffType } from '../../prepare/gtfs/types';
 export type StopIndex = number;
 
 export interface RaptorRoutePattern {
+  /** Retained for station activity statistics; routing uses the packed arrays. */
+  readonly routeId: string;
   readonly stops: Uint32Array;
 
   /**

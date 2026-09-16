@@ -2,7 +2,7 @@ import {
   getDepartureTime,
   getPickupType,
 } from '../../network/timetable/route-pattern-access';
-import type { PublicTransportNetwork } from '../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../network';
 import { USE_QUERY_TRANSFER_TIME } from '../../network/transfer-encoding';
 import type { ValidatedOriginDepartureInputs } from './validate-query';
 

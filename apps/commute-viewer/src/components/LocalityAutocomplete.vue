@@ -12,10 +12,11 @@ const props = defineProps<{
   readonly localities: readonly Locality[];
   readonly modelValue: Locality | undefined;
   readonly disabled?: boolean;
+  readonly showStationName?: boolean;
 }>();
 
 const emit = defineEmits<{
-  'update:modelValue': [locality: Locality | undefined];
+  (event: 'update:modelValue', locality: Locality | undefined): void;
 }>();
 
 const query = ref('');
@@ -34,7 +35,7 @@ const resultsOpen = computed(
   () => focused.value && query.value.trim().length > 0,
 );
 const activeOptionId = computed(() =>
-  matches.value[activeIndex.value] === undefined
+  matches.value.at(activeIndex.value) === undefined
     ? undefined
     : `locality-option-${activeIndex.value}`,
 );
@@ -91,7 +92,7 @@ function handleKeydown(event: KeyboardEvent): void {
       moveActive(-1);
       break;
     case 'Enter': {
-      const locality = matches.value[activeIndex.value];
+      const locality = matches.value.at(activeIndex.value);
       if (resultsOpen.value && locality !== undefined) {
         event.preventDefault();
         selectLocality(locality);
@@ -131,6 +132,7 @@ function handleBlur(): void {
           :value="query"
           :aria-activedescendant="activeOptionId"
           :aria-expanded="resultsOpen"
+          :aria-describedby="showStationName && modelValue ? 'origin-station' : undefined"
           aria-autocomplete="list"
           aria-controls="locality-results"
           aria-haspopup="listbox"
@@ -177,5 +179,13 @@ function handleBlur(): void {
         </li>
       </ul>
     </div>
+    <p
+      v-if="showStationName && modelValue"
+      id="origin-station"
+      class="locality-station"
+      role="status"
+    >
+      Station: {{ modelValue.publicTransportStationName ?? 'Name unavailable in this snapshot' }}
+    </p>
   </div>
 </template>

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { buildNetwork } from '../../network/build-network';
+import { buildNetwork } from '../../network';
 import { loadPreparedData } from '../load-prepared-data';
 import { prepareData } from '../prepare-data';
 import type { PublicTransportScenario } from '../types';
@@ -25,6 +25,7 @@ const COPIED_GTFS_FILES = [
   'calendar.txt',
   'calendar_dates.txt',
   'trips.txt',
+  'routes.txt',
   'stop_times.txt',
   'frequencies.txt',
 ] as const;
@@ -49,6 +50,7 @@ function stopsCsv(): string {
     const number = index + 1;
     return [
       `stop-${number}`,
+      `Stop ${number}`,
       (47 + number / 100).toFixed(2),
       (8 + number / 100).toFixed(2),
       '0',
@@ -57,7 +59,7 @@ function stopsCsv(): string {
   });
 
   return [
-    'stop_id,stop_lat,stop_lon,location_type,parent_station',
+    'stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station',
     ...rows,
     '',
   ].join('\n');
@@ -93,7 +95,7 @@ async function createWorkspace(): Promise<Workspace> {
     writeFile(
       localitiesPath,
       'Ortschaftsname;PLZ4;E;N;Adressenanteil\n' +
-        'Near;1000;8.01;47.01;100\n' +
+        'Near;1000;8.017;47.017;100\n' +
         'Far;2000;8.16;47.16;100\n',
       'utf8',
     ),
@@ -126,10 +128,6 @@ function loadOptions(workspace: Workspace) {
     localitiesPath: workspace.localitiesPath,
     transfersPath: workspace.transfersPath,
     scenario: SCENARIO,
-    localitySelection: {
-      maxAccessDistanceMeters: 700,
-      fallbackCandidateCount: 10,
-    },
   } as const;
 }
 
@@ -179,8 +177,20 @@ describe('loadPreparedData', () => {
 
     expect(prepared.stops).toHaveLength(16);
     expect(prepared.localities).toEqual([
-      { localityId: '1000:near', sourceStopIds: ['stop-1'] },
-      { localityId: '2000:far', sourceStopIds: ['stop-16'] },
+      {
+        localityId: '1000:near',
+        postalCode: '1000',
+        city: 'Near',
+        longitude: 8.017,
+        latitude: 47.017,
+      },
+      {
+        localityId: '2000:far',
+        postalCode: '2000',
+        city: 'Far',
+        longitude: 8.16,
+        latitude: 47.16,
+      },
     ]);
     expect(prepared.activeServiceIds).toEqual(new Set(['service-active']));
     expect(prepared.routingWindowStartSeconds).toBe(7 * 60 * 60);
@@ -213,7 +223,7 @@ describe('loadPreparedData', () => {
     ).rejects.toThrow(/manifest window.*does not match/i);
   });
 
-  it('feeds the loaded data directly into the network stage', async () => {
+  it('feeds the network stage and skips a nearer place without boardable service', async () => {
     const workspace = await createWorkspace();
     await prepareWorkspace(workspace);
     const prepared = await loadPreparedData(loadOptions(workspace));
@@ -222,8 +232,10 @@ describe('loadPreparedData', () => {
       trips: prepared.trips,
       transferRules: prepared.transferRules,
       activeServiceIds: prepared.activeServiceIds,
+      railByRouteId: prepared.railByRouteId,
       stops: prepared.stops,
       localities: prepared.localities,
+      localitySelection: { preferredRadiusMeters: 500, railDepartureBoostPercent: 25 },
       routingWindowStartSeconds: prepared.routingWindowStartSeconds,
       routingWindowEndSeconds: prepared.routingWindowEndSeconds,
     });
@@ -233,13 +245,15 @@ describe('loadPreparedData', () => {
     expect(network.routingWindowStartSeconds).toBe(7 * 60 * 60);
     expect(network.routingWindowEndSeconds).toBe(9 * 60 * 60);
     const stop2Index = network.sourceStopIds.indexOf('stop-2');
+    const stop3Index = network.sourceStopIds.indexOf('stop-3');
     expect(stop2Index).toBeGreaterThanOrEqual(0);
+    expect(stop3Index).toBeGreaterThanOrEqual(0);
     expect(network.transfersByStop[0]).toEqual(
       Uint32Array.of(stop2Index, 120),
     );
     expect(localities.entries).toEqual([
-      { localityId: '1000:near', stopIndexes: Uint32Array.of(0) },
-      { localityId: '2000:far', stopIndexes: new Uint32Array() },
+      { localityId: '1000:near', stationName: 'Stop 3', stopIndexes: Uint32Array.of(stop3Index) },
+      { localityId: '2000:far', stationName: 'Stop 13', stopIndexes: Uint32Array.of(network.sourceStopIds.indexOf('stop-13')) },
     ]);
   });
 

@@ -220,6 +220,7 @@ async function smokeTestTarball(
           "const zurich = runtime.resolve({ postalCode: '8001', city: 'Zürich' });",
           "const bern = runtime.resolve({ postalCode: '3011', city: 'Bern' });",
           "if (!zurich || !bern) throw new Error('Unable to resolve smoke-test localities.');",
+          "if (!zurich.publicTransportStationName || !bern.publicTransportStationName) throw new Error('Smoke-test localities are missing their selected station names.');",
           "const roadMinutes = runtime.travelTime(zurich, bern, 'road');",
           "const publicTransportMinutes = runtime.travelTime(zurich, bern, 'public_transport');",
           "if (roadMinutes === undefined || publicTransportMinutes === undefined) throw new Error('Smoke-test route is unavailable.');",

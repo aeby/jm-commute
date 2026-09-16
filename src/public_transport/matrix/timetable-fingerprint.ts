@@ -1,11 +1,11 @@
 import { createHash, type Hash } from 'node:crypto';
 
 import type { LocalityRoutingStopIndex } from '../network/localities/types';
-import type { PublicTransportNetwork } from '../network/timetable/types';
+import type { PublicTransportNetwork } from '../network';
 
-const FORMAT_PREFIX = 'jobmate-commute:raptor-timetable-fingerprint:v1';
+const FORMAT_PREFIX = 'jobmate-commute:raptor-timetable';
 const LOCALITY_FORMAT_PREFIX =
-  'jobmate-commute:public-transport-locality-index:v1';
+  'jobmate-commute:public-transport-locality-index';
 
 function updateUint32(hash: Hash, value: number, description: string): void {
   if (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff) {
@@ -66,6 +66,7 @@ export function createRaptorTimetableFingerprint(
 
   updateUint32(hash, timetable.patterns.length, 'pattern count');
   for (const pattern of timetable.patterns) {
+    updateString(hash, pattern.routeId, 'route ID');
     updateUint32(hash, pattern.tripCount, 'pattern trip count');
     updateUint32Array(hash, pattern.stops);
     updateUint32Array(hash, pattern.stopTimes);

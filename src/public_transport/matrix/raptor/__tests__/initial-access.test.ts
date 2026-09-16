@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { USE_QUERY_TRANSFER_TIME } from '../../../network/transfer-encoding';
-import type { PublicTransportNetwork } from '../../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../../network';
 import { collectInitialAccessStops } from '../collect-initial-access-stops';
 import {
   arrivalAt,

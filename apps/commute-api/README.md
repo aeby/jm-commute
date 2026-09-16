@@ -10,6 +10,16 @@ GET  /api/localities
 POST /api/reachability
 ```
 
+`GET /api/localities` includes the optional `publicTransportStationName` on each
+locality. `POST /api/reachability` includes the same field in `origin`. It is the
+physical station or standalone stop selected for the published public-transport
+matrix, even when the requested mode is `road`. The viewer shows it as a small
+gray label below Location when public transport is selected. Missing names are
+shown as unavailable; they are never inferred from the locality's city name.
+
+The metadata comes directly from the locality index in `@jobmate/commute`.
+After rebuilding the package data, restart the API and reload the viewer.
+
 The reachability request contains exactly `originLocalityId`, `mode` (`road` or
 `public_transport`), and an integer `maxTravelMinutes` from 0 through 240. Invalid input
 returns a JSON error envelope and HTTP 400. Unsupported methods return 405,

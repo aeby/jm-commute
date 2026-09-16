@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { PROJECT_CONFIG } from '../../../../config';
+import { PROJECT_CONFIG } from '@core/config';
 import { prepareFixedDayRoutingData } from '../prepare-fixed-day-routing-data';
 import type {
   FixedDayRoutingManifest,
@@ -113,7 +113,6 @@ describe('prepareFixedDayRoutingData', () => {
     const tripIds = trips.map(({ tripId }) => tripId);
 
     expect(manifest).toEqual({
-      schemaVersion: 1,
       sourceFeedVersion: 'fixture-20260826',
       serviceDate: PROJECT_CONFIG.publicTransport.referenceScenario.serviceDate,
       routingWindowStart:

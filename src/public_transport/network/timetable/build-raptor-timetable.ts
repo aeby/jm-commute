@@ -22,6 +22,7 @@ import type {
 } from './types';
 
 interface PartitionedRoutePatternGroup {
+  readonly routeId: string;
   readonly numericStops: Uint32Array;
   readonly chains: GroupedConcreteTrip[][];
 }
@@ -42,6 +43,7 @@ const buildNumericStops = (
 };
 
 const buildTypedPattern = (
+  routeId: string,
   stops: Uint32Array,
   trips: readonly GroupedConcreteTrip[],
 ): RaptorRoutePattern => {
@@ -66,6 +68,7 @@ const buildTypedPattern = (
   });
 
   return {
+    routeId,
     stops,
     stopTimes,
     pickupDropOffTypes,
@@ -109,6 +112,7 @@ export const buildRaptorTimetable = async (
       group.sourceStopIds.length,
     ).map((chain) => [...chain]);
     partitionedGroups.push({
+      routeId: group.routeId,
       numericStops: buildNumericStops(
         group.sourceStopIds,
         denseStopIds.stopIndexBySourceId,
@@ -124,9 +128,9 @@ export const buildRaptorTimetable = async (
   inputTripIds.clear();
 
   const patterns: RaptorRoutePattern[] = [];
-  partitionedGroups.forEach(({ numericStops, chains }) => {
+  partitionedGroups.forEach(({ routeId, numericStops, chains }) => {
     chains.forEach((chain) => {
-      patterns.push(buildTypedPattern(numericStops, chain));
+      patterns.push(buildTypedPattern(routeId, numericStops, chain));
     });
   });
   const patternOccurrencesByStop = buildPatternAdjacency(

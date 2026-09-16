@@ -11,6 +11,8 @@ export interface Locality {
   readonly city: string;
   readonly latitude: number;
   readonly longitude: number;
+  /** Physical station selected for this snapshot; absent when none is active. */
+  readonly publicTransportStationName?: string;
 }
 
 export interface ReachableLocality {
@@ -66,7 +68,10 @@ function parseLocality(value: unknown, index: number, source: string): Locality 
   if (!isRecord(value)) {
     throw new Error(`${source} locality ${index} must be an object.`);
   }
-  const { localityId, postalCode, city, latitude, longitude } = value;
+  const {
+    localityId, postalCode, city, latitude, longitude,
+    publicTransportStationName,
+  } = value;
   if (
     typeof localityId !== 'string' ||
     localityId.length === 0 ||
@@ -81,7 +86,17 @@ function parseLocality(value: unknown, index: number, source: string): Locality 
   ) {
     throw new Error(`${source} locality ${index} has incompatible fields.`);
   }
-  return Object.freeze({ localityId, postalCode, city, latitude, longitude });
+  if (
+    publicTransportStationName !== undefined &&
+    (typeof publicTransportStationName !== 'string' ||
+      publicTransportStationName.trim().length === 0)
+  ) {
+    throw new Error(`${source} locality ${index} has an invalid publicTransportStationName.`);
+  }
+  return Object.freeze({
+    localityId, postalCode, city, latitude, longitude,
+    ...(publicTransportStationName === undefined ? {} : { publicTransportStationName }),
+  });
 }
 
 export function parseLocalitiesJson(

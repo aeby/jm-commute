@@ -13,7 +13,6 @@ export interface PreparedData {
 }
 
 export interface RoadPreparedDataManifest {
-  readonly schemaVersion: 1;
   readonly roadGraph: RoadGraphMetadata;
 }
 

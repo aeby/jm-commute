@@ -4,6 +4,8 @@ import type { LocalityId } from '@jobmate/commute';
 export interface LocalityRoutingStopEntry {
   readonly localityId: LocalityId;
   readonly stopIndexes: Uint32Array;
+  /** Name of the selected physical station, included in the commute package. */
+  readonly stationName?: string;
 }
 
 export interface LocalityRoutingStopIndex {

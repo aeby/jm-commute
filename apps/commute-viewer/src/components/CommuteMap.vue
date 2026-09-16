@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import maplibregl from 'maplibre-gl';
+import { GeoJSONSource, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { onMounted, onUnmounted, shallowRef, watch } from 'vue';
 
@@ -27,13 +27,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  mapError: [message: string | undefined];
-  sourceUpdate: [milliseconds: number];
+  (event: 'mapError', message: string | undefined): void;
+  (event: 'sourceUpdate', milliseconds: number): void;
 }>();
 
 const container = shallowRef<HTMLElement>();
-const map = shallowRef<maplibregl.Map>();
-const originMarker = shallowRef<maplibregl.Marker>();
+const map = shallowRef<MapLibreMap>();
+const originMarker = shallowRef<Marker>();
 const mapError = shallowRef<string>();
 
 let loadTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -43,7 +43,7 @@ let styleReady = false;
 
 function durationFilter(
   maximumMinutes: number,
-): Parameters<maplibregl.Map['setFilter']>[1] {
+): Parameters<MapLibreMap['setFilter']>[1] {
   return ['<=', ['get', 'travelMinutes'], maximumMinutes];
 }
 
@@ -68,7 +68,7 @@ function updateFilter(): void {
 
 function updateSource(): void {
   const source = map.value?.getSource(HEX_SOURCE_ID);
-  if (!(source instanceof maplibregl.GeoJSONSource)) {
+  if (!(source instanceof GeoJSONSource)) {
     return;
   }
 
@@ -108,7 +108,7 @@ function updateOriginMarker(): void {
     const label = document.createElement('span');
     label.className = 'origin-marker__label';
     markerElement.append(dot, label);
-    originMarker.value = new maplibregl.Marker({
+    originMarker.value = new Marker({
       element: markerElement,
       anchor: 'left',
       offset: [-9, 0],
@@ -140,7 +140,7 @@ function centerOrigin(): void {
   });
 }
 
-function addReachabilityLayers(currentMap: maplibregl.Map): void {
+function addReachabilityLayers(currentMap: MapLibreMap): void {
   const firstSymbolLayerId = currentMap
     .getStyle()
     .layers?.find(({ type }) => type === 'symbol')?.id;
@@ -193,9 +193,9 @@ onMounted(() => {
     return;
   }
 
-  let currentMap: maplibregl.Map;
+  let currentMap: MapLibreMap;
   try {
-    currentMap = new maplibregl.Map({
+    currentMap = new MapLibreMap({
       container: container.value,
       style: VIEWER_CONFIG.map.styleUrl,
       center: props.origin

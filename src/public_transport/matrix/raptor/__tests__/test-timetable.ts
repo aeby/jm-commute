@@ -121,6 +121,7 @@ export const testPattern = (
   });
 
   return {
+    routeId: 'test-route',
     stops: new Uint32Array(stops),
     stopTimes,
     pickupDropOffTypes: encodePickupDropOffTypes(pickupDropOffEntries),

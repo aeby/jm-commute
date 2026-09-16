@@ -31,6 +31,7 @@ export interface ReachabilityResponse {
     readonly localityId: LocalityId;
     readonly latitude: number;
     readonly longitude: number;
+    readonly publicTransportStationName?: string;
   };
   readonly mode: CommuteMode;
   readonly maxTravelMinutes: number;

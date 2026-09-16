@@ -89,7 +89,22 @@ function parseLocality(value: unknown, label: string): Locality {
     city: requireNonemptyString(locality.city, `${label}.city`),
     latitude: requireCoordinate(locality.latitude, `${label}.latitude`, -90, 90),
     longitude: requireCoordinate(locality.longitude, `${label}.longitude`, -180, 180),
+    ...parseStationName(locality, label),
   };
+}
+
+function parseStationName(
+  value: UnknownRecord,
+  label: string,
+): Pick<Locality, 'publicTransportStationName'> {
+  return value.publicTransportStationName === undefined
+    ? {}
+    : {
+        publicTransportStationName: requireNonemptyString(
+          value.publicTransportStationName,
+          `${label}.publicTransportStationName`,
+        ),
+      };
 }
 
 export function parseLocalitiesResponse(value: unknown): readonly Locality[] {
@@ -260,6 +275,7 @@ export function parseReachabilityResponse(
       localityId: originLocalityId,
       latitude: requireCoordinate(origin.latitude, 'origin.latitude', -90, 90),
       longitude: requireCoordinate(origin.longitude, 'origin.longitude', -180, 180),
+      ...parseStationName(origin, 'origin'),
     },
     mode: response.mode,
     maxTravelMinutes,

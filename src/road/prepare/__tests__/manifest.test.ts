@@ -7,7 +7,6 @@ import {
 } from '../manifest';
 
 const manifest = {
-  schemaVersion: 1,
   roadGraph: {
     sourcePbfSha256: 'a'.repeat(64),
     osrmVersion: '26.8.0',

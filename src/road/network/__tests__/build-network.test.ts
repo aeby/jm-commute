@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Locality } from '@jobmate/commute';
 
-import { buildNetwork } from '../build-network';
+import { buildNetwork } from '..';
 import type { RoadRouter } from '../types';
 
 const localities: readonly Locality[] = [

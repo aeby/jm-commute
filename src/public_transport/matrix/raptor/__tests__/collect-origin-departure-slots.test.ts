@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PublicTransportNetwork } from '../../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../../network';
 import { USE_QUERY_TRANSFER_TIME } from '../../../network/transfer-encoding';
 import {
   collectOriginDepartureSlots,

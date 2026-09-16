@@ -25,6 +25,7 @@ const LOCALITIES: readonly Locality[] = Object.freeze([
     localityId: '8001:zurich',
     postalCode: '8001',
     city: 'Zürich',
+    publicTransportStationName: 'Zürich, Central',
     latitude: 47.372_309,
     longitude: 8.542_467,
   }),
@@ -190,6 +191,14 @@ async function postReachability(
 }
 
 describe('commute API server', () => {
+  it('includes the recorded station name in public-transport origin metadata', async () => {
+    const response = await postReachability({
+      originLocalityId: '8001:zurich', mode: 'public_transport', maxTravelMinutes: 120,
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).origin.publicTransportStationName).toBe('Zürich, Central');
+  });
+
   it('reports health without exposing runtime provenance', async () => {
     const response = await fetch(`${baseUrl}/health`);
 

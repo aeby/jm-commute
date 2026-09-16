@@ -19,7 +19,7 @@ import {
 } from '@commute-internal/matrix';
 
 import type { LocalityRoutingStopIndex } from '../network/localities/types';
-import type { PublicTransportNetwork } from '../network/timetable/types';
+import type { PublicTransportNetwork } from '../network';
 import {
   publishMatrixArtifact,
   type MatrixArtifactPaths,
@@ -90,6 +90,8 @@ export interface PublicTransportArtifactSource {
   readonly gtfsFeed: string;
   readonly serviceDate: string;
   readonly morningWindow: string;
+  /** Selected physical station names in matrix order; null means unavailable. */
+  readonly stationNames: readonly (string | null)[];
 }
 
 export interface CalculateTravelTimesResult
@@ -207,7 +209,7 @@ function resolvePaths(paths: PublicTransportMatrixPaths): MatrixWorkPaths {
 }
 
 function parseClockTimeSeconds(value: string, description: string): number {
-  const match = /^(?:([01]\d|2[0-3])):([0-5]\d):([0-5]\d)$/u.exec(value);
+  const match = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/u.exec(value);
   if (match === null) {
     throw new Error(`${description} must be HH:MM:SS within a civil day.`);
   }
@@ -251,6 +253,9 @@ function createManifestSource(
     morningWindow:
       `${options.provenance.morningWindow.start}-${options.provenance.morningWindow.end}`,
     gtfsFeed: options.provenance.gtfsFeedVersion,
+    stationNames: options.localityRoutingIndex.entries.map(
+      ({ stationName }) => stationName ?? null,
+    ),
   };
 }
 
@@ -261,7 +266,6 @@ function resumeIdentity(
   const queryPolicySha256 = createHash('sha256')
     .update(
       JSON.stringify({
-        schemaVersion: 1,
         serviceDate: options.provenance.serviceDate,
         morningWindow: options.provenance.morningWindow,
         maxTransfers: options.provenance.maxTransfers,

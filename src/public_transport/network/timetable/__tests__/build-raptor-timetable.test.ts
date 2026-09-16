@@ -62,6 +62,7 @@ const trip = ({
 const snapshot = (timetable: RaptorTimetable): unknown => ({
   sourceStopIds: [...timetable.sourceStopIds],
   patterns: timetable.patterns.map((pattern) => ({
+    routeId: pattern.routeId,
     stops: Array.from(pattern.stops),
     stopTimes: Array.from(pattern.stopTimes),
     pickupDropOffTypes: Array.from(pattern.pickupDropOffTypes),
@@ -147,7 +148,9 @@ describe('buildRaptorTimetable', () => {
       trip({ tripId: 'three', routeId: 'route-three' }),
     ]);
 
-    expect(timetable.patterns).toHaveLength(3);
+    expect(timetable.patterns.map(({ routeId }) => routeId)).toEqual([
+      'route-one', 'route-three', 'route-two',
+    ]);
     expect(
       timetable.patterns.reduce((sum, pattern) => sum + pattern.tripCount, 0),
     ).toBe(3);
@@ -190,6 +193,7 @@ describe('buildRaptorTimetable', () => {
     ]);
 
     expect(Object.keys(timetable.patterns[0] ?? {})).toEqual([
+      'routeId',
       'stops',
       'stopTimes',
       'pickupDropOffTypes',

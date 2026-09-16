@@ -159,6 +159,27 @@ describe('CommuteApiClient', () => {
 });
 
 describe('commute API response validation', () => {
+  it('preserves station names from both responses and allows localities without a selected station', () => {
+    const named = { ...locality, publicTransportStationName: 'Zürich, Central' };
+    expect(parseLocalitiesResponse({ localities: [named] })).toEqual([named]);
+    expect(parseLocalitiesResponse({ localities: [locality] })).toEqual([locality]);
+    const response = reachabilityResponse();
+    expect(parseReachabilityResponse({
+      ...response, origin: { ...response.origin, publicTransportStationName: 'Zürich, Central' },
+    }).origin.publicTransportStationName).toBe('Zürich, Central');
+    expect(parseReachabilityResponse(response).origin.publicTransportStationName).toBeUndefined();
+  });
+
+  it.each(['', '  ', 123, null])('rejects an invalid station name: %s', (name) => {
+    expect(() => parseLocalitiesResponse({
+      localities: [{ ...locality, publicTransportStationName: name }],
+    })).toThrow(/publicTransportStationName must be a nonempty string/u);
+    const response = reachabilityResponse();
+    expect(() => parseReachabilityResponse({
+      ...response, origin: { ...response.origin, publicTransportStationName: name },
+    })).toThrow(/publicTransportStationName must be a nonempty string/u);
+  });
+
   it('rejects duplicate localities and unusable coordinates', () => {
     expect(() => parseLocalitiesResponse({ localities: [locality, locality] }))
       .toThrow(/duplicate localityId/u);

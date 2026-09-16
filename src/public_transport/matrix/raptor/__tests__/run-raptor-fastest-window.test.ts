@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PublicTransportNetwork } from '../../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../../network';
 import { runRaptorFastestWindow } from '../run-raptor-fastest-window';
 import { UNREACHED_TIME } from '../state';
 import type { FastestWindowQuery, FastestWindowResult } from '../types';

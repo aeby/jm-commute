@@ -3,8 +3,6 @@ import type {
   RoadPreparedDataManifest,
 } from './types';
 
-export const ROAD_PREPARED_DATA_SCHEMA_VERSION = 1;
-
 function invalid(source: string, path: string, detail: string): never {
   throw new Error(
     `Invalid prepared road data in ${source} at ${path}: ${detail}.`,
@@ -61,22 +59,17 @@ export function parseRoadPreparedDataManifest(
   }
   const keys = Object.keys(value);
   if (
-    keys.length !== 2 ||
-    !keys.includes('schemaVersion') ||
+    keys.length !== 1 ||
     !keys.includes('roadGraph')
   ) {
     return invalid(
       source,
       '$',
-      'expected exactly schemaVersion and roadGraph',
+      'expected exactly roadGraph',
     );
-  }
-  if (value.schemaVersion !== ROAD_PREPARED_DATA_SCHEMA_VERSION) {
-    return invalid(source, 'schemaVersion', 'expected 1');
   }
 
   return Object.freeze({
-    schemaVersion: ROAD_PREPARED_DATA_SCHEMA_VERSION,
     roadGraph: parseRoadGraphMetadata(value.roadGraph, source),
   });
 }

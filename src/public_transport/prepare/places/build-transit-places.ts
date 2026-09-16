@@ -44,6 +44,7 @@ export function buildTransitPlaces(
 
       places.push({
         id: stop.id,
+        name: stop.name,
         latitude: stop.latitude,
         longitude: stop.longitude,
         stopIds: childStopIds.toSorted(),
@@ -54,6 +55,7 @@ export function buildTransitPlaces(
     if (stop.parentStationId === undefined) {
       places.push({
         id: stop.id,
+        name: stop.name,
         latitude: stop.latitude,
         longitude: stop.longitude,
         stopIds: [stop.id],

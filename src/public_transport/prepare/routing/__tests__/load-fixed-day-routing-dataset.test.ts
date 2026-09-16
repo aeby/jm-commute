@@ -40,7 +40,6 @@ const manifest = (
     ({ frequencyWindows }) => frequencyWindows.length === 0,
   ).length;
   return {
-    schemaVersion: 1,
     sourceFeedVersion: 'test-feed',
     serviceDate: '2026-09-07',
     routingWindowStart: '07:00:00',
@@ -67,7 +66,6 @@ const manifest = (
 const createDataset = async (
   trips: readonly RoutingTrip[],
   manifestOverride: FixedDayRoutingManifest = manifest(trips),
-  serializedTrips: readonly unknown[] = trips,
 ): Promise<string> => {
   const directory = await mkdtemp(
     join(tmpdir(), 'jobmate-commute-routing-'),
@@ -81,7 +79,7 @@ const createDataset = async (
     ),
     writeFile(
       join(directory, 'trips.ndjson'),
-      `${serializedTrips.map((trip) => JSON.stringify(trip)).join('\n')}\n`,
+      `${trips.map((trip) => JSON.stringify(trip)).join('\n')}\n`,
       'utf8',
     ),
   ]);
@@ -109,51 +107,6 @@ describe('loadFixedDayRoutingDataset', () => {
 
     expect(dataset.manifest).toEqual(manifest(expected));
     expect(actual).toEqual(expected);
-  });
-
-  it('loads legacy rows while discarding obsolete prepared fields', async () => {
-    const expected: RoutingTrip = {
-      ...routingTrip('legacy'),
-      frequencyWindows: [
-        {
-          startTimeSeconds: 28_800,
-          endTimeSeconds: 32_400,
-          headwaySeconds: 600,
-        },
-      ],
-    };
-    const legacyTrip = {
-      ...expected,
-      routeType: 700,
-      stopTimes: expected.stopTimes.map((stopTime, index) => ({
-        ...stopTime,
-        stopSequence: index + 1,
-      })),
-      frequencyWindows: expected.frequencyWindows.map((window) => ({
-        ...window,
-        exactTimes: 1,
-      })),
-    };
-    const legacyLine = `${JSON.stringify(legacyTrip)}\n`;
-    const expectedManifest = manifest([expected]);
-    const legacyManifest = {
-      ...expectedManifest,
-      tripsSha256: createHash('sha256').update(legacyLine).digest('hex'),
-      excludedBeforeRoutingWindowTripCount: 2,
-    };
-    const dataset = await loadFixedDayRoutingDataset(
-      await createDataset([expected], legacyManifest, [legacyTrip]),
-    );
-    const actual: RoutingTrip[] = [];
-    for await (const trip of dataset.trips) {
-      actual.push(trip);
-    }
-
-    expect(actual).toEqual([expected]);
-    expect(dataset.manifest).toEqual({
-      ...expectedManifest,
-      tripsSha256: legacyManifest.tripsSha256,
-    });
   });
 
   it('rejects a manifest that disagrees with the completed stream', async () => {

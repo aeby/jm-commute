@@ -3,8 +3,6 @@ import {
   MAX_TRAVEL_MINUTES,
 } from '@commute-internal/matrix';
 
-export const PUBLIC_TRANSPORT_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
-
 export interface TransitTravelTimeMatrixResumeIdentity {
   readonly localityCount: number;
   readonly maxTravelMinutes: 240;
@@ -17,7 +15,6 @@ export interface TransitTravelTimeMatrixResumeIdentity {
 
 export interface TransitTravelTimeMatrixCheckpoint
   extends TransitTravelTimeMatrixResumeIdentity {
-  readonly schemaVersion: 1;
   readonly nextOriginIndex: number;
 }
 
@@ -79,7 +76,6 @@ export function parseTransitTravelTimeMatrixCheckpoint(
   requireExactKeys(
     value,
     [
-      'schemaVersion',
       'localityCount',
       'maxTravelMinutes',
       'valueEncoding',
@@ -91,12 +87,6 @@ export function parseTransitTravelTimeMatrixCheckpoint(
     ],
     source,
   );
-  if (
-    value.schemaVersion !==
-    PUBLIC_TRANSPORT_MATRIX_CHECKPOINT_SCHEMA_VERSION
-  ) {
-    return invalid(source, 'schemaVersion', 'expected 1');
-  }
   const localityCount = parsePositiveSafeInteger(
     value.localityCount,
     source,
@@ -125,7 +115,6 @@ export function parseTransitTravelTimeMatrixCheckpoint(
   }
 
   return Object.freeze({
-    schemaVersion: PUBLIC_TRANSPORT_MATRIX_CHECKPOINT_SCHEMA_VERSION,
     localityCount,
     maxTravelMinutes: MAX_TRAVEL_MINUTES,
     valueEncoding: value.valueEncoding,
@@ -173,7 +162,6 @@ export function createTransitTravelTimeMatrixCheckpoint(
 ): TransitTravelTimeMatrixCheckpoint {
   return parseTransitTravelTimeMatrixCheckpoint(
     {
-      schemaVersion: PUBLIC_TRANSPORT_MATRIX_CHECKPOINT_SCHEMA_VERSION,
       ...identity,
       nextOriginIndex,
     },

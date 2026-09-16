@@ -3,10 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   parseFixedDayRoutingManifestJson,
   validateFixedDayRoutingManifestScenario,
-} from '../parse-fixed-day-routing-manifest-json';
+} from '..';
 
 const manifestValue = () => ({
-  schemaVersion: 1,
   sourceFeedVersion: 'feed-1',
   serviceDate: '2026-09-07',
   routingWindowStart: '07:00:00',
@@ -44,8 +43,8 @@ describe('parseFixedDayRoutingManifestJson', () => {
       parseFixedDayRoutingManifestJson('{', 'test manifest'),
     ).toThrow(/test manifest.*JSON/i);
     expect(() =>
-      parseFixedDayRoutingManifestJson('{}', 'test manifest'),
-    ).toThrow(/schema-version 1/i);
+      parseFixedDayRoutingManifestJson('null', 'test manifest'),
+    ).toThrow(/must be an object/i);
     expect(() =>
       parseFixedDayRoutingManifestJson(
         JSON.stringify({ ...manifestValue(), stopTimeCount: -1 }),

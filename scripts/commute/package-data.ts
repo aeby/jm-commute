@@ -1,8 +1,8 @@
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import type { Locality } from '../../packages/commute/src/localities.js';
-import { matrixByteLength } from '../../packages/commute/src/matrix.js';
+import type { Locality } from '@jobmate/commute';
+import { matrixByteLength } from '@commute-internal/matrix';
 import { parseLocalitiesCsv } from '../../src/localities/node.js';
 import {
   COMMUTE_PACKAGE_DATA_DIRECTORY,
@@ -24,6 +24,10 @@ export interface AssembledRuntimeData {
   readonly packageDataDirectory: string;
   readonly localityCount: number;
   readonly matrixByteLength: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function orderedLocalities(csv: string): readonly Locality[] {
@@ -75,7 +79,7 @@ export async function assembleRuntimeData(
   },
 ): Promise<AssembledRuntimeData> {
   const csv = await readFile(options.localitiesCsvPath, 'utf8');
-  const localities = orderedLocalities(csv);
+  let localities = orderedLocalities(csv);
   const expectedMatrixByteLength = matrixByteLength(localities.length);
   await Promise.all(
     RUNTIME_MODES.map(async (mode) =>
@@ -86,6 +90,37 @@ export async function assembleRuntimeData(
       ),
     ),
   );
+
+  const publicTransportManifestPath = resolve(
+    options.runtimeDataDirectory,
+    'public_transport',
+    'manifest.json',
+  );
+  const manifest: unknown = JSON.parse(
+    await readFile(publicTransportManifestPath, 'utf8'),
+  );
+  if (!isRecord(manifest) || !isRecord(manifest.source)) {
+    throw new Error(`${publicTransportManifestPath} must contain a source object.`);
+  }
+  const { stationNames, ...source } = manifest.source;
+  if (!Array.isArray(stationNames) || stationNames.length !== localities.length) {
+    throw new Error(
+      `${publicTransportManifestPath} stationNames must contain ${localities.length} entries in matrix order.`,
+    );
+  }
+  localities = localities.map((locality, index) => {
+    const name: unknown = stationNames[index];
+    if (name === null) {
+      return locality;
+    }
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      throw new Error(`${publicTransportManifestPath} stationNames[${index}] must be a nonempty string or null.`);
+    }
+    return { ...locality, publicTransportStationName: name };
+  });
+  // Runtime reads names directly from localities.json. Keep only provenance
+  // in the packaged manifest; the compiler's column is needed for reassembly.
+  const publicTransportManifest = `${JSON.stringify({ ...manifest, source }, null, 2)}\n`;
 
   const serializedLocalities = `${JSON.stringify(localities, null, 2)}\n`;
   await Promise.all([
@@ -104,13 +139,15 @@ export async function assembleRuntimeData(
   ]);
 
   for (const mode of RUNTIME_MODES) {
-    const source = resolve(options.runtimeDataDirectory, mode);
+    const sourceDirectory = resolve(options.runtimeDataDirectory, mode);
     const target = resolve(options.packageDataDirectory, mode);
     await mkdir(target, { recursive: true });
     await Promise.all([
-      copyFile(resolve(source, 'manifest.json'), resolve(target, 'manifest.json')),
+      mode === 'public_transport'
+        ? writeFile(resolve(target, 'manifest.json'), publicTransportManifest)
+        : copyFile(resolve(sourceDirectory, 'manifest.json'), resolve(target, 'manifest.json')),
       copyFile(
-        resolve(source, 'travel-times.bin'),
+        resolve(sourceDirectory, 'travel-times.bin'),
         resolve(target, 'travel-times.bin'),
       ),
       writeFile(resolve(target, '.gitkeep'), ''),

@@ -11,12 +11,14 @@ import type {
 const STOPS: readonly TransitStop[] = [
   {
     id: 'station',
+    name: 'Station',
     latitude: 47,
     longitude: 8,
     kind: 'STATION',
   },
   {
     id: 'a',
+    name: 'Station, platform A',
     latitude: 47,
     longitude: 8,
     kind: 'STOP_OR_PLATFORM',
@@ -24,6 +26,7 @@ const STOPS: readonly TransitStop[] = [
   },
   {
     id: 'b',
+    name: 'Station, platform B',
     latitude: 47.001,
     longitude: 8,
     kind: 'STOP_OR_PLATFORM',

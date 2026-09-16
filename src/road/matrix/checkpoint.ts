@@ -3,8 +3,6 @@ import {
   MAX_TRAVEL_MINUTES,
 } from '@commute-internal/matrix';
 
-export const ROAD_MATRIX_CHECKPOINT_SCHEMA_VERSION = 1;
-
 export interface RoadMatrixResumeIdentity {
   readonly localityCount: number;
   readonly blockSize: number;
@@ -14,7 +12,6 @@ export interface RoadMatrixResumeIdentity {
 }
 
 export interface RoadMatrixCheckpoint extends RoadMatrixResumeIdentity {
-  readonly schemaVersion: 1;
   readonly nextOriginIndex: number;
 }
 
@@ -38,7 +35,6 @@ export function parseRoadMatrixCheckpoint(
     return invalid(source, '$', 'expected an object');
   }
   const expectedKeys = [
-    'schemaVersion',
     'localityCount',
     'blockSize',
     'maxTravelMinutes',
@@ -55,9 +51,6 @@ export function parseRoadMatrixCheckpoint(
       '$',
       `fields differ (missing: ${missing.join(', ') || 'none'}; unexpected: ${unexpected.join(', ') || 'none'})`,
     );
-  }
-  if (value.schemaVersion !== ROAD_MATRIX_CHECKPOINT_SCHEMA_VERSION) {
-    return invalid(source, 'schemaVersion', 'expected 1');
   }
   if (
     !Number.isSafeInteger(value.localityCount) ||
@@ -102,7 +95,6 @@ export function parseRoadMatrixCheckpoint(
     );
   }
   return Object.freeze({
-    schemaVersion: ROAD_MATRIX_CHECKPOINT_SCHEMA_VERSION,
     localityCount,
     blockSize,
     maxTravelMinutes: MAX_TRAVEL_MINUTES,
@@ -131,7 +123,6 @@ export function createRoadMatrixCheckpoint(
 ): RoadMatrixCheckpoint {
   return parseRoadMatrixCheckpoint(
     {
-      schemaVersion: ROAD_MATRIX_CHECKPOINT_SCHEMA_VERSION,
       ...identity,
       nextOriginIndex,
     },

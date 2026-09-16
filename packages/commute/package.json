@@ -1,6 +1,6 @@
 {
   "name": "@jobmate/commute",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read-only lookups over precomputed road and public-transport travel times between Swiss localities.",
   "license": "MIT",
   "author": "Jobmate",
@@ -14,6 +14,7 @@
     "data/public_transport/travel-times.bin",
     "data/road/manifest.json",
     "data/road/travel-times.bin",
+    "CHANGELOG.md",
     "DATA_SOURCES.md",
     "LICENSE",
     "README.md"

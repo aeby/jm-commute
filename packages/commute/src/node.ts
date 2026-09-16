@@ -20,7 +20,11 @@ async function readPackagedFile(path: string): Promise<Buffer> {
 
 /** Loads the package-relative locality index and its two finished matrices. */
 export async function loadCommuteRuntime(): Promise<CommuteRuntime> {
-  const [localityBytes, publicTransportMatrix, roadMatrix] = await Promise.all([
+  const [
+    localityBytes,
+    publicTransportMatrix,
+    roadMatrix,
+  ] = await Promise.all([
     readPackagedFile('../data/localities.json'),
     readPackagedFile('../data/public_transport/travel-times.bin'),
     readPackagedFile('../data/road/travel-times.bin'),

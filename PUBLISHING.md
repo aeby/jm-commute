@@ -64,7 +64,8 @@ npm install @jobmate/commute
 ```
 
 For later releases, refresh the data when appropriate, increment the semantic
-version, and repeat verification and the dry run:
+version, update [CHANGELOG.md](./packages/commute/CHANGELOG.md), and repeat
+verification and the dry run:
 
 ```sh
 npm version patch --workspace packages/commute --no-git-tag-version

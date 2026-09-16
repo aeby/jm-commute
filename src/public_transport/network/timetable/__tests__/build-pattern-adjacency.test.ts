@@ -4,6 +4,7 @@ import { buildPatternAdjacency } from '../build-pattern-adjacency';
 import type { RaptorRoutePattern } from '../types';
 
 const pattern = (stops: readonly number[]): RaptorRoutePattern => ({
+  routeId: 'test-route',
   stops: new Uint32Array(stops),
   stopTimes: new Uint32Array(stops.length * 2),
   pickupDropOffTypes: new Uint8Array(Math.ceil(stops.length / 2)),

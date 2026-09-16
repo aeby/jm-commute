@@ -9,8 +9,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'update:modelValue': [minutes: number];
-  commit: [minutes: number];
+  (event: 'update:modelValue' | 'commit', minutes: number): void;
 }>();
 
 const progress = computed(

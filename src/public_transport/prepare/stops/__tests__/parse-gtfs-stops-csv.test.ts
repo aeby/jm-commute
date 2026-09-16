@@ -16,9 +16,6 @@ const CSV_HEADERS = [
   'location_type',
   'parent_station',
 ] as const;
-const REQUIRED_HEADERS = CSV_HEADERS.filter(
-  (header) => header !== 'stop_name',
-);
 
 function createCsv(...rows: readonly string[]): string {
   return [CSV_HEADERS.join(','), ...rows].join('\n');
@@ -29,18 +26,21 @@ describe('parseGtfsStopsCsv', () => {
     expect(parseGtfsStopsCsv(fixtureCsv)).toEqual([
       {
         id: '000123',
+        name: 'Bern, Bärenplatz',
         latitude: 46.948,
         longitude: 7.4474,
         kind: 'STOP_OR_PLATFORM',
       },
       {
         id: 'Parentch:1:sloid:7000',
+        name: 'Zürich HB',
         latitude: 47.378,
         longitude: 8.54,
         kind: 'STATION',
       },
       {
         id: 'ch:1:sloid:7000:0:1',
+        name: 'Zürich HB',
         latitude: 47.3781,
         longitude: 8.5401,
         kind: 'STOP_OR_PLATFORM',
@@ -48,6 +48,7 @@ describe('parseGtfsStopsCsv', () => {
       },
       {
         id: 'ch:1:sloid:7000:0:2',
+        name: 'Zürich HB',
         latitude: 47.3782,
         longitude: 8.5402,
         kind: 'STOP_OR_PLATFORM',
@@ -61,22 +62,6 @@ describe('parseGtfsStopsCsv', () => {
 
     expect(stop?.id).toBe('000123');
     expect(typeof stop?.id).toBe('string');
-  });
-
-  it('does not require or retain stop names', () => {
-    const csv = [
-      'stop_id,stop_lat,stop_lon,location_type,parent_station',
-      'standalone,47.37,8.54,0,',
-    ].join('\n');
-
-    expect(parseGtfsStopsCsv(csv)).toEqual([
-      {
-        id: 'standalone',
-        latitude: 47.37,
-        longitude: 8.54,
-        kind: 'STOP_OR_PLATFORM',
-      },
-    ]);
   });
 
   it('preserves long nonnumeric IDs and parent IDs unchanged', () => {
@@ -145,10 +130,10 @@ describe('parseGtfsStopsCsv', () => {
     ]);
   });
 
-  it.each(REQUIRED_HEADERS)(
+  it.each(CSV_HEADERS)(
     'reports a missing required %s header',
     (missingHeader) => {
-      const headers = REQUIRED_HEADERS.filter(
+      const headers = CSV_HEADERS.filter(
         (header) => header !== missingHeader,
       );
       const csv = `${headers.join(',')}\n${headers.map(() => 'value').join(',')}`;
@@ -189,6 +174,12 @@ describe('parseGtfsStopsCsv', () => {
     expect(() =>
       parseGtfsStopsCsv(createCsv(' ,Location,47.37,8.54,0,')),
     ).toThrow(/missing required field.*stop_id/i);
+  });
+
+  it('reports a blank required stop_name field', () => {
+    expect(() =>
+      parseGtfsStopsCsv(createCsv('location, ,47.37,8.54,0,')),
+    ).toThrow(/missing required field.*stop_name/i);
   });
 
   it('rejects duplicate stop IDs', () => {

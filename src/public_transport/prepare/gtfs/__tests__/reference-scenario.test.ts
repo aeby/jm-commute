@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PROJECT_CONFIG } from '../../../../config';
+import { PROJECT_CONFIG } from '@core/config';
 import { parseGtfsTimeToSeconds } from '../parse-gtfs-time';
 import { validateFeedDateRange } from '../validate-feed-date-range';
 
@@ -20,7 +20,7 @@ describe('PROJECT_CONFIG transit reference scenario', () => {
     expect(referenceScenario.serviceDate).toBe('2026-09-07');
   });
 
-  it('uses an exact two-hour representative morning window', () => {
+  it('uses an exact five-hour representative morning window', () => {
     const windowStart = parseGtfsTimeToSeconds(
       referenceScenario.morningWindow.start,
     );
@@ -29,8 +29,8 @@ describe('PROJECT_CONFIG transit reference scenario', () => {
     );
 
     expect(referenceScenario.morningWindow.start).toBe('07:00:00');
-    expect(referenceScenario.morningWindow.end).toBe('09:00:00');
-    expect(windowEnd - windowStart).toBe(2 * 60 * 60);
+    expect(referenceScenario.morningWindow.end).toBe('12:00:00');
+    expect(windowEnd - windowStart).toBe(5 * 60 * 60);
   });
 
   it('falls within the fixed GTFS feed validity range', () => {

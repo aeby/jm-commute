@@ -31,12 +31,12 @@ describe('PROJECT_CONFIG', () => {
           serviceDate: '2026-09-07',
           morningWindow: {
             start: '07:00:00',
-            end: '09:00:00',
+            end: '12:00:00',
           },
         },
         localityAccess: {
-          maxAccessDistanceMeters: 700,
-          fallbackCandidateCount: 10,
+          preferredRadiusMeters: 500,
+          railDepartureBoostPercent: 25,
         },
         routing: {
           maxTransfers: 5,

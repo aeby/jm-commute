@@ -1,4 +1,4 @@
-import type { PublicTransportNetwork } from '../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../network';
 import { UNREACHED_TIME } from './state';
 import type { FastestWindowQuery } from './types';
 

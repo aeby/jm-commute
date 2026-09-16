@@ -7,7 +7,7 @@ import {
   createTemporaryDirectory,
   removeTemporaryDirectories,
 } from '../../../scripts/commute/__tests__/temporary-directories';
-import { publishMatrixArtifact } from '../matrix-artifact';
+import { publishMatrixArtifact } from '..';
 
 afterEach(removeTemporaryDirectories);
 

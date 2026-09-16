@@ -11,6 +11,7 @@ import {
 import type { RaptorRoutePattern } from '../types';
 
 const pattern: RaptorRoutePattern = {
+  routeId: 'test-route',
   stops: new Uint32Array([4, 9]),
   stopTimes: new Uint32Array([
     100, 110, 200, 210,

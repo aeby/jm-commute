@@ -6,6 +6,7 @@ import { buildTransitPlaces } from '../build-transit-places';
 const STATION_WITH_PLATFORMS: readonly TransitStop[] = [
   {
     id: 'platform-2',
+    name: 'Zürich HB, platform 2',
     latitude: 47.3782,
     longitude: 8.5402,
     kind: 'STOP_OR_PLATFORM',
@@ -13,12 +14,14 @@ const STATION_WITH_PLATFORMS: readonly TransitStop[] = [
   },
   {
     id: 'station-zurich',
+    name: 'Zürich HB',
     latitude: 47.378,
     longitude: 8.54,
     kind: 'STATION',
   },
   {
     id: 'platform-1',
+    name: 'Zürich HB, platform 1',
     latitude: 47.3779,
     longitude: 8.5399,
     kind: 'STOP_OR_PLATFORM',
@@ -27,10 +30,19 @@ const STATION_WITH_PLATFORMS: readonly TransitStop[] = [
 ];
 
 describe('buildTransitPlaces', () => {
+  it('uses the physical station name rather than a platform label', () => {
+    expect(buildTransitPlaces(STATION_WITH_PLATFORMS)[0]?.name).toBe('Zürich HB');
+    expect(buildTransitPlaces([{
+      id: 'bus', name: 'Bern, Bärenplatz', kind: 'STOP_OR_PLATFORM',
+      latitude: 47, longitude: 8,
+    }])[0]?.name).toBe('Bern, Bärenplatz');
+  });
+
   it('builds one place from a station and its sorted child platforms', () => {
     expect(buildTransitPlaces(STATION_WITH_PLATFORMS)).toEqual([
       {
         id: 'station-zurich',
+        name: 'Zürich HB',
         latitude: 47.378,
         longitude: 8.54,
         stopIds: ['platform-1', 'platform-2'],
@@ -50,6 +62,7 @@ describe('buildTransitPlaces', () => {
   it('builds a standalone stop with its own ID as its routing stop', () => {
     const stop: TransitStop = {
       id: 'village-bus-stop',
+      name: 'Village',
       latitude: 46.9,
       longitude: 8.1,
       kind: 'STOP_OR_PLATFORM',
@@ -58,6 +71,7 @@ describe('buildTransitPlaces', () => {
     expect(buildTransitPlaces([stop])).toEqual([
       {
         id: 'village-bus-stop',
+        name: 'Village',
         latitude: 46.9,
         longitude: 8.1,
         stopIds: ['village-bus-stop'],
@@ -68,6 +82,7 @@ describe('buildTransitPlaces', () => {
   it('excludes a station without child stops', () => {
     const station: TransitStop = {
       id: 'empty-station',
+      name: 'Empty Station',
       latitude: 47,
       longitude: 8,
       kind: 'STATION',
@@ -80,12 +95,14 @@ describe('buildTransitPlaces', () => {
     const stops: readonly TransitStop[] = [
       {
         id: 'station-b',
+        name: 'Station B',
         latitude: 47.2,
         longitude: 8.2,
         kind: 'STATION',
       },
       {
         id: 'platform-a',
+        name: 'Station A, platform 1',
         latitude: 47.11,
         longitude: 8.11,
         kind: 'STOP_OR_PLATFORM',
@@ -93,12 +110,14 @@ describe('buildTransitPlaces', () => {
       },
       {
         id: 'station-a',
+        name: 'Station A',
         latitude: 47.1,
         longitude: 8.1,
         kind: 'STATION',
       },
       {
         id: 'platform-b',
+        name: 'Station B, platform 1',
         latitude: 47.21,
         longitude: 8.21,
         kind: 'STOP_OR_PLATFORM',
@@ -109,12 +128,14 @@ describe('buildTransitPlaces', () => {
     expect(buildTransitPlaces(stops)).toEqual([
       {
         id: 'station-a',
+        name: 'Station A',
         latitude: 47.1,
         longitude: 8.1,
         stopIds: ['platform-a'],
       },
       {
         id: 'station-b',
+        name: 'Station B',
         latitude: 47.2,
         longitude: 8.2,
         stopIds: ['platform-b'],
@@ -125,6 +146,7 @@ describe('buildTransitPlaces', () => {
   it('sorts station and standalone results by ID', () => {
     const standaloneStop: TransitStop = {
       id: 'standalone-a',
+      name: 'Standalone',
       latitude: 46,
       longitude: 7,
       kind: 'STOP_OR_PLATFORM',

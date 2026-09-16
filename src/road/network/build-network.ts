@@ -71,7 +71,6 @@ function anchorsFingerprint(
   return sha256(
     `${JSON.stringify(
       {
-        schemaVersion: 1,
         localityCount: anchors.length,
         localityInputSha256,
         roadGraph,

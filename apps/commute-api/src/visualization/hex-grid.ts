@@ -111,7 +111,7 @@ export function pointToHexCell(
   const fractionalCubeY = -fractionalCubeX - fractionalCubeZ;
 
   let cubeX = Math.round(fractionalCubeX);
-  let cubeY = Math.round(fractionalCubeY);
+  const cubeY = Math.round(fractionalCubeY);
   let cubeZ = Math.round(fractionalCubeZ);
 
   const xDifference = Math.abs(cubeX - fractionalCubeX);
@@ -121,9 +121,7 @@ export function pointToHexCell(
   // Strict comparisons deliberately provide a stable branch order for ties.
   if (xDifference > yDifference && xDifference > zDifference) {
     cubeX = -cubeY - cubeZ;
-  } else if (yDifference > zDifference) {
-    cubeY = -cubeX - cubeZ;
-  } else {
+  } else if (yDifference <= zDifference) {
     cubeZ = -cubeX - cubeY;
   }
 

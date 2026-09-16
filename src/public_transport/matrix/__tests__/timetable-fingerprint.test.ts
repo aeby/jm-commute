@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LocalityRoutingStopIndex } from '../../network/localities/types';
-import type { PublicTransportNetwork } from '../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../network';
 
 import {
   createLocalityRoutingIndexFingerprint,
@@ -15,6 +15,7 @@ function timetable(): PublicTransportNetwork {
     routingWindowEndSeconds: 9 * 60 * 60,
     patterns: [
       {
+        routeId: 'test-route',
         stops: Uint32Array.of(0, 1),
         stopTimes: Uint32Array.of(10, 10, 20, 20),
         pickupDropOffTypes: Uint8Array.of(0),

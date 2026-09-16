@@ -1,4 +1,4 @@
-import type { PublicTransportNetwork } from '../../network/timetable/types';
+import type { PublicTransportNetwork } from '../../network';
 import { collectValidatedOriginDepartureSlots } from './collect-origin-departure-slots';
 import { isPreferredFastestJourney } from './fastest-journey-policy';
 import {

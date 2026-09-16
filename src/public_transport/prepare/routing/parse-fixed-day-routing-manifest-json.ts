@@ -26,8 +26,8 @@ export function parseFixedDayRoutingManifestJson(
     );
   }
 
-  if (!isRecord(value) || value.schemaVersion !== 1) {
-    throw new Error(`${sourceDescription} must be a schema-version 1 object.`);
+  if (!isRecord(value)) {
+    throw new Error(`${sourceDescription} must be an object.`);
   }
 
   const {
@@ -90,7 +90,6 @@ export function parseFixedDayRoutingManifestJson(
   }
 
   return {
-    schemaVersion: 1,
     ...(sourceFeedVersion === undefined ? {} : { sourceFeedVersion }),
     serviceDate,
     routingWindowStart,
