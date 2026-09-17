@@ -20,27 +20,55 @@ It loads one ordered locality array and two dense `UInt8` matrices:
 The package does not perform routing. Matrix values are whole minutes from 0
 through 240; 255 means that the destination is unavailable within four hours.
 
+## Quick usage
+
+Find destinations within a commute budget with `reachableLocalities`, or check
+a trip between two localities with `travelTime`. Both support `public_transport`
+and `road`:
+
 ```ts
 import { loadCommuteRuntime } from '@jobmate/commute/node';
 
 const runtime = await loadCommuteRuntime();
-const zurich = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
-const bern = runtime.resolve({ postalCode: '3011', city: 'Bern' });
+const origin = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
 
-if (zurich && bern) {
-  console.log(zurich.publicTransportStationName); // e.g. "Zürich, Paradeplatz"
-  const roadMinutes = runtime.travelTime(zurich, bern, 'road');
+// Find all localities reachable from Zürich within 45 minutes by public transport.
+if (origin) {
+  const reachable = runtime.reachableLocalities(origin, 30, 'public_transport');
+
+  console.table(reachable.map(({ localityId, travelMinutes }) => {
+    const locality = runtime.resolve(localityId);
+    return {
+      postalCode: locality?.postalCode,
+      city: locality?.city,
+      station: locality?.publicTransportStationName,
+      travelMinutes,
+    };
+  }));
+}
+
+// Look up the travel time from Zürich to Bern for either mode.
+const destination = runtime.resolve({ postalCode: '3011', city: 'Bern' });
+if (origin && destination) {
+  const roadMinutes = runtime.travelTime(origin, destination, 'road');
   const publicTransportMinutes = runtime.travelTime(
-    zurich,
-    bern,
+    origin,
+    destination,
     'public_transport',
   );
+  console.log({ roadMinutes, publicTransportMinutes });
 }
 ```
 
-`runtime.resolve(...)` also accepts a canonical locality ID. The viewer uses
-`runtime.reachableLocalities(...)` to scan one matrix row for destinations
-within a supplied time limit.
+- `reachableLocalities(origin, maxTravelMinutes, mode)` returns all matching
+  `{ localityId, travelMinutes }` entries, sorted by travel time. The limit is
+  inclusive and must be a whole number from 0 to 240 minutes. Each result
+  represents a locality; resolving its ID gives its name, coordinates, and
+  selected public-transport station, when available.
+- `travelTime(origin, destination, mode)` returns whole travel minutes, or
+  `undefined` when the destination is unavailable within four hours.
+
+`resolve` accepts either a canonical locality ID or a postal-code/city query.
 
 `Locality.publicTransportStationName` is the exact name of the physical station
 or standalone stop selected when compiling the public-transport matrix. It is

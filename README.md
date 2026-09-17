@@ -12,24 +12,55 @@ npm install @jobmate/commute
 ## Quick usage
 
 The package requires Node.js 20 or newer and uses ES modules. Its Node entry
-point loads the locality array and two precomputed matrices for direct lookups:
+point loads the locality array and two precomputed matrices.
+
+Find destinations within a commute budget with `reachableLocalities`, or check
+a trip between two localities with `travelTime`. Both support `public_transport`
+and `road`:
 
 ```ts
 import { loadCommuteRuntime } from '@jobmate/commute/node';
 
 const runtime = await loadCommuteRuntime();
 const origin = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
-const destination = runtime.resolve({ postalCode: '3011', city: 'Bern' });
 
+// Find all localities reachable from Zürich within 45 minutes by public transport.
+if (origin) {
+  const reachable = runtime.reachableLocalities(origin, 45, 'public_transport');
+
+  console.table(reachable.map(({ localityId, travelMinutes }) => {
+    const locality = runtime.resolve(localityId);
+    return {
+      postalCode: locality?.postalCode,
+      city: locality?.city,
+      station: locality?.publicTransportStationName,
+      travelMinutes,
+    };
+  }));
+}
+
+// Look up the travel time from Zürich to Bern for either mode.
+const destination = runtime.resolve({ postalCode: '3011', city: 'Bern' });
 if (origin && destination) {
-  runtime.travelTime(origin, destination, 'road');
-  runtime.travelTime(origin, destination, 'public_transport');
+  const roadMinutes = runtime.travelTime(origin, destination, 'road');
+  const publicTransportMinutes = runtime.travelTime(
+    origin,
+    destination,
+    'public_transport',
+  );
+  console.log({ roadMinutes, publicTransportMinutes });
 }
 ```
 
+- `reachableLocalities(origin, maxTravelMinutes, mode)` returns all matching
+  `{ localityId, travelMinutes }` entries, sorted by travel time. The limit is
+  inclusive and must be a whole number from 0 to 240 minutes. Each result
+  represents a locality; resolving its ID gives its name, coordinates, and
+  selected public-transport station, when available.
+- `travelTime(origin, destination, mode)` returns whole travel minutes, or
+  `undefined` when the destination is unavailable within four hours.
+
 `resolve` accepts either a canonical locality ID or a postal-code/city query.
-The additional `reachableLocalities(origin, maximum, mode)` row scan is kept
-for the map viewer.
 
 Loading performs only checks that give useful failure modes: locality JSON
 must be readable and structurally usable, and each matrix must contain exactly
