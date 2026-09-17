@@ -2,8 +2,48 @@
 
 Precomputed travel times between 4,073 Swiss localities.
 
-The repository has a deliberately asymmetric design: generating the matrices
-contains the routing complexity; consuming them is a direct array lookup.
+You probably want the precompiled [`@jobmate/commute`](https://www.npmjs.com/package/@jobmate/commute)
+package, which includes the ready-to-use road and public-transport matrices:
+
+```sh
+npm install @jobmate/commute
+```
+
+## Quick usage
+
+The package requires Node.js 20 or newer and uses ES modules. Its Node entry
+point loads the locality array and two precomputed matrices for direct lookups:
+
+```ts
+import { loadCommuteRuntime } from '@jobmate/commute/node';
+
+const runtime = await loadCommuteRuntime();
+const origin = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
+const destination = runtime.resolve({ postalCode: '3011', city: 'Bern' });
+
+if (origin && destination) {
+  runtime.travelTime(origin, destination, 'road');
+  runtime.travelTime(origin, destination, 'public_transport');
+}
+```
+
+`resolve` accepts either a canonical locality ID or a postal-code/city query.
+The additional `reachableLocalities(origin, maximum, mode)` row scan is kept
+for the map viewer.
+
+Loading performs only checks that give useful failure modes: locality JSON
+must be readable and structurally usable, and each matrix must contain exactly
+one byte for every origin/destination pair. Manifests are not parsed during
+lookups.
+
+See the [package README](./packages/commute/README.md) for more on the API,
+travel-time values, and data sources.
+
+## Matrix generation
+
+This repository contains the offline tooling used to generate and package the
+matrices. The routing complexity lives here; consuming the finished data is a
+direct array lookup.
 
 ```mermaid
 flowchart LR
@@ -238,34 +278,6 @@ into the standalone package. The matrix build also reads `routes.txt` from the
 same raw GTFS feed to classify standard and extended passenger rail services.
 After changing either setting, run `npm run public-transport:matrix -- --restart`
 to regenerate the matrix. The prepared trip stream can be reused.
-
-## Standalone API
-
-`@jobmate/commute` does not contain OSRM, OpenStreetMap, GTFS, RAPTOR, graph, or
-timetable code. Its Node entry point reads the locality array and two matrices,
-then exposes one small object:
-
-```ts
-import { loadCommuteRuntime } from '@jobmate/commute/node';
-
-const runtime = await loadCommuteRuntime();
-const origin = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
-const destination = runtime.resolve({ postalCode: '3011', city: 'Bern' });
-
-if (origin && destination) {
-  runtime.travelTime(origin, destination, 'road');
-  runtime.travelTime(origin, destination, 'public_transport');
-}
-```
-
-`resolve` accepts either a canonical locality ID or a postal-code/city query.
-The additional `reachableLocalities(origin, maximum, mode)` row scan is kept
-for the map viewer.
-
-Loading performs only checks that give useful failure modes: locality JSON
-must be readable and structurally usable, and each matrix must contain exactly
-one byte for every origin/destination pair. Manifests are not parsed during
-lookups.
 
 ## Internal data visualization
 
