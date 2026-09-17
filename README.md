@@ -267,10 +267,10 @@ must be readable and structurally usable, and each matrix must contain exactly
 one byte for every origin/destination pair. Manifests are not parsed during
 lookups.
 
-## API and viewer
+## Internal data visualization
 
-The Node API converts standalone reachability results to map-ready GeoJSON; the
-Vue viewer remains a presentation-only HTTP client.
+The basic map viewer and its local backend are simple tools for visual dataset
+checks, analytics, and demos. They are intended for internal use only.
 
 ```sh
 npm run commute:api:build
@@ -279,10 +279,6 @@ npm run viewer:build
 npm run commute:api:dev
 npm run viewer:dev
 ```
-
-The HTTP mode values are the same as the standalone package:
-`public_transport` and `road`. The browser receives locality and GeoJSON data,
-never matrix bytes or routing internals.
 
 ## Use of coding agents
 
