@@ -92,7 +92,7 @@ export async function startOsrmServer(
       if (status !== undefined) {
         return;
       }
-      if (!(await runDockerStop(containerName)) && status === undefined) {
+      if (!(await runDockerStop(containerName))) {
         child.kill('SIGTERM');
       }
       const stoppedBeforeTimeout = await Promise.race([

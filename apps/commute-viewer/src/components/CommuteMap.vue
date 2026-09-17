@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FilterSpecification } from 'maplibre-gl';
 import { GeoJSONSource, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { onMounted, onUnmounted, shallowRef, watch } from 'vue';
@@ -43,7 +44,7 @@ let styleReady = false;
 
 function durationFilter(
   maximumMinutes: number,
-): Parameters<MapLibreMap['setFilter']>[1] {
+): FilterSpecification {
   return ['<=', ['get', 'travelMinutes'], maximumMinutes];
 }
 
@@ -149,7 +150,7 @@ function addReachabilityLayers(currentMap: MapLibreMap): void {
   currentMap.addSource(HEX_SOURCE_ID, {
     type: 'geojson',
     data: props.featureCollection,
-  });
+  } as const);
   currentMap.addLayer(
     {
       id: HEX_FILL_LAYER_ID,
@@ -158,8 +159,8 @@ function addReachabilityLayers(currentMap: MapLibreMap): void {
       paint: {
         'fill-color': [
           'interpolate',
-          ['linear'],
-          ['get', 'travelMinutes'],
+          ['linear'] satisfies ['linear'],
+          ['get', 'travelMinutes'] satisfies ['get', string],
           0,
           '#6c45ba',
           240,

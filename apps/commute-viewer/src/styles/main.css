@@ -157,8 +157,8 @@ input {
   right: 15px;
   width: 7px;
   height: 7px;
-  border-right: 1.5px solid #55736e;
-  border-bottom: 1.5px solid #55736e;
+  border-right: 2px solid #55736e;
+  border-bottom: 2px solid #55736e;
   content: "";
   pointer-events: none;
   transform: translateY(-70%) rotate(45deg);
