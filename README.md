@@ -24,9 +24,9 @@ import { loadCommuteRuntime } from '@jobmate/commute/node';
 const runtime = await loadCommuteRuntime();
 const origin = runtime.resolve({ postalCode: '8001', city: 'Zürich' });
 
-// Find all localities reachable from Zürich within 45 minutes by public transport.
+// Find all localities reachable from Zürich within 30 minutes by public transport.
 if (origin) {
-  const reachable = runtime.reachableLocalities(origin, 45, 'public_transport');
+  const reachable = runtime.reachableLocalities(origin, 30, 'public_transport');
 
   console.table(reachable.map(({ localityId, travelMinutes }) => {
     const locality = runtime.resolve(localityId);
