@@ -283,3 +283,13 @@ npm run viewer:dev
 The HTTP mode values are the same as the standalone package:
 `public_transport` and `road`. The browser receives locality and GeoJSON data,
 never matrix bytes or routing internals.
+
+## Use of coding agents
+
+This project's goal is to generate the road and public-transport travel-time
+matrices and distribute them through the `@jobmate/commute` package for use in
+other projects. The matrix-generation code was written entirely by coding
+agents. Its involved and sometimes verbose implementation is a deliberate trade-off: 
+this repository primarily serves to generate data, and the resulting matrices have been
+tested and found to provide plausible, useful travel times. The project's
+main value lies in these tested outputs and their reuse in other projects.
